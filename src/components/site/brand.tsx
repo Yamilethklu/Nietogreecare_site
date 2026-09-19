@@ -1,0 +1,91 @@
+import { Menu, Phone, X } from "lucide-react";
+
+import { cn } from "@/lib/utils";
+
+type SiteLogoProps = {
+  className?: string;
+  size?: "sm" | "md" | "lg";
+  showTagline?: boolean;
+};
+
+/**
+ * Logotipo tipografico oficial: monograma dorado + nombre en tipografia serif elegante.
+ */
+export function SiteLogo({ className, size = "md", showTagline = false }: SiteLogoProps) {
+  const sizes = {
+    sm: { box: "size-9", initial: "text-base", name: "text-sm", tag: "text-[9px]" },
+    md: { box: "size-11", initial: "text-lg", name: "text-base", tag: "text-[10px]" },
+    lg: { box: "size-14", initial: "text-2xl", name: "text-xl", tag: "text-[11px]" },
+  }[size];
+
+  return (
+    <span className={cn("flex items-center gap-3", className)}>
+      <span
+        className={cn(
+          "relative grid shrink-0 place-items-center rounded-xl border border-gold-500/40 bg-gradient-to-br from-forest-700 via-forest-800 to-ink-950 shadow-gold",
+          sizes.box,
+        )}
+        aria-hidden="true"
+      >
+        <span className={cn("font-serif font-bold text-gold-200", sizes.initial)}>N</span>
+        <span className="absolute inset-x-2 bottom-1 h-px bg-gold-500/50" />
+      </span>
+      <span className="flex flex-col leading-none">
+        <span
+          className={cn(
+            "font-serif font-semibold uppercase tracking-[0.2em] text-white",
+            sizes.name,
+          )}
+        >
+          Nieto Green Care
+        </span>
+        <span
+          className={cn(
+            "mt-1 flex items-center gap-2 font-sans uppercase tracking-[0.3em] text-gold-300/90",
+            sizes.tag,
+          )}
+        >
+          <span className="h-px w-4 bg-gold-500/60" />
+          {showTagline ? "Austin · TX" : "LLC · Austin, TX"}
+        </span>
+      </span>
+    </span>
+  );
+}
+
+/** Boton destacado "Llamar" que abre directamente el marcador telefonico. */
+export function CallButton({
+  label,
+  phoneTel = "tel:7373144215",
+  className,
+  size = "default",
+}: {
+  label: string;
+  phoneTel?: string;
+  className?: string;
+  size?: "sm" | "default" | "lg" | "xl";
+}) {
+  const sizeClass = {
+    sm: "h-9 px-4 text-xs",
+    default: "h-11 px-5 text-sm",
+    lg: "h-12 px-7 text-base",
+    xl: "h-14 px-8 text-base",
+  }[size];
+
+  return (
+    <a
+      href={phoneTel}
+      className={cn(
+        "group inline-flex items-center justify-center gap-2 rounded-full border border-gold-500/50 bg-gradient-to-r from-forest-600 to-forest-700 font-semibold text-white shadow-[0_10px_30px_-12px_rgba(22,101,52,0.9)] transition-all duration-300 hover:from-forest-500 hover:to-forest-600 hover:shadow-[0_16px_36px_-14px_rgba(201,162,39,0.6)]",
+        sizeClass,
+        className,
+      )}
+      aria-label={`${label} — llamada telefonica`}
+    >
+      <Phone className="size-4 transition-transform duration-300 group-hover:rotate-12" />
+      {label}
+    </a>
+  );
+}
+
+export { Menu, X };

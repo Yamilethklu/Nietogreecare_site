@@ -1,0 +1,4 @@
+import { NextResponse } from "next/server";
+import { requireAdmin } from "@/lib/admin-api";
+import { getSupabaseAdminClient } from "@/lib/supabase/admin";
+export async function GET(){const gate=await requireAdmin(); if(gate.response)return gate.response; const db=getSupabaseAdminClient(); if(!db)return NextResponse.json({ok:false,error:"Supabase no configurado."},{status:503}); const [{data:metrics},{data:customers},{data:events}]=await Promise.all([db.from("dashboard_metrics").select("*").single(),db.from("customer_history").select("*").order("last_activity_at",{ascending:false}),db.from("calendar_events").select("*").order("starts_at")]); return NextResponse.json({ok:true,data:{metrics:metrics??{},customers:customers??[],events:events??[]}});}

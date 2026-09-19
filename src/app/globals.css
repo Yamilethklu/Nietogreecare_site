@@ -1,0 +1,182 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ==========================================================================
+   NIETO GREEN CARE LLC — Tema global (verde bosque, negro azabache, dorado)
+   ========================================================================== */
+
+@layer base {
+  :root {
+    --background: 222 48% 6%;
+    --foreground: 210 20% 96%;
+    --card: 222 34% 9%;
+    --card-foreground: 210 20% 96%;
+    --popover: 222 40% 8%;
+    --popover-foreground: 210 20% 96%;
+    --primary: 145 63% 26%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 28 78% 26%;
+    --secondary-foreground: 45 60% 92%;
+    --muted: 222 20% 16%;
+    --muted-foreground: 215 16% 68%;
+    --accent: 45 65% 47%;
+    --accent-foreground: 222 48% 6%;
+    --destructive: 0 72% 45%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 222 18% 20%;
+    --input: 222 18% 18%;
+    --ring: 45 65% 47%;
+    --radius: 0.9rem;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  html {
+    scroll-behavior: smooth;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    @apply bg-ink-950 font-sans text-ink-50 antialiased;
+    background-image: radial-gradient(
+        1200px 600px at 12% -8%,
+        rgba(22, 101, 52, 0.28),
+        transparent 60%
+      ),
+      radial-gradient(900px 520px at 100% 0%, rgba(120, 53, 15, 0.22), transparent 55%);
+    background-attachment: fixed;
+  }
+
+  ::selection {
+    background-color: rgba(201, 162, 39, 0.35);
+    color: #ffffff;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    @apply font-display tracking-tight;
+  }
+
+  /* Scrollbar elegante */
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: #090d16;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, #166534, #78350f);
+    border-radius: 999px;
+    border: 2px solid #090d16;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(180deg, #16a34a, #92400e);
+  }
+}
+
+@layer components {
+  .ngc-eyebrow {
+    @apply inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.28em] text-gold-300;
+  }
+
+  .ngc-title {
+    @apply font-display text-3xl font-semibold leading-tight text-white sm:text-4xl lg:text-5xl;
+  }
+
+  .ngc-subtitle {
+    @apply text-base leading-relaxed text-ink-200/80;
+  }
+
+  .ngc-gold-line {
+    @apply h-px w-full bg-gradient-to-r from-transparent via-gold-500/40 to-transparent;
+  }
+
+  .ngc-glass {
+    @apply rounded-2xl border border-white/10 bg-ink-900/60 backdrop-blur-md;
+  }
+
+  .ngc-gradient-text {
+    @apply bg-gradient-to-r from-gold-200 via-gold-400 to-gold-600 bg-clip-text text-transparent;
+  }
+
+  .ngc-section {
+    @apply relative py-16 sm:py-20 lg:py-24;
+  }
+
+  .ngc-grid-pattern {
+    background-image: linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+    background-size: 46px 46px;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  /* Marcador visible solo al enfocar con teclado */
+  .focus-ring {
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500/60 focus-visible:ring-offset-2 focus-visible:ring-offset-ink-950;
+  }
+}
+
+/* Google Maps: controles y poligonos con la paleta de la marca */
+.gm-style .gm-style-iw-c {
+  background-color: #090d16 !important;
+  border: 1px solid rgba(201, 162, 39, 0.35) !important;
+  border-radius: 14px !important;
+  color: #ffffff !important;
+}
+.gm-style .gm-style-iw-d {
+  overflow: hidden !important;
+  color: #ffffff !important;
+}
+.gm-style .gm-style-iw-tc::after {
+  background: #090d16 !important;
+}
+
+.pac-container {
+  z-index: 10000 !important;
+  background-color: #0b1120 !important;
+  border: 1px solid rgba(201, 162, 39, 0.35) !important;
+  border-radius: 14px !important;
+  font-family: var(--font-sans), system-ui, sans-serif !important;
+  box-shadow: 0 24px 60px -24px rgba(9, 13, 22, 0.9) !important;
+}
+.pac-item {
+  color: #e5e7eb !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.06) !important;
+  padding: 10px 12px !important;
+  cursor: pointer;
+}
+.pac-item:hover,
+.pac-item-selected {
+  background-color: rgba(22, 101, 52, 0.35) !important;
+}
+.pac-item-query {
+  color: #ebd79a !important;
+}
+.pac-icon {
+  filter: invert(0.85);
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+}
