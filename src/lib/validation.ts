@@ -3,9 +3,14 @@
  */
 
 import { z } from "zod";
-import { SERVICE_ZIP_CODES } from "./constants";
+import { SERVICE_ZIP_CODES, SERVICES } from "./constants";
 
 const SERVICE_ZIP_SET = new Set(SERVICE_ZIP_CODES);
+const SERVICE_KEY_SET = new Set(SERVICES.map((service) => service.key));
+const selectedServicesSchema = z.array(z.string()).min(1, "Seleccione al menos un servicio.").refine(
+  (services) => services.every((service) => SERVICE_KEY_SET.has(service)),
+  "Seleccione únicamente servicios oficiales.",
+);
 
 export const zipCodeSchema = z
   .string()
@@ -75,7 +80,7 @@ export const step3Schema = z.object({
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/, "Seleccione la fecha en la que requiere el trabajo."),
   requestedTimeWindow: z.string().trim().default(""),
-  selectedServices: z.array(z.string()).min(1, "Seleccione al menos un servicio."),
+  selectedServices: selectedServicesSchema,
 });
 
 export const step35Schema = z.object({
@@ -113,8 +118,7 @@ export const leadSubmissionSchema = z
     gateCode: z.string().trim().max(80).default(""),
     requestedDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
     requestedTimeWindow: z.string().trim().default(""),
-    selectedServices: z.array(z.string()).min(1),
-    estimatedPrice: z.number().min(0).nullable().default(null),
+    selectedServices: selectedServicesSchema,
     customerName: z.string().trim().min(2),
     customerPhone: phoneSchema,
     customerEmail: z.string().trim().email().optional().or(z.literal("")),

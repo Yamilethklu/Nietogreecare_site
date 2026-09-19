@@ -1,5 +1,5 @@
 import { BUSINESS } from "../constants";
-import { formatCurrency, formatNumber, truncate } from "../utils";
+import { formatNumber, truncate } from "../utils";
 
 /**
  * Notificaciones por SMS con Twilio.
@@ -71,7 +71,6 @@ export type SmsLeadPayload = {
   requestedDate: string | null;
   serviceCount: number;
   paymentMethodLabel: string;
-  estimatedPrice?: number | null;
   hasGateCode: boolean;
   adminUrl?: string;
 };
@@ -87,7 +86,6 @@ export function buildOwnerLeadSms(payload: SmsLeadPayload): string {
     `Servicios: ${payload.serviceCount}`,
     `Fecha: ${payload.requestedDate || "por definir"}`,
     `Pago: ${payload.paymentMethodLabel}`,
-    payload.estimatedPrice ? `Estimado: ${formatCurrency(payload.estimatedPrice)}` : "Estimado: a definir",
     payload.hasGateCode ? "Porton: SI (ver clave en el panel)" : "Porton: no",
     payload.adminUrl ? `Panel: ${payload.adminUrl}` : "",
     "No es una cita confirmada. Revise y confirme la tarifa final.",

@@ -13,7 +13,7 @@ export async function POST(request: Request) {
   const {data:lead,error}=await supabase.from("leads").insert({
     reference_code:d.referenceCode,address:d.address,formatted_address:d.formattedAddress,zip_code:d.zipCode,city:d.city,state:d.state,place_id:d.placeId,latitude:d.latitude,longitude:d.longitude,
     area_sq_ft:d.areaSqFt,area_sq_yd:d.areaSqYd,estimated_cubic_yards:d.estimatedCubicYards,depth_inches:d.depthInches,polygon:d.polygon,polygon_path:d.polygonPath,snapshot_url:d.snapshotUrl,map_bounds:d.mapBounds,
-    has_gate_code:d.hasGateCode,gate_code:d.hasGateCode?d.gateCode:null,requested_date:d.requestedDate,requested_time_window:d.requestedTimeWindow,selected_services:d.selectedServices,service_count:d.selectedServices.length,estimated_price:d.estimatedPrice,
+    has_gate_code:d.hasGateCode,gate_code:d.hasGateCode?d.gateCode:null,requested_date:d.requestedDate,requested_time_window:d.requestedTimeWindow,selected_services:d.selectedServices,service_count:d.selectedServices.length,
     customer_name:d.customerName,customer_phone:d.customerPhone,customer_email:d.customerEmail||null,details:d.details,additional_notes:d.additionalNotes,payment_method:d.paymentMethod
   }).select().single();
   if(error || !lead) return NextResponse.json({ok:false,error:"No se pudo guardar la solicitud."},{status:500});

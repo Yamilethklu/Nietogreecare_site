@@ -18,7 +18,6 @@ import {
 
 import { useLanguage } from "@/components/providers/language-provider";
 import { SectionHeading } from "@/components/site/section-heading";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { BUSINESS, SERVICES } from "@/lib/constants";
@@ -38,7 +37,7 @@ const SERVICE_ICONS: Record<string, LucideIcon> = {
   CalendarCheck,
 };
 
-/** Catalogo completo de servicios con precio base orientativo y acceso al cotizador. */
+/** Catálogo oficial de servicios, sin precios públicos. */
 export function ServicesSection() {
   const { t, isEs } = useLanguage();
 
@@ -81,13 +80,10 @@ export function ServicesSection() {
                   </p>
                 </div>
 
-                <div className="relative flex items-center justify-between gap-3 border-t border-white/8 pt-4">
+                <div className="relative border-t border-white/8 pt-4">
                   <span className="text-xs font-semibold uppercase tracking-[0.14em] text-gold-300">
                     {t.services.included}
                   </span>
-                  <Badge variant={service.featured ? "default" : "dark"}>
-                    {isEs ? "Desde" : "From"} ${service.basePrice}
-                  </Badge>
                 </div>
               </Card>
             );

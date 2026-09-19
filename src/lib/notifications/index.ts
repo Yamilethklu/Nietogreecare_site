@@ -36,7 +36,6 @@ export type LeadLike = Pick<
   | "payment_method"
   | "details"
   | "additional_notes"
-  | "estimated_price"
   | "snapshot_url"
 >;
 
@@ -92,7 +91,6 @@ function toPayload(lead: LeadLike, locale: "es" | "en", adminUrl?: string): Emai
     paymentMethodLabel: paymentMethodLabel(lead.payment_method, locale),
     details: lead.details,
     additionalNotes: lead.additional_notes,
-    estimatedPrice: lead.estimated_price ? toNumber(lead.estimated_price) : null,
     snapshotUrl: lead.snapshot_url,
     adminUrl,
   };
@@ -138,7 +136,6 @@ export async function notifyOwnerOfLead(
         requestedDate: lead.requested_date,
         serviceCount: lead.service_count ?? lead.selected_services?.length ?? 0,
         paymentMethodLabel: paymentMethodLabel(lead.payment_method, "es"),
-        estimatedPrice: lead.estimated_price ? toNumber(lead.estimated_price) : null,
         hasGateCode: Boolean(lead.has_gate_code),
         adminUrl: options.adminUrl,
       }),

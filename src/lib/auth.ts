@@ -6,17 +6,7 @@ import { ADMIN_EMAILS } from "./constants";
  */
 
 export function getAdminEmails(): string[] {
-  const fromEnv = (process.env.ADMIN_ALLOWED_EMAILS ?? "")
-    .split(",")
-    .map((email) => email.trim().toLowerCase())
-    .filter(Boolean);
-
-  const combined = new Set<string>([
-    ...ADMIN_EMAILS.map((email) => email.toLowerCase()),
-    ...fromEnv,
-  ]);
-
-  return Array.from(combined);
+  return ADMIN_EMAILS.map((email) => email.toLowerCase());
 }
 
 export function isAllowedAdminEmail(email: string | null | undefined): boolean {

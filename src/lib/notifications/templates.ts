@@ -1,6 +1,6 @@
 import { BUSINESS } from "../constants";
-import { cubicYardsFromArea } from "../geo";
-import { formatCurrency, formatDate, formatNumber } from "../utils";
+import { cubicYardsFromArea, squareFeetToSquareYards } from "../geo";
+import { formatDate, formatNumber } from "../utils";
 
 /**
  * Plantillas HTML elegantes (verde bosque + dorado) para las notificaciones.
@@ -98,7 +98,6 @@ export type EmailLeadPayload = {
   paymentMethodLabel: string;
   details?: string | null;
   additionalNotes?: string | null;
-  estimatedPrice?: number | null;
   snapshotUrl?: string | null;
   adminUrl?: string;
 };
@@ -112,7 +111,7 @@ export function ownerLeadEmail(payload: EmailLeadPayload): { subject: string; ht
           <div style="color:${COLORS.goldSoft};font-size:11px;letter-spacing:2px;text-transform:uppercase;">Area medida</div>
           <div style="color:#FFFFFF;font-size:26px;font-weight:700;margin-top:6px;">${formatNumber(payload.areaSqFt)} ft²</div>
           <div style="color:${COLORS.muted};font-size:13px;margin-top:4px;">
-            ${formatNumber(cubicYardsFromArea(payload.areaSqFt, payload.depthInches), 2)} yd³ estimadas · profundidad ${payload.depthInches}"
+            ${formatNumber(squareFeetToSquareYards(payload.areaSqFt), 1)} sq yd · ${formatNumber(cubicYardsFromArea(payload.areaSqFt, payload.depthInches), 2)} yd³ estimadas
           </div>
         </td>
       </tr>
@@ -138,10 +137,6 @@ export function ownerLeadEmail(payload: EmailLeadPayload): { subject: string; ht
       value: payload.hasGateCode ? `SI · ${payload.gateCode || "sin especificar"}` : "No",
     },
     { label: "Metodo de pago", value: payload.paymentMethodLabel },
-    {
-      label: "Estimado orientativo",
-      value: payload.estimatedPrice ? formatCurrency(payload.estimatedPrice) : "A definir",
-    },
     { label: "Detalles", value: payload.details || "—" },
     { label: "Notas del cliente", value: payload.additionalNotes || "—" },
   ];

@@ -4,7 +4,7 @@
  * son el espejo para calculos offline en el cliente y para el seed inicial.
  */
 
-import { DEFAULT_DEPTH_INCHES, SERVICE_MAP, SERVICES } from "./constants";
+import { DEFAULT_DEPTH_INCHES, SERVICES } from "./constants";
 import {
   cubicYardsFromArea,
   squareFeetToSquareYards,
@@ -163,27 +163,14 @@ export function estimateQuote({
   travelFee = 0,
 }: EstimateInput): EstimateResult {
   const safeSqFt = Math.max(0, toNumberSafe(squareFeet));
-  const selected = (services ?? []).filter((key) => key in SERVICE_MAP);
   const matchedRule = matchPricingRule(rules, safeSqFt) ?? FALLBACK_PRICING_RULES[0];
   const breakdown: EstimateBreakdownItem[] = [];
 
   const baseByArea =
     toNumberSafe(matchedRule.price) || safeSqFt * toNumberSafe(matchedRule.price_per_sq_ft, 0.02);
 
-  if (selected.includes("mowing") || selected.length === 0) {
-    breakdown.push({
-      key: "area",
-      label: matchedRule.name,
-      amount: Math.round(baseByArea),
-    });
-  }
-
-  selected
-    .filter((key) => key !== "mowing")
-    .forEach((key) => {
-      const service = SERVICE_MAP[key];
-      breakdown.push({ key, label: service.nameEs, amount: service.basePrice });
-    });
+  void services;
+  breakdown.push({ key: "area", label: matchedRule.name, amount: Math.round(baseByArea) });
 
   if (travelFee > 0) {
     breakdown.push({ key: "travel", label: "Recargo por distancia", amount: travelFee });

@@ -79,7 +79,6 @@ export interface Lead {
   requested_time_window: string | null;
   selected_services: string[] | null;
   service_count: number;
-  estimated_price: number | string | null;
   customer_name: string;
   customer_phone: string;
   customer_email?: string | null;

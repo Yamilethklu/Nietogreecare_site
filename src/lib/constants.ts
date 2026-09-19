@@ -113,122 +113,46 @@ export type ServiceDefinition = {
   descriptionEs: string;
   descriptionEn: string;
   icon: string;
-  basePrice: number;
   featured?: boolean;
 };
 
 export const SERVICES: ServiceDefinition[] = [
   {
-    key: "mowing",
-    nameEs: "Corte y orillado de cesped",
-    nameEn: "Lawn mowing & edging",
-    descriptionEs:
-      "Corte preciso, orillado, desbroce y soplado de residuos para una linea impecable.",
-    descriptionEn:
-      "Precision mowing, edging, trimming and blowing for a flawless finish.",
-    icon: "Scissors",
-    basePrice: 45,
-    featured: true,
-  },
-  {
-    key: "landscape_design",
-    nameEs: "Diseno de paisajismo",
-    nameEn: "Landscape design",
-    descriptionEs:
-      "Proyectos a medida: camas de jardin, iluminacion, grava decorativa y especies nativas de Texas.",
-    descriptionEn:
-      "Bespoke projects: garden beds, lighting, decorative gravel and Texas native plants.",
-    icon: "TreePine",
-    basePrice: 250,
-    featured: true,
-  },
-  {
-    key: "sod_installation",
-    nameEs: "Instalacion de cesped (sod)",
-    nameEn: "Sod installation",
-    descriptionEs:
-      "Preparacion del terreno, nivelacion y colocacion de sod fresco con garantia de arraigo.",
-    descriptionEn:
-      "Land prep, leveling and fresh sod installation with establishment warranty.",
-    icon: "Sprout",
-    basePrice: 320,
-    featured: true,
-  },
-  {
-    key: "fertilization",
-    nameEs: "Fertilizacion y control de maleza",
-    nameEn: "Fertilization & weed control",
-    descriptionEs:
-      "Programas de nutricion temporada por temporada y control integral de maleza.",
-    descriptionEn: "Season-by-season nutrition programs and complete weed control.",
-    icon: "Leaf",
-    basePrice: 85,
-    featured: true,
-  },
-  {
-    key: "mulching",
-    nameEs: "Mulch y cuidado de camas",
-    nameEn: "Mulching & bed care",
-    descriptionEs:
-      "Mulch premium, bordes definidos y limpieza profunda de camas de jardin.",
-    descriptionEn: "Premium mulch, crisp bed edging and deep garden bed cleanup.",
-    icon: "Layers",
-    basePrice: 150,
-  },
-  {
     key: "tree_trimming",
     nameEs: "Poda de arboles y arbustos",
-    nameEn: "Tree & shrub trimming",
+    nameEn: "Tree & Bush Trimming",
     descriptionEs:
       "Poda tecnica, formacion de setos y retiro de ramas con equipo profesional.",
     descriptionEn:
       "Technical pruning, hedge shaping and branch haul-away with pro equipment.",
     icon: "Trees",
-    basePrice: 180,
   },
   {
-    key: "yard_cleanup",
-    nameEs: "Limpieza de patio y hojas",
-    nameEn: "Yard & leaf cleanup",
-    descriptionEs:
-      "Retiro de hojas, escombro vegetal, maleza alta y basura del area verde.",
-    descriptionEn:
-      "Leaf removal, green waste hauling, tall weed clearing and yard debris pickup.",
-    icon: "Wind",
-    basePrice: 120,
+    key: "sod_installation", nameEs: "Instalación de césped", nameEn: "Sod Installation", descriptionEs: "Preparación, nivelación e instalación profesional de césped.", descriptionEn: "Professional land preparation, leveling and sod installation.", icon: "Sprout",
   },
   {
-    key: "irrigation",
-    nameEs: "Riego e irrigacion",
-    nameEn: "Irrigation & sprinkler care",
-    descriptionEs:
-      "Revision de aspersores, ajuste de cobertura, fugas y programacion de riego.",
-    descriptionEn:
-      "Sprinkler inspection, coverage tuning, leak repair and schedule programming.",
-    icon: "Droplets",
-    basePrice: 110,
+    key: "flower_beds", nameEs: "Camas de flores", nameEn: "Flower Beds", descriptionEs: "Diseño, preparación y renovación de camas de flores.", descriptionEn: "Flower bed design, preparation and renewal.", icon: "TreePine",
   },
   {
-    key: "rock_gravel",
-    nameEs: "Roca y grava decorativa",
-    nameEn: "Rock & decorative gravel",
-    descriptionEs:
-      "Instalacion de grava, piedra de rio y mantos de roca para acabados de lujo.",
-    descriptionEn: "Gravel, river rock and rock beds installed for a high-end finish.",
-    icon: "Mountain",
-    basePrice: 260,
+    key: "fertilizer", nameEs: "Fertilizante", nameEn: "Fertilizer", descriptionEs: "Nutrición para mantener un césped sano y vigoroso.", descriptionEn: "Nutrition to keep lawns healthy and vigorous.", icon: "Leaf",
   },
   {
-    key: "seasonal_program",
-    nameEs: "Programa mensual (mantenimiento)",
-    nameEn: "Monthly maintenance program",
-    descriptionEs:
-      "Visitas recurrentes con precio preferente, recordatorios automaticos y prioridad de agenda.",
-    descriptionEn:
-      "Recurring visits with preferred pricing, automatic reminders and scheduling priority.",
-    icon: "CalendarCheck",
-    basePrice: 75,
-    featured: true,
+    key: "gravel_rock_installation", nameEs: "Instalación de grava y roca", nameEn: "Gravel & Rock Installation", descriptionEs: "Instalación decorativa de grava, roca y piedra.", descriptionEn: "Decorative gravel, rock and stone installation.", icon: "Mountain",
+  },
+  {
+    key: "metal_edging", nameEs: "Bordes metálicos", nameEn: "Metal Edging", descriptionEs: "Bordes metálicos definidos para camas y áreas verdes.", descriptionEn: "Defined metal edging for beds and green areas.", icon: "Scissors",
+  },
+  {
+    key: "mulch", nameEs: "Mulch", nameEn: "Mulch", descriptionEs: "Cobertura de mulch para proteger y embellecer el jardín.", descriptionEn: "Mulch coverage to protect and enhance your landscape.", icon: "Layers",
+  },
+  {
+    key: "yard_cleanup", nameEs: "Limpieza de patio", nameEn: "Yard Clean Up", descriptionEs: "Retiro de hojas, residuos vegetales y limpieza general.", descriptionEn: "Leaf removal, green waste hauling and general yard cleanup.", icon: "Wind",
+  },
+  {
+    key: "top_soil", nameEs: "Tierra vegetal", nameEn: "Top Soil", descriptionEs: "Suministro e instalación de tierra vegetal de calidad.", descriptionEn: "Quality top soil supply and installation.", icon: "Sprout",
+  },
+  {
+    key: "weekly_biweekly_lawn_service", nameEs: "Servicio de césped semanal y quincenal", nameEn: "Weekly & Biweekly Lawn Service", descriptionEs: "Mantenimiento recurrente de césped semanal o cada dos semanas.", descriptionEn: "Recurring lawn maintenance weekly or every two weeks.", icon: "CalendarCheck", featured: true,
   },
 ];
 

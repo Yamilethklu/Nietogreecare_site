@@ -27,7 +27,7 @@ create table if not exists public.leads (
   area_sq_ft numeric(12,2) not null default 0, area_sq_yd numeric(12,2) not null default 0, estimated_cubic_yards numeric(12,2) not null default 0, depth_inches numeric(6,2) not null default 2,
   polygon jsonb, polygon_path text, snapshot_url text, map_bounds jsonb,
   has_gate_code boolean not null default false, gate_code text, requested_date date, requested_time_window text,
-  selected_services jsonb not null default '[]'::jsonb, service_count integer not null default 0, estimated_price numeric(12,2),
+  selected_services jsonb not null default '[]'::jsonb, service_count integer not null default 0,
   customer_name text not null, customer_phone text not null, customer_email text, details text, additional_notes text,
   payment_method public.payment_method not null default 'on_completion', status public.lead_status not null default 'pending', final_price numeric(12,2),
   scheduled_for timestamptz, confirmed_at timestamptz, completed_at timestamptz, cancelled_at timestamptz,
@@ -65,7 +65,7 @@ begin
     new.customer_id:=cid;
   end if;
   if tg_op='UPDATE' and old.status is distinct from 'completed' and new.status='completed' then
-    amount:=coalesce(new.final_price,new.estimated_price,0); update public.customers set total_jobs=total_jobs+1,total_revenue=total_revenue+amount,last_service_date=coalesce(new.requested_date,current_date) where id=new.customer_id; new.completed_at:=coalesce(new.completed_at,now());
+    amount:=coalesce(new.final_price,0); update public.customers set total_jobs=total_jobs+1,total_revenue=total_revenue+amount,last_service_date=coalesce(new.requested_date,current_date) where id=new.customer_id; new.completed_at:=coalesce(new.completed_at,now());
   end if;
   if tg_op='UPDATE' and old.status is distinct from 'scheduled' and new.status='scheduled' then
     start_at:=coalesce(new.scheduled_for,new.requested_date::timestamptz,now());
@@ -75,7 +75,7 @@ begin
 end $$;
 drop trigger if exists leads_lifecycle on public.leads; create trigger leads_lifecycle before insert or update on public.leads for each row execute function public.lead_lifecycle();
 
-create or replace view public.dashboard_metrics as select count(*)::int total_leads, count(*) filter(where status='pending')::int pending_leads, count(*) filter(where status='scheduled')::int scheduled_leads, count(*) filter(where status='completed')::int completed_jobs, count(*) filter(where status='cancelled')::int cancelled_leads, coalesce(sum(final_price) filter(where status='completed'),0) total_revenue, coalesce(sum(coalesce(final_price,estimated_price)) filter(where status in ('pending','scheduled')),0) pipeline_revenue, coalesce(sum(area_sq_ft),0) total_sq_ft_measured, count(distinct customer_id)::int total_customers, coalesce(avg(final_price) filter(where status='completed'),0) average_ticket from public.leads;
+create or replace view public.dashboard_metrics as select count(*)::int total_leads, count(*) filter(where status='pending')::int pending_leads, count(*) filter(where status='scheduled')::int scheduled_leads, count(*) filter(where status='completed')::int completed_jobs, count(*) filter(where status='cancelled')::int cancelled_leads, coalesce(sum(final_price) filter(where status='completed'),0) total_revenue, coalesce(sum(final_price) filter(where status in ('pending','scheduled')),0) pipeline_revenue, coalesce(sum(area_sq_ft),0) total_sq_ft_measured, count(distinct customer_id)::int total_customers, coalesce(avg(final_price) filter(where status='completed'),0) average_ticket from public.leads;
 create or replace view public.customer_history as select c.id customer_id,c.full_name,c.phone,c.email,c.city,c.zip_code,count(l.id)::int total_requests,count(l.id) filter(where l.status='completed')::int completed_jobs,count(l.id) filter(where l.status='scheduled')::int scheduled_jobs,count(l.id) filter(where l.status='cancelled')::int cancelled_jobs,coalesce(sum(l.final_price) filter(where l.status='completed'),0) total_paid,max(l.requested_date) last_requested_date,max(l.updated_at) last_activity_at from public.customers c left join public.leads l on l.customer_id=c.id group by c.id;
 
 insert into public.pricing_rules(name,service_key,min_sq_ft,max_sq_ft,price,price_per_sq_ft,capacity_per_day,duration_minutes) values ('Hasta 2,000 sq ft','mowing',0,2000,45,.035,6,45),('2,000 a 5,000 sq ft','mowing',2000,5000,75,.025,5,60),('5,000 a 10,000 sq ft','mowing',5000,10000,125,.018,4,90),('Más de 10,000 sq ft','mowing',10000,null,210,.013,3,120) on conflict do nothing;

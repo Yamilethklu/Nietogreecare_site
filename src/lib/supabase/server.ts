@@ -25,3 +25,10 @@ export async function createClient() {
     }
   );
 }
+
+/** Usuario de la sesión actual para proteger las rutas administrativas. */
+export async function getCurrentUser() {
+  const supabase = await createClient();
+  const { data, error } = await supabase.auth.getUser();
+  return error ? null : data.user;
+}
