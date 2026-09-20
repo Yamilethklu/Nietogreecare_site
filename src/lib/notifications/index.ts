@@ -11,6 +11,12 @@ import {
   sendSms,
 } from "./sms";
 
+export type AppointmentNotificationLead = LeadLike & {
+  customer_email?: string | null;
+  final_price?: number | string | null;
+  scheduled_for?: string | null;
+};
+
 /**
  * Orquestador de notificaciones.
  * Canales soportados: Email (Resend / SMTP) y SMS (Twilio). Nunca WhatsApp.
@@ -215,6 +221,46 @@ export async function notifyCustomerOfLead(
     errors: results
       .filter((item) => !item.ok && item.error)
       .map((item) => `${item.channel}: ${item.error}`),
+  };
+}
+
+/** Confirma una cita agendada al cliente con la fecha de trabajo y tarifa acordada. */
+export async function notifyCustomerOfAppointment(
+  lead: AppointmentNotificationLead,
+): Promise<NotificationSummary> {
+  const scheduledAt = lead.scheduled_for || lead.requested_date;
+  const scheduledLabel = scheduledAt ? formatDate(scheduledAt) : "por definir";
+  const amount = Number(lead.final_price ?? 0);
+  const priceLabel = new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: Number.isInteger(amount) ? 0 : 2,
+    maximumFractionDigits: 2,
+  }).format(Number.isFinite(amount) ? amount : 0);
+  const services = serviceNames(lead.selected_services).join(", ") || "Servicio de jardinería";
+  const results: ChannelResult[] = [];
+
+  const subject = `Cita confirmada — Nieto Green Care (${lead.reference_code})`;
+  const html = `<div style="font-family:Arial,sans-serif;line-height:1.6;color:#172018"><h2>Su cita está confirmada</h2><p>Hola ${lead.customer_name},</p><p>Hemos agendado su servicio con Nieto Green Care LLC.</p><ul><li><strong>Fecha:</strong> ${scheduledLabel}</li><li><strong>Dirección:</strong> ${lead.address}</li><li><strong>Servicios:</strong> ${services}</li><li><strong>Tarifa acordada:</strong> ${priceLabel}</li></ul><p>Si necesita hacer algún cambio, llámenos al ${BUSINESS.phoneDisplay}.</p></div>`;
+
+  if (lead.customer_email) {
+    const email = await sendEmail({ to: lead.customer_email, subject, html });
+    results.push({ channel: "email", target: lead.customer_email, ok: email.ok, provider: email.provider, error: email.error });
+  }
+
+  if (lead.customer_phone && isSmsConfigured()) {
+    const sms = await sendSms(
+      lead.customer_phone,
+      `Nieto Green Care LLC: su cita ${lead.reference_code} está agendada para ${scheduledLabel}. Tarifa acordada: ${priceLabel}. Dirección: ${lead.address}. Tel. ${BUSINESS.phoneDisplay}.`,
+    );
+    results.push({ channel: "sms", target: lead.customer_phone, ok: sms.ok, provider: sms.provider, error: sms.error });
+  }
+
+  return {
+    results,
+    emailSent: results.some((item) => item.channel === "email" && item.ok),
+    smsSent: results.some((item) => item.channel === "sms" && item.ok),
+    errors: results.filter((item) => !item.ok && item.error).map((item) => `${item.channel}: ${item.error}`),
   };
 }
 

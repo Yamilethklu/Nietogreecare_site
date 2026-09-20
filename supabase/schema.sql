@@ -49,6 +49,7 @@ create table if not exists public.calendar_events (
   starts_at timestamptz not null, ends_at timestamptz, reminder_at timestamptz, reminder_sent boolean not null default false, all_day boolean not null default false,
   created_at timestamptz not null default now(), updated_at timestamptz not null default now()
 );
+create unique index if not exists calendar_events_lead_id_key on public.calendar_events (lead_id) where lead_id is not null;
 
 create or replace function public.set_updated_at() returns trigger language plpgsql as $$ begin new.updated_at=now(); return new; end $$;
 drop trigger if exists customers_updated_at on public.customers; create trigger customers_updated_at before update on public.customers for each row execute function public.set_updated_at();
@@ -67,9 +68,9 @@ begin
   if tg_op='UPDATE' and old.status is distinct from 'completed' and new.status='completed' then
     amount:=coalesce(new.final_price,0); update public.customers set total_jobs=total_jobs+1,total_revenue=total_revenue+amount,last_service_date=coalesce(new.requested_date,current_date) where id=new.customer_id; new.completed_at:=coalesce(new.completed_at,now());
   end if;
-  if tg_op='UPDATE' and old.status is distinct from 'scheduled' and new.status='scheduled' then
+  if tg_op='UPDATE' and new.status in ('scheduled','completed') then
     start_at:=coalesce(new.scheduled_for,new.requested_date::timestamptz,now());
-    insert into public.calendar_events(lead_id,title,description,starts_at,ends_at,reminder_at) values(new.id,'Nieto Green Care - '||new.customer_name,new.address||' · '||new.customer_phone,start_at,start_at+interval '2 hours',start_at-interval '1 day'); new.confirmed_at:=coalesce(new.confirmed_at,now());
+    insert into public.calendar_events(lead_id,title,description,starts_at,ends_at,reminder_at) values(new.id,'Nieto Green Care - '||new.customer_name,concat_ws(E'\n','Teléfono: '||new.customer_phone,'Dirección: '||new.address,'Yardas: '||coalesce(new.estimated_cubic_yards::text,'0'),'Servicios: '||coalesce(new.selected_services::text,'[]')),start_at,start_at+interval '2 hours',start_at-interval '1 day') on conflict (lead_id) where lead_id is not null do update set title=excluded.title,description=excluded.description,starts_at=excluded.starts_at,ends_at=excluded.ends_at,reminder_at=excluded.reminder_at,updated_at=now(); new.confirmed_at:=coalesce(new.confirmed_at,now());
   elsif tg_op='UPDATE' and new.status='cancelled' then delete from public.calendar_events where lead_id=new.id; new.cancelled_at:=coalesce(new.cancelled_at,now()); end if;
   return new;
 end $$;
