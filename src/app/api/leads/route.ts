@@ -18,6 +18,6 @@ export async function POST(request: Request) {
   }).select().single();
   if(error || !lead) return NextResponse.json({ok:false,error:"No se pudo guardar la solicitud."},{status:500});
   const notice=await notifyOwnerOfLead(lead,{adminUrl:`${process.env.NEXT_PUBLIC_SITE_URL||""}/admin`});
-  await supabase.from("leads").update({notification_email_sent:notice.emailSent,notification_sms_sent:notice.smsSent,notification_error:notice.errors.join(" | ")||null}).eq("id",lead.id);
+  await supabase.from("leads").update({notification_email_sent:notice.emailSent,notification_sms_sent:false,notification_error:notice.errors.join(" | ")||null}).eq("id",lead.id);
   return NextResponse.json({ok:true,data:{id:lead.id,referenceCode:lead.reference_code}});
 }

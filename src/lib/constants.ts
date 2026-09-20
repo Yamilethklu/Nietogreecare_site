@@ -3,6 +3,8 @@
  * Fuente unica de verdad para datos de contacto, cobertura y catalogo de servicios.
  */
 
+const ownerSmsNumber = process.env.NEXT_PUBLIC_OWNER_SMS_NUMBER || "+17373144215";
+
 export const BUSINESS = {
   name: "Nieto Green Care LLC",
   legalName: "Nieto Green Care LLC",
@@ -13,7 +15,8 @@ export const BUSINESS = {
   phoneDisplay: "737-314-4215",
   phoneRaw: "7373144215",
   phoneE164: "+17373144215",
-  telHref: "tel:7373144215",
+  ownerSmsNumber,
+  telHref: "tel:+17373144215",
   email: "nietogreencare@gmail.com",
   city: "Austin",
   state: "TX",
@@ -27,6 +30,12 @@ export const BUSINESS = {
   zelleName: "Nieto Green Care LLC",
   zellePhone: "737-314-4215",
 } as const;
+
+/** Abre el cliente SMS nativo con el texto de cotización solicitado. */
+export function buildOwnerSmsHref(address: string): string {
+  const body = `Hola Nieto Green Care LLC, solicito información sobre la cotización en ${address} para los servicios seleccionados.`;
+  return `sms:${BUSINESS.ownerSmsNumber}?body=${encodeURIComponent(body)}`;
+}
 
 export const ADMIN_EMAILS = [
   "nietogreencare@gmail.com",

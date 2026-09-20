@@ -1,5 +1,6 @@
 import { Menu, Phone, X } from "lucide-react";
 
+import { BUSINESS } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 
 type SiteLogoProps = {
@@ -56,7 +57,7 @@ export function SiteLogo({ className, size = "md", showTagline = false }: SiteLo
 /** Boton destacado "Llamar" que abre directamente el marcador telefonico. */
 export function CallButton({
   label,
-  phoneTel = "tel:7373144215",
+  phoneTel = BUSINESS.telHref,
   className,
   size = "default",
 }: {

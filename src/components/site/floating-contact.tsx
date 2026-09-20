@@ -15,7 +15,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { FieldError, FieldHint, Input, Label, Textarea } from "@/components/ui/input";
-import { BUSINESS } from "@/lib/constants";
+import { buildOwnerSmsHref, BUSINESS } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 
 type Channel = "sms" | "email";
@@ -38,7 +38,7 @@ const EMPTY_FORM: FormState = {
 
 /**
  * Boton flotante "Enviar mensaje": se puede arrastrar para no tapar el contenido.
- * Envia el mensaje a /api/contact (notificacion por SMS y/o correo, nunca WhatsApp).
+ * Envía el formulario a /api/contact por correo y ofrece SMS nativo directo al propietario.
  */
 export function FloatingContact() {
   const { t, isEs } = useLanguage();
@@ -180,6 +180,12 @@ export function FloatingContact() {
                 </p>
               </div>
               <DialogFooter>
+                <Button asChild variant="outline">
+                  <a href={buildOwnerSmsHref(form.message || "la información de mi solicitud")}>
+                    <MessageSquare className="size-4" />
+                    {isEs ? "Enviar SMS directo" : "Text directly"}
+                  </a>
+                </Button>
                 <Button asChild variant="dark">
                   <a href={BUSINESS.telHref}>
                     <Phone className="size-4" />
@@ -290,12 +296,20 @@ export function FloatingContact() {
               </FieldHint>
 
               <DialogFooter className="items-center justify-between sm:justify-between">
+                <div className="flex flex-wrap gap-2">
+                <Button asChild variant="outline" size="sm">
+                  <a href={buildOwnerSmsHref(form.message || "la información de mi solicitud")}>
+                    <MessageSquare className="size-4" />
+                    {isEs ? "Enviar SMS directo" : "Text directly"}
+                  </a>
+                </Button>
                 <Button asChild variant="ghost" size="sm">
                   <a href={BUSINESS.telHref}>
                     <Phone className="size-4" />
                     {t.floating.callInstead}
                   </a>
                 </Button>
+                </div>
                 <Button type="submit" variant="gold" disabled={sending}>
                   {sending ? t.floating.sending : t.floating.send}
                   <Send className="size-4" />

@@ -12,7 +12,7 @@ const nextConfig = {
     }
     return config;
   },
-  serverExternalPackages: ['nodemailer', 'twilio'],
+  serverExternalPackages: ['nodemailer'],
 };
 
 export default nextConfig;

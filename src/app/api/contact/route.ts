@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 
 import { BUSINESS } from "@/lib/constants";
 import { sendEmail } from "@/lib/notifications/email";
-import { isSmsConfigured, ownerSmsNumber, sendSms } from "@/lib/notifications/sms";
 import { contactMessageSchema, formatZodErrors } from "@/lib/validation";
 import { formatPhone } from "@/lib/utils";
 
@@ -18,8 +17,8 @@ const escapeHtml = (value: string) =>
 
 /**
  * POST /api/contact
- * Mensajes rapidos del boton flotante. Se notifica al dueno por correo y SMS
- * (nunca WhatsApp) y se responde con el canal preferido por el cliente.
+ * Mensajes rapidos del boton flotante. El servidor notifica al dueño únicamente
+ * por correo; el SMS se abre de forma nativa desde el navegador del cliente.
  */
 export async function POST(request: Request) {
   let payload: unknown;
@@ -75,25 +74,7 @@ export async function POST(request: Request) {
     replyTo: data.email || undefined,
   });
 
-  let smsSent = false;
-  if (isSmsConfigured()) {
-    const sms = await sendSms(
-      ownerSmsNumber(),
-      [
-        "MENSAJE WEB — Nieto Green Care",
-        `Cliente: ${data.name}`,
-        `Tel: ${formatPhone(data.phone)}`,
-        data.email ? `Correo: ${data.email}` : "",
-        `Prefiere: ${channelLabel}`,
-        `Mensaje: ${data.message.slice(0, 280)}`,
-      ]
-        .filter(Boolean)
-        .join("\n"),
-    );
-    smsSent = sms.ok;
-  }
-
-  if (!emailResult.ok && !smsSent) {
+  if (!emailResult.ok) {
     return NextResponse.json(
       {
         ok: false,
@@ -108,7 +89,6 @@ export async function POST(request: Request) {
     ok: true,
     data: {
       emailSent: emailResult.ok,
-      smsSent,
       preferredChannel: data.preferredChannel,
     },
   });
