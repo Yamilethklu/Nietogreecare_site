@@ -18,10 +18,15 @@ export type GalleryCarouselItem = {
 };
 
 const AUTOPLAY_MS = 6500;
+const VIDEO_EXTENSION = /\.(mp4|mov|webm)(?:$|[?#])/i;
+
+function isVideoUrl(url: string) {
+  return VIDEO_EXTENSION.test(url);
+}
 
 /**
- * Carrusel de trabajos reales (hasta 5 imagenes configuradas en el panel).
- * Si la galeria aun no tiene imagenes publicadas muestra un estado elegante.
+ * Carrusel de trabajos reales (hasta 5 fotos o videos configurados en el panel).
+ * Las fotos conservan su encuadre completo y los videos se reproducen con controles.
  */
 export function GalleryCarousel({ items }: { items: GalleryCarouselItem[] }) {
   const { t, isEs } = useLanguage();
@@ -80,15 +85,28 @@ export function GalleryCarousel({ items }: { items: GalleryCarouselItem[] }) {
                     )}
                     aria-hidden={slideIndex !== index}
                   >
-                    <Image
-                      src={slide.url}
-                      alt={slide.title ?? `${t.gallery.slide} ${slideIndex + 1}`}
-                      fill
-                      sizes="(max-width: 1024px) 100vw, 1100px"
-                      className="object-cover"
-                      priority={slideIndex === 0}
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-ink-950 via-ink-950/40 to-transparent" />
+                    {isVideoUrl(slide.url) ? (
+                      <video
+                        controls
+                        playsInline
+                        preload="metadata"
+                        className="absolute inset-0 size-full bg-black object-contain"
+                        aria-label={slide.title ?? `${isEs ? "Video" : "Video"} ${slideIndex + 1}`}
+                      >
+                        <source src={slide.url} />
+                        {isEs ? "Tu navegador no puede reproducir este video." : "Your browser cannot play this video."}
+                      </video>
+                    ) : (
+                      <Image
+                        src={slide.url}
+                        alt={slide.title ?? `${t.gallery.slide} ${slideIndex + 1}`}
+                        fill
+                        sizes="(max-width: 1024px) 100vw, 1100px"
+                        className="bg-black object-contain"
+                        priority={slideIndex === 0}
+                      />
+                    )}
+                    <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-ink-950 via-ink-950/35 to-transparent" />
 
                     {(slide.title || slide.description || slide.location) && (
                       <div className="absolute inset-x-0 bottom-0 flex flex-col gap-1 p-5 sm:p-7">
@@ -141,7 +159,7 @@ export function GalleryCarousel({ items }: { items: GalleryCarouselItem[] }) {
                     key={slide.id}
                     type="button"
                     onClick={() => setIndex(slideIndex)}
-                    aria-label={`${isEs ? "Ir a la imagen" : "Go to image"} ${slideIndex + 1}`}
+                    aria-label={`${isEs ? "Ir al elemento" : "Go to item"} ${slideIndex + 1}`}
                     aria-current={slideIndex === index}
                     className={cn(
                       "h-2 rounded-full transition-all duration-300",

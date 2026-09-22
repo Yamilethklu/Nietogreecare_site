@@ -6,6 +6,17 @@ import { slugify } from "@/lib/utils";
 
 export const runtime = "nodejs";
 
+const ALLOWED_GALLERY_MEDIA_TYPES = [
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/avif",
+  "video/mp4",
+  "video/quicktime",
+  "video/webm",
+] as const;
+const MAX_GALLERY_MEDIA_BYTES = 50 * 1024 * 1024;
+
 export async function GET() {
   const gate = await requireAdmin();
   if (gate.response) return gate.response;
@@ -20,7 +31,7 @@ export async function POST(request: Request) {
   if (gate.response) return gate.response;
   const form = await request.formData().catch(() => null);
   const file = form?.get("file");
-  if (!(file instanceof File) || !["image/jpeg", "image/png"].includes(file.type) || file.size > 10 * 1024 * 1024) return NextResponse.json({ ok: false, error: "Seleccione una imagen JPG o PNG válida de máximo 10 MB." }, { status: 422 });
+  if (!(file instanceof File) || !ALLOWED_GALLERY_MEDIA_TYPES.includes(file.type as (typeof ALLOWED_GALLERY_MEDIA_TYPES)[number]) || file.size > MAX_GALLERY_MEDIA_BYTES) return NextResponse.json({ ok: false, error: "Seleccione una foto o video JPG, PNG, WEBP, AVIF, MP4, MOV o WEBM válido de máximo 50 MB." }, { status: 422 });
   const db = getSupabaseAdminClient();
   if (!db) return NextResponse.json({ ok: false, error: "Supabase no configurado." }, { status: 503 });
   const path = `gallery/${Date.now()}-${slugify(file.name)}`;

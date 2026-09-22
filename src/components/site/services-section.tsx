@@ -42,45 +42,45 @@ export function ServicesSection() {
 
   return (
     <section id="servicios" className="ngc-section scroll-mt-24">
-      <div className="container flex flex-col gap-12">
+      <div className="container flex flex-col gap-9">
         <SectionHeading
           eyebrow={t.services.eyebrow}
           title={t.services.title}
           subtitle={t.services.subtitle}
         />
 
-        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {SERVICES.map((service) => {
             const Icon = SERVICE_ICONS[service.icon] ?? Leaf;
             return (
               <Card
                 key={service.key}
                 className={cn(
-                  "group relative flex flex-col gap-4 overflow-hidden p-6 transition-all duration-500",
+                  "group relative flex min-h-[210px] flex-col gap-3 overflow-hidden p-4 transition-all duration-500 sm:p-5",
                   "hover:-translate-y-1 hover:border-gold-500/40 hover:shadow-gold",
                   service.featured && "border-gold-500/25 bg-ink-900/85",
                 )}
               >
                 <span
                   aria-hidden="true"
-                  className="pointer-events-none absolute -right-16 -top-16 size-40 rounded-full bg-forest-600/20 blur-3xl transition-opacity duration-500 group-hover:bg-gold-500/20"
+                  className="pointer-events-none absolute -right-12 -top-12 size-28 rounded-full bg-forest-600/20 blur-3xl transition-opacity duration-500 group-hover:bg-gold-500/20"
                 />
 
-                <span className="relative grid size-12 place-items-center rounded-xl border border-gold-500/30 bg-gradient-to-br from-forest-700 to-ink-950 shadow-inset">
-                  <Icon className="size-6 text-gold-200" />
+                <span className="relative grid size-10 place-items-center rounded-lg border border-gold-500/30 bg-gradient-to-br from-forest-700 to-ink-950 shadow-inset">
+                  <Icon className="size-5 text-gold-200" />
                 </span>
 
                 <div className="relative flex flex-1 flex-col gap-2">
-                  <h3 className="font-display text-lg font-semibold leading-snug text-white">
+                  <h3 className="font-display text-base font-semibold leading-snug text-white sm:text-lg">
                     {isEs ? service.nameEs : service.nameEn}
                   </h3>
-                  <p className="text-sm leading-relaxed text-ink-200/75">
+                  <p className="text-xs leading-relaxed text-ink-200/80 sm:text-sm">
                     {isEs ? service.descriptionEs : service.descriptionEn}
                   </p>
                 </div>
 
-                <div className="relative border-t border-white/8 pt-4">
-                  <span className="text-xs font-semibold uppercase tracking-[0.14em] text-gold-300">
+                <div className="relative border-t border-white/8 pt-3">
+                  <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-gold-300">
                     {t.services.included}
                   </span>
                 </div>

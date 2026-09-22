@@ -103,7 +103,7 @@ export function Hero() {
           initial="hidden"
           animate="visible"
           variants={{ visible: { transition: { staggerChildren: 0.09 } } }}
-          className="relative flex flex-col gap-6 rounded-3xl bg-ink-950/22 p-5 shadow-[0_12px_48px_-24px_rgba(9,13,22,0.95)] backdrop-blur-[2px] sm:p-7 lg:-ml-7"
+          className="relative flex flex-col gap-6 rounded-3xl border border-white/15 bg-emerald-950/80 p-5 shadow-[0_12px_48px_-24px_rgba(9,13,22,0.95)] backdrop-blur-md sm:p-7 lg:-ml-7"
         >
           <motion.div variants={fadeUp} transition={{ duration: 0.5 }}>
             <Badge className="gap-2">
@@ -126,7 +126,7 @@ export function Hero() {
           <motion.p
             variants={fadeUp}
             transition={{ duration: 0.6 }}
-            className="max-w-2xl text-base leading-relaxed text-ink-100/90 drop-shadow-[0_1px_12px_rgba(9,13,22,0.95)] sm:text-lg"
+            className="max-w-2xl text-base leading-relaxed text-white drop-shadow-[0_1px_12px_rgba(9,13,22,0.95)] sm:text-lg"
           >
             {t.hero.subtitle}
           </motion.p>
@@ -153,8 +153,8 @@ export function Hero() {
             className="flex flex-wrap gap-x-6 gap-y-3 pt-2"
           >
             {trust.map((item) => (
-              <li key={item.label} className="flex items-center gap-2 text-sm text-ink-100/85">
-                <item.icon className="size-4 text-gold-400" />
+              <li key={item.label} className="flex items-center gap-2 text-sm text-white">
+                <item.icon className="size-4 text-amber-300" />
                 {item.label}
               </li>
             ))}
@@ -173,18 +173,18 @@ export function Hero() {
             {metrics.map((metric) => (
               <li
                 key={metric.label}
-                className="rounded-2xl border border-white/25 bg-black/60 p-4 backdrop-blur-sm"
+                className="rounded-2xl border border-white/30 bg-black/70 p-4 backdrop-blur-md"
               >
-                <metric.icon className="size-4 text-amber-400" />
+                <metric.icon className="size-4 text-amber-300" />
                 <p className="mt-2 text-[11px] uppercase tracking-[0.14em] text-white">
                   {metric.label}
                 </p>
-                <p className="mt-1 text-sm font-semibold text-amber-400">{metric.value}</p>
+                <p className="mt-1 text-sm font-semibold text-amber-300">{metric.value}</p>
               </li>
             ))}
           </ul>
 
-          <div className="mt-4 flex flex-wrap items-center justify-center gap-2 rounded-2xl border border-white/20 bg-black/60 p-3 backdrop-blur-sm">
+          <div className="mt-4 flex flex-wrap items-center justify-center gap-2 rounded-2xl border border-white/30 bg-black/70 p-3 backdrop-blur-md">
             {SERVICE_CITIES.map((city) => (
               <a
                 key={city}
@@ -195,19 +195,19 @@ export function Hero() {
                 )}
                 target="_blank"
                 rel="noreferrer"
-                className="rounded-full border border-amber-400/45 bg-black/40 px-3 py-1 text-xs font-semibold text-white transition hover:border-amber-400 hover:text-amber-400"
+                className="rounded-full border border-amber-300/55 bg-black/50 px-3 py-1 text-xs font-semibold text-white transition hover:border-amber-300 hover:text-amber-300"
               >
                 {city}
               </a>
             ))}
           </div>
 
-          <div className="mt-5 flex items-center justify-center gap-2 rounded-2xl border border-white/20 bg-black/60 px-4 py-3 text-sm font-semibold text-white backdrop-blur-sm">
-            <Phone className="size-4 text-amber-400" />
-            <a href={BUSINESS.telHref} className="hover:text-amber-400">
+          <div className="mt-5 flex items-center justify-center gap-2 rounded-2xl border border-white/30 bg-black/70 px-4 py-3 text-sm font-semibold text-white backdrop-blur-md">
+            <Phone className="size-4 text-amber-300" />
+            <a href={BUSINESS.telHref} className="text-amber-300 hover:text-amber-200">
               {BUSINESS.phoneDisplay}
             </a>
-            <span className="text-amber-400">·</span>
+            <span className="text-amber-300">·</span>
             <span>{isEs ? BUSINESS.hoursEs : BUSINESS.hoursEn}</span>
           </div>
         </motion.div>
