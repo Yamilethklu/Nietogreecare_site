@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Cesped premium">
+  <defs>
+    <linearGradient id="ngc-sky" x1="0" y1="0" x2="0.2" y2="1">
+      <stop offset="0" stop-color="#06301a" />
+      <stop offset="0.45" stop-color="#0b4023" />
+      <stop offset="1" stop-color="#03110a" />
+    </linearGradient>
+    <radialGradient id="ngc-sun" cx="0.78" cy="0.14" r="0.62">
+      <stop offset="0" stop-color="#c9a227" stop-opacity="0.42" />
+      <stop offset="0.55" stop-color="#c9a227" stop-opacity="0.12" />
+      <stop offset="1" stop-color="#c9a227" stop-opacity="0" />
+    </radialGradient>
+    <radialGradient id="ngc-vignette" cx="0.5" cy="0.5" r="0.75">
+      <stop offset="0.55" stop-color="#03110a" stop-opacity="0" />
+      <stop offset="1" stop-color="#020905" stop-opacity="0.85" />
+    </radialGradient>
+    <pattern id="ngc-blades" width="150" height="96" patternUnits="userSpaceOnUse">
+      <g fill="none" stroke-linecap="round">
+        <path d="M6 98C12 70 18 52 30 26" stroke="#1fa05a" stroke-width="2.6" opacity="0.45" />
+        <path d="M32 98C36 74 44 56 58 34" stroke="#0f5f36" stroke-width="4.4" opacity="0.55" />
+        <path d="M60 98C68 76 76 60 92 42" stroke="#166534" stroke-width="3.2" opacity="0.5" />
+        <path d="M98 98C102 72 110 54 124 34" stroke="#0c4d2c" stroke-width="4.8" opacity="0.6" />
+        <path d="M126 98C134 78 140 64 150 48" stroke="#22a95f" stroke-width="2.2" opacity="0.35" />
+        <path d="M74 98C78 82 84 70 96 58" stroke="#083a22" stroke-width="3.6" opacity="0.45" />
+      </g>
+    </pattern>
+    <linearGradient id="ngc-horizon" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0b4023" stop-opacity="0" />
+      <stop offset="1" stop-color="#03110a" stop-opacity="0.9" />
+    </linearGradient>
+  </defs>
+  <rect width="1600" height="900" fill="url(#ngc-sky)" />
+  <rect width="1600" height="900" fill="url(#ngc-blades)" />
+  <rect width="1600" height="900" fill="url(#ngc-sun)" />
+  <rect y="360" width="1600" height="540" fill="url(#ngc-horizon)" opacity="0.7" />
+  <rect width="1600" height="900" fill="url(#ngc-vignette)" />
+</svg>

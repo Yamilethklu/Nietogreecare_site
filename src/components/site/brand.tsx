@@ -1,5 +1,6 @@
 import { Menu, Phone, X } from "lucide-react";
 
+import { BrandIcon } from "@/components/site/brand-icon";
 import { BUSINESS } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 
@@ -10,27 +11,22 @@ type SiteLogoProps = {
 };
 
 /**
- * Logotipo tipografico oficial: monograma dorado + nombre en tipografia serif elegante.
+ * Logotipo oficial: icono circular destacado (/public/1icon.png) con el nombre
+ * de la marca en tipografia serif elegante y su leyenda.
  */
 export function SiteLogo({ className, size = "md", showTagline = false }: SiteLogoProps) {
   const sizes = {
-    sm: { box: "size-9", initial: "text-base", name: "text-sm", tag: "text-[9px]" },
-    md: { box: "size-11", initial: "text-lg", name: "text-base", tag: "text-[10px]" },
-    lg: { box: "size-14", initial: "text-2xl", name: "text-xl", tag: "text-[11px]" },
+    sm: { name: "text-sm", tag: "text-[9px]" },
+    md: { name: "text-base", tag: "text-[10px]" },
+    lg: { name: "text-xl", tag: "text-[11px]" },
   }[size];
 
   return (
-    <span className={cn("flex items-center gap-3", className)}>
-      <span
-        className={cn(
-          "relative grid shrink-0 place-items-center rounded-xl border border-gold-500/40 bg-gradient-to-br from-forest-700 via-forest-800 to-ink-950 shadow-gold",
-          sizes.box,
-        )}
-        aria-hidden="true"
-      >
-        <span className={cn("font-serif font-bold text-gold-200", sizes.initial)}>N</span>
-        <span className="absolute inset-x-2 bottom-1 h-px bg-gold-500/50" />
-      </span>
+    <span className={cn("group flex items-center gap-3", className)}>
+      <BrandIcon
+        size={size}
+        className="transition-transform duration-300 group-hover:scale-105"
+      />
       <span className="flex flex-col leading-none">
         <span
           className={cn(
