@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import Link from "next/link";
 import {
   Ban,
   Banknote,
@@ -21,7 +20,7 @@ import { SectionHeading } from "@/components/site/section-heading";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, LuxuryCard } from "@/components/ui/card";
-import { BUSINESS } from "@/lib/constants";
+import { buildWhatsAppHref, BUSINESS } from "@/lib/constants";
 
 /**
  * Metodos de pago (efectivo, Cash App y Zelle).
@@ -234,7 +233,9 @@ export function PaymentsSection({
 
         <div className="flex flex-col items-center justify-center gap-3 sm:flex-row">
           <Button asChild variant="gold" size="lg">
-            <Link href="/quote">{t.payments.ctaQuote}</Link>
+            <a href={buildWhatsAppHref()} target="_blank" rel="noreferrer">
+              {t.payments.ctaQuote}
+            </a>
           </Button>
           <Button asChild variant="outline" size="lg">
             <a href={BUSINESS.telHref}>{t.payments.ctaCall}</a>

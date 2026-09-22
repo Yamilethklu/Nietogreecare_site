@@ -18,6 +18,7 @@ export const BUSINESS = {
   ownerSmsNumber,
   // Formato nacional limpio solicitado para abrir el marcador nativo en móviles.
   telHref: "tel:7373144215",
+  whatsappHref: "https://wa.me/17373144215",
   email: "nietogreencare@gmail.com",
   city: "Austin",
   state: "TX",
@@ -36,6 +37,12 @@ export const BUSINESS = {
 export function buildOwnerSmsHref(address: string): string {
   const body = `Hola Nieto Green Care LLC, solicito información sobre la cotización en ${address} para los servicios seleccionados.`;
   return `sms:${BUSINESS.ownerSmsNumber}?body=${encodeURIComponent(body)}`;
+}
+
+/** Abre WhatsApp con un mensaje breve para solicitar información o cotización. */
+export function buildWhatsAppHref(message?: string): string {
+  const body = message || "Hola Nieto Green Care LLC, me gustaría solicitar una cotización.";
+  return `${BUSINESS.whatsappHref}?text=${encodeURIComponent(body)}`;
 }
 
 export const ADMIN_EMAILS = [

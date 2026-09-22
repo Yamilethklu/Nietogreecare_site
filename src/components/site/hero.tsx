@@ -19,7 +19,7 @@ import { CallButton } from "@/components/site/brand";
 import { CoverageMap } from "@/components/site/coverage-map";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { BUSINESS, SERVICE_CITIES, SERVICE_ZIP_CODES } from "@/lib/constants";
+import { buildWhatsAppHref, BUSINESS, SERVICE_CITIES, SERVICE_ZIP_CODES } from "@/lib/constants";
 import { usePublicAsset } from "@/lib/use-public-asset";
 
 const fadeUp = {
@@ -54,9 +54,14 @@ export function Hero() {
       value: `${SERVICE_ZIP_CODES.length}+`,
     },
     {
+      icon: Phone,
+      label: isEs ? "Llámenos" : "Call us",
+      value: BUSINESS.phoneDisplay,
+    },
+    {
       icon: Clock,
-      label: isEs ? "Respuesta" : "Response time",
-      value: isEs ? "Mismo día" : "Same day",
+      label: isEs ? "Horario" : "Hours",
+      value: isEs ? "Lun–Sáb · 7 AM–7 PM" : "Mon–Sat · 7 AM–7 PM",
     },
   ];
 
@@ -132,7 +137,9 @@ export function Hero() {
             className="flex flex-col gap-3 sm:flex-row sm:items-center"
           >
             <Button asChild variant="gold" size="lg">
-              <Link href="/quote">{t.hero.ctaQuote}</Link>
+              <a href={buildWhatsAppHref()} target="_blank" rel="noreferrer">
+                {t.hero.ctaQuote}
+              </a>
             </Button>
             <CallButton label={t.hero.ctaCall} size="lg" />
             <Button asChild variant="ghost" size="lg">
@@ -162,35 +169,46 @@ export function Hero() {
         >
           <CoverageMap />
 
-          <ul className="mt-4 grid gap-3 sm:grid-cols-3">
+          <ul className="mt-4 grid gap-3 sm:grid-cols-2">
             {metrics.map((metric) => (
               <li
                 key={metric.label}
-                className="rounded-2xl border border-white/10 bg-white/[0.03] p-3"
+                className="rounded-2xl border border-white/25 bg-black/60 p-4 backdrop-blur-sm"
               >
-                <metric.icon className="size-4 text-gold-300" />
-                <p className="mt-2 text-[11px] uppercase tracking-[0.14em] text-ink-400">
+                <metric.icon className="size-4 text-amber-400" />
+                <p className="mt-2 text-[11px] uppercase tracking-[0.14em] text-white">
                   {metric.label}
                 </p>
-                <p className="text-sm font-semibold text-white">{metric.value}</p>
+                <p className="mt-1 text-sm font-semibold text-amber-400">{metric.value}</p>
               </li>
             ))}
           </ul>
 
-          <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+          <div className="mt-4 flex flex-wrap items-center justify-center gap-2 rounded-2xl border border-white/20 bg-black/60 p-3 backdrop-blur-sm">
             {SERVICE_CITIES.map((city) => (
-              <span
+              <a
                 key={city}
-                className="rounded-full border border-white/10 bg-white/[0.03] px-3 py-1 text-xs text-ink-200/80"
+                href={buildWhatsAppHref(
+                  isEs
+                    ? `Hola, necesito servicio de paisajismo en ${city}.`
+                    : `Hello, I need landscaping service in ${city}.`,
+                )}
+                target="_blank"
+                rel="noreferrer"
+                className="rounded-full border border-amber-400/45 bg-black/40 px-3 py-1 text-xs font-semibold text-white transition hover:border-amber-400 hover:text-amber-400"
               >
                 {city}
-              </span>
+              </a>
             ))}
           </div>
 
-          <div className="mt-5 flex items-center justify-center gap-2 text-xs text-ink-400">
-            <Phone className="size-3.5 text-gold-500" />
-            {BUSINESS.phoneDisplay} · {isEs ? BUSINESS.hoursEs : BUSINESS.hoursEn}
+          <div className="mt-5 flex items-center justify-center gap-2 rounded-2xl border border-white/20 bg-black/60 px-4 py-3 text-sm font-semibold text-white backdrop-blur-sm">
+            <Phone className="size-4 text-amber-400" />
+            <a href={BUSINESS.telHref} className="hover:text-amber-400">
+              {BUSINESS.phoneDisplay}
+            </a>
+            <span className="text-amber-400">·</span>
+            <span>{isEs ? BUSINESS.hoursEs : BUSINESS.hoursEn}</span>
           </div>
         </motion.div>
       </div>

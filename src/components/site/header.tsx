@@ -8,7 +8,7 @@ import { useLanguage } from "@/components/providers/language-provider";
 import { CallButton } from "@/components/site/brand";
 import { SiteLogo } from "@/components/site/brand";
 import { Button } from "@/components/ui/button";
-import { BUSINESS } from "@/lib/constants";
+import { buildWhatsAppHref, BUSINESS } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 
 /**
@@ -86,7 +86,9 @@ export function SiteHeader() {
           <CallButton label={t.nav.call} className="hidden sm:inline-flex" />
 
           <Button asChild variant="gold" size="default" className="hidden xl:inline-flex">
-            <Link href="/quote">{t.nav.quoteButton}</Link>
+            <a href={buildWhatsAppHref()} target="_blank" rel="noreferrer">
+              {t.nav.quoteButton}
+            </a>
           </Button>
 
           <button
@@ -124,9 +126,9 @@ export function SiteHeader() {
 
           <CallButton label={`${t.nav.call} ${BUSINESS.phoneDisplay}`} className="w-full" />
           <Button asChild variant="gold" className="w-full">
-            <Link href="/quote" onClick={() => setOpen(false)}>
+            <a href={buildWhatsAppHref()} target="_blank" rel="noreferrer" onClick={() => setOpen(false)}>
               {t.nav.quoteButton}
-            </Link>
+            </a>
           </Button>
           <Button asChild variant="ghost" className="w-full">
             <Link href="/admin" onClick={() => setOpen(false)}>

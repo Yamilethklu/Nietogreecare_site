@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import {
   CalendarCheck,
   Droplets,
@@ -20,7 +19,7 @@ import { useLanguage } from "@/components/providers/language-provider";
 import { SectionHeading } from "@/components/site/section-heading";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { BUSINESS, SERVICES } from "@/lib/constants";
+import { buildWhatsAppHref, BUSINESS, SERVICES } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 
 /** Mapa de iconos lucide declarados en constants.SERVICES. */
@@ -92,7 +91,9 @@ export function ServicesSection() {
 
         <div className="flex flex-col items-center justify-center gap-3 sm:flex-row">
           <Button asChild variant="gold" size="lg">
-            <Link href="/quote">{t.services.ctaQuote}</Link>
+            <a href={buildWhatsAppHref()} target="_blank" rel="noreferrer">
+              {t.services.ctaQuote}
+            </a>
           </Button>
           <Button asChild variant="outline" size="lg">
             <a href={BUSINESS.telHref} aria-label={`${t.services.ctaCall} ${BUSINESS.phoneDisplay}`}>
