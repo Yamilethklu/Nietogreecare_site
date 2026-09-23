@@ -160,6 +160,7 @@ export function QuoteAreaMap({ isEs }: { isEs: boolean }) {
     }
 
     let listener: any = null;
+    let managerListener: any = null;
     let timerId: any = null;
     let cancelled = false;
 
