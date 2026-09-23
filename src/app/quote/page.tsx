@@ -13,7 +13,7 @@ import { Step1Address, Step1AddressHint } from "@/components/quote/step-1-addres
 import { QuoteAreaMap } from "@/components/quote/quote-area-map";
 import { buildOwnerSmsHref, BUSINESS, PAYMENT_METHODS, SERVICES, TIME_WINDOWS, ZIP_CITY_MAP } from "@/lib/constants";
 import { formatNumber, todayISO } from "@/lib/utils";
-import { step1Schema, step2Schema, step35Schema, step3Schema } from "@/lib/validation";
+import { formatZodErrors, step1Schema, step2Schema, step35Schema, step3Schema } from "@/lib/validation";
 import { pickSubmissionFields, TOTAL_STEPS, useQuoteStore } from "@/store/quote-store";
 
 export default function QuotePage() {
@@ -25,13 +25,28 @@ export default function QuotePage() {
   const [sending, setSending] = React.useState(false);
 
   React.useEffect(() => {
-    void useQuoteStore.persist.rehydrate().then(() => setHydrated(true));
+    const res = useQuoteStore.persist.rehydrate();
+    if (res && typeof (res as Promise<void>).then === "function") {
+      void (res as Promise<void>).then(() => setHydrated(true));
+    } else {
+      setHydrated(true);
+    }
   }, []);
 
   const next = () => {
-    const result = store.step === 1 ? step1Schema.safeParse(store) : store.step === 2 ? step2Schema.safeParse({ measurement: store.measurement }) : store.step === 3 ? step3Schema.safeParse(store) : store.step === 4 ? step35Schema.safeParse(store) : { success: true as const };
+    const result =
+      store.step === 1
+        ? step1Schema.safeParse(store)
+        : store.step === 2
+          ? step2Schema.safeParse({ measurement: store.measurement })
+          : store.step === 3
+            ? step3Schema.safeParse(store)
+            : store.step === 4
+              ? step35Schema.safeParse(store)
+              : ({ success: true } as const);
+
     if (!result.success) {
-      setErrors(Object.fromEntries(result.error.issues.map((issue) => [String(issue.path[0] ?? "form"), issue.message])));
+      setErrors(formatZodErrors(result.error));
       toast({ title: isEs ? "Revise la información" : "Review your information", variant: "error" });
       return;
     }
