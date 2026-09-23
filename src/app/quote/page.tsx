@@ -25,8 +25,7 @@ export default function QuotePage() {
   const [sending, setSending] = React.useState(false);
 
   React.useEffect(() => {
-    useQuoteStore.persist.rehydrate();
-    setHydrated(true);
+    void useQuoteStore.persist.rehydrate().then(() => setHydrated(true));
   }, []);
 
   const next = () => {
@@ -41,10 +40,14 @@ export default function QuotePage() {
   };
 
   const submit = async () => {
-    const referenceCode = store.ensureReferenceCode();
     setSending(true);
     try {
-      const response = await fetch("/api/leads", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...pickSubmissionFields(store), referenceCode, snapshotUrl: null }) });
+      const referenceCode = store.ensureReferenceCode();
+      const response = await fetch("/api/leads", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...pickSubmissionFields(store), referenceCode, snapshotUrl: null }),
+      });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok || !payload.ok) throw new Error(payload.error ?? "No se pudo enviar la solicitud.");
       store.markSubmitted();
