@@ -88,9 +88,9 @@ export function QuoteAreaMap({ isEs }: { isEs: boolean }) {
     }
 
     let listener: any = null;
-    if (g.drawing?.DrawingManager && g.drawing?.OverlayType && g.geometry?.spherical) {
+    if (g.drawing?.DrawingManager && g.drawing?.OverlayType && g.geometry?.spherical && g.ControlPosition) {
       const manager = new g.drawing.DrawingManager({
-        drawingMode: g.drawing.OverlayType.POLYGON,
+        drawingMode: saved && saved.length >= 3 ? null : g.drawing.OverlayType.POLYGON,
         drawingControl: true,
         drawingControlOptions: {
           position: g.ControlPosition.TOP_CENTER,
