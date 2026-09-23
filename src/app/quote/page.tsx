@@ -49,7 +49,7 @@ export default function QuotePage() {
   }, []);
 
   React.useEffect(() => {
-    if (store.step !== 2 || !mapsReady || !mapNode.current || !window.google?.maps?.drawing || !window.google?.maps?.geometry) return;
+    if (store.step !== 2 || !mapsReady || !mapNode.current || !window.google?.maps) return;
     const g = window.google.maps;
     const center = { lat: store.latitude ?? AUSTIN_CENTER.lat, lng: store.longitude ?? AUSTIN_CENTER.lng };
     let map: any;
@@ -57,12 +57,11 @@ export default function QuotePage() {
     try {
       map = new g.Map(mapNode.current, { center, zoom: 19, mapTypeId: "hybrid", streetViewControl: false, fullscreenControl: false });
       mapRef.current = map;
-      manager = new g.drawing.DrawingManager({ drawingMode: g.drawing.OverlayType.POLYGON, drawingControl: true, drawingControlOptions: { position: g.ControlPosition.TOP_CENTER, drawingModes: [g.drawing.OverlayType.POLYGON] }, polygonOptions: { fillColor: "#22c55e", fillOpacity: 0.45, strokeColor: "#16a34a", strokeWeight: 2, clickable: true, editable: true, zIndex: 1 } });
-      manager.setMap(map);
       let previousPolygon: any = null;
       const savePolygon = (polygon: any) => {
         try {
           const points = polygon.getPath().getArray().map((point: any) => ({ lat: point.lat(), lng: point.lng() })) as PolygonPoint[];
+          if (!g.geometry?.spherical) return;
           const areaSqM = g.geometry.spherical.computeArea(polygon.getPath());
           if (points.length < 3 || !Number.isFinite(areaSqM)) return;
           const areaInSqFt = Math.round(areaSqM * 10.7639);
@@ -83,8 +82,13 @@ export default function QuotePage() {
       };
       const savedPolygon = useQuoteStore.getState().measurement?.polygon;
       if (savedPolygon && savedPolygon.length >= 3) bindPolygon(new g.Polygon({ paths: savedPolygon, editable: true, draggable: true, map }));
-      const overlayListener = g.event.addListener(manager, "overlaycomplete", (event: any) => { if (event.type === g.drawing.OverlayType.POLYGON) { previousPolygon?.setMap(null); manager.setDrawingMode(null); bindPolygon(event.overlay); } });
-      return () => { g.event.removeListener(overlayListener); previousPolygon?.setMap(null); manager.setMap(null); mapRef.current = null; };
+      let overlayListener: any = null;
+      if (g.drawing && g.geometry?.spherical && g.ControlPosition) {
+        manager = new g.drawing.DrawingManager({ drawingMode: g.drawing.OverlayType.POLYGON, drawingControl: true, drawingControlOptions: { position: g.ControlPosition.TOP_CENTER, drawingModes: [g.drawing.OverlayType.POLYGON] }, polygonOptions: { fillColor: "#22c55e", fillOpacity: 0.45, strokeColor: "#16a34a", strokeWeight: 2, editable: true } });
+        manager.setMap(map);
+        overlayListener = g.event.addListener(manager, "overlaycomplete", (event: any) => { if (event.type === g.drawing.OverlayType.POLYGON) { previousPolygon?.setMap(null); manager.setDrawingMode(null); bindPolygon(event.overlay); } });
+      }
+      return () => { if (overlayListener) g.event.removeListener(overlayListener); previousPolygon?.setMap(null); manager?.setMap(null); mapRef.current = null; };
     } catch {
       mapRef.current = null;
       return () => undefined;
