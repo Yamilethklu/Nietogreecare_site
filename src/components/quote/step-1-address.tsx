@@ -57,12 +57,14 @@ export function Step1Address({ error, isEs }: AddressAutocompleteProps) {
               if (!location) return;
               const components = place.address_components ?? [];
               const component = (type: string) => components.find((item: { types?: string[] }) => item.types?.includes(type))?.long_name ?? "";
-              selectedAddressRef.current = place.formatted_address ?? inputRef.current?.value ?? null;
+              const fullAddress = place.formatted_address ?? inputRef.current?.value ?? "";
+              const zipCode = component("postal_code");
+              selectedAddressRef.current = fullAddress;
               setAddress({
-                address: place.formatted_address ?? inputRef.current?.value ?? "",
-                formattedAddress: place.formatted_address ?? "",
+                address: fullAddress,
+                formattedAddress: fullAddress,
                 city: component("locality") || component("sublocality"),
-                zipCode: component("postal_code"),
+                zipCode: zipCode,
                 state: component("administrative_area_level_1") || "TX",
                 placeId: place.place_id ?? null,
                 latitude: location.lat(),
@@ -143,9 +145,10 @@ export function Step1Address({ error, isEs }: AddressAutocompleteProps) {
   }, [address, placesReady]);
 
   const selectSuggestion = (suggestion: AddressSuggestion) => {
-    selectedAddressRef.current = suggestion.address;
+    const fullAddress = suggestion.label || suggestion.address;
+    selectedAddressRef.current = fullAddress;
     setAddress({
-      address: suggestion.address,
+      address: fullAddress,
       formattedAddress: suggestion.label,
       city: suggestion.city,
       zipCode: suggestion.zipCode,
