@@ -1,0 +1,6 @@
+{
+    "geminicodeassist.agentDebugMode": true,
+    "geminicodeassist.agentYoloMode": true,
+    "geminicodeassist.localCodebaseAwareness": true,
+    "geminicodeassist.outlines.automaticOutlineGeneration": true
+}

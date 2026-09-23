@@ -24,9 +24,8 @@ type AddressSuggestion = {
 };
 
 /**
- * Campo de dirección manual del primer paso. Google Places no se inicializa
- * aquí para que errores de credenciales o facturación de Maps nunca muestren
- * un popup ni impidan continuar con la dirección escrita por el cliente.
+ * Campo de dirección del primer paso con sugerencias oficiales de Google Places.
+ * La búsqueda interna solo sirve como respaldo cuando Maps no está disponible.
  */
 export function Step1Address({ error, isEs }: AddressAutocompleteProps) {
   const address = useQuoteStore((state) => state.address);
@@ -101,6 +100,12 @@ export function Step1Address({ error, isEs }: AddressAutocompleteProps) {
 
   React.useEffect(() => {
     const query = address.trim();
+    if (placesReady) {
+      setSuggestions([]);
+      setIsSearching(false);
+      return;
+    }
+
     if (selectedAddressRef.current === query) {
       selectedAddressRef.current = null;
       return;
@@ -135,7 +140,7 @@ export function Step1Address({ error, isEs }: AddressAutocompleteProps) {
       controller.abort();
       window.clearTimeout(timeoutId);
     };
-  }, [address]);
+  }, [address, placesReady]);
 
   const selectSuggestion = (suggestion: AddressSuggestion) => {
     selectedAddressRef.current = suggestion.address;
