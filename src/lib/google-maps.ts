@@ -35,25 +35,34 @@ export function loadGoogleMaps(): Promise<boolean> {
   if (loaderPromise) return loaderPromise;
 
   loaderPromise = new Promise<boolean>((resolve) => {
-    window.gm_authFailure = () => resolve(false);
+    let settled = false;
+    const finish = (available: boolean) => {
+      if (settled) return;
+      settled = true;
+      loaderPromise = null;
+      resolve(available);
+    };
+
+    window.gm_authFailure = () => finish(false);
     const existing = document.querySelector<HTMLScriptElement>("script[data-ngc-maps]");
     if (existing) {
-      existing.addEventListener("load", () => resolve(Boolean(window.google?.maps)), {
+      existing.addEventListener("load", () => finish(Boolean(window.google?.maps)), {
         once: true,
       });
-      existing.addEventListener("error", () => resolve(false), { once: true });
+      existing.addEventListener("error", () => finish(false), { once: true });
       return;
     }
 
     const script = document.createElement("script");
     script.dataset.ngcMaps = "true";
     script.async = true;
-    window.initNgcMaps = () => resolve(Boolean(window.google?.maps));
+    script.defer = true;
+    window.initNgcMaps = () => finish(Boolean(window.google?.maps));
     script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(
       GOOGLE_MAPS_API_KEY,
-    )}&libraries=places,drawing,geometry&callback=initNgcMaps`;
-    script.onload = () => resolve(Boolean(window.google?.maps));
-    script.onerror = () => resolve(false);
+    )}&v=weekly&loading=async&libraries=places,drawing,geometry&callback=initNgcMaps`;
+    script.onload = () => finish(Boolean(window.google?.maps));
+    script.onerror = () => finish(false);
     document.head.appendChild(script);
   });
 
