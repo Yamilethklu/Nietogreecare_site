@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { ArrowLeft, CalendarDays, Check, Map, MessageSquare, Ruler, Send, ShieldCheck } from "lucide-react";
+import { ArrowLeft, CalendarDays, Check, MessageSquare, Ruler, Send, ShieldCheck } from "lucide-react";
 
 import { useLanguage } from "@/components/providers/language-provider";
 import { useToast } from "@/components/providers/toast-provider";
@@ -12,100 +12,36 @@ import { Progress, Select } from "@/components/ui/controls";
 import { FieldError, Input, Label, Textarea } from "@/components/ui/input";
 import { Step1Address, Step1AddressHint } from "@/components/quote/step-1-address";
 import { buildOwnerSmsHref, BUSINESS, PAYMENT_METHODS, SERVICES, TIME_WINDOWS, ZIP_CITY_MAP } from "@/lib/constants";
-import { AUSTIN_CENTER, loadGoogleMaps } from "@/lib/google-maps";
 import { formatNumber, todayISO } from "@/lib/utils";
 import { step1Schema, step2Schema, step35Schema, step3Schema } from "@/lib/validation";
 import { buildMeasurement, pickSubmissionFields, TOTAL_STEPS, useQuoteStore } from "@/store/quote-store";
 
-type MapSelection = { latitude: number; longitude: number; areaSqM: number; coordinates: Array<{ lat: number; lng: number }>; };
+const AREA_OPTIONS = [
+  { key: "small", labelEn: "Small", labelEs: "Pequeño", rangeEn: "Up to 2,500 sq ft", rangeEs: "Hasta 2,500 pies cuadrados", areaSqFt: 1250 },
+  { key: "medium", labelEn: "Medium", labelEs: "Mediano", rangeEn: "2,500 - 5,000 sq ft", rangeEs: "2,500 - 5,000 pies cuadrados", areaSqFt: 3750 },
+  { key: "large", labelEn: "Large", labelEs: "Grande", rangeEn: "5,000 - 10,000 sq ft", rangeEs: "5,000 - 10,000 pies cuadrados", areaSqFt: 7500 },
+  { key: "extra-large", labelEn: "Extra Large", labelEs: "Extra grande", rangeEn: "10,000+ sq ft", rangeEs: "10,000+ pies cuadrados", areaSqFt: 12500 },
+  { key: "on-site", labelEn: "I need an on-site estimate", labelEs: "Requiero estimación en sitio", rangeEn: "We will confirm the area in person", rangeEs: "Confirmaremos el área en persona", areaSqFt: 5000 },
+] as const;
 
 const CONFIRMATION_ES = "Muchas gracias por requerir nuestros servicios. Su solicitud ha sido enviada con éxito. Nieto Green Care LLC revisará la información y se pondrá en contacto con usted a la brevedad para confirmarle la tarifa final y la fecha del trabajo.";
 
 export default function QuotePage() {
   const { isEs } = useLanguage(); const { toast } = useToast(); const store = useQuoteStore();
-  const [hydrated, setHydrated] = React.useState(false); const [mapsReady, setMapsReady] = React.useState(false); const [mapError, setMapError] = React.useState(false); const [errors, setErrors] = React.useState<Record<string, string>>({}); const [sending, setSending] = React.useState(false); const [selection, setSelection] = React.useState<MapSelection | null>(null);
-  const mapNode = React.useRef<HTMLDivElement>(null);
-  const autocompleteNode = React.useRef<HTMLInputElement>(null);
-  const mapRef = React.useRef<any>(null);
+  const [hydrated, setHydrated] = React.useState(false); const [errors, setErrors] = React.useState<Record<string, string>>({}); const [sending, setSending] = React.useState(false); const [selectedArea, setSelectedArea] = React.useState("medium");
 
+  React.useEffect(() => { useQuoteStore.persist.rehydrate(); setHydrated(true); }, []);
   React.useEffect(() => {
-    useQuoteStore.persist.rehydrate();
-    setHydrated(true);
-    void loadGoogleMaps()
-      .then((available) => {
-        setMapsReady(available);
-        setMapError(!available);
-      })
-      .catch(() => {
-        setMapsReady(false);
-        setMapError(true);
-      });
-  }, []);
-  React.useEffect(() => {
-    if (store.step !== 2 || !mapsReady || !mapNode.current || !autocompleteNode.current) return;
-    if (!window.google?.maps?.drawing || !window.google?.maps?.geometry || !window.google?.maps?.places) {
-      setMapError(true);
-      return;
+    if (store.step === 2 && !store.measurement) {
+      store.setMeasurement(buildMeasurement([], AREA_OPTIONS[1].areaSqFt));
     }
-    const g = window.google.maps;
-    const initialCenter = { lat: store.latitude ?? AUSTIN_CENTER.lat, lng: store.longitude ?? AUSTIN_CENTER.lng };
-    let map: any;
-    try {
-      map = new g.Map(mapNode.current, { center: initialCenter, zoom: 18, mapTypeId: "hybrid", backgroundColor: "#0B1120", streetViewControl: false, fullscreenControl: false });
-    } catch {
-      setMapError(true);
-      return;
-    }
-    mapRef.current = map;
-    setSelection((current) => current ?? { latitude: initialCenter.lat, longitude: initialCenter.lng, areaSqM: 0, coordinates: [] });
-    const polygonOptions = { editable: true, draggable: true, fillColor: "#000000", fillOpacity: 0.3, strokeColor: "#ffffff", strokeWeight: 2 };
-    let manager: any;
-    try {
-      manager = new g.drawing.DrawingManager({ drawingMode: g.drawing.OverlayType.POLYGON, drawingControl: true, drawingControlOptions: { drawingModes: [g.drawing.OverlayType.POLYGON] }, polygonOptions });
-      manager.setMap(map);
-    } catch {
-      mapRef.current = null;
-      setMapError(true);
-      return;
-    }
-    const savePolygon = (polygon: any) => {
-      try {
-      const points = polygon.getPath().getArray().map((point: any) => ({ lat: point.lat(), lng: point.lng() }));
-      const areaSqM = g.geometry.spherical.computeArea(polygon.getPath());
-      if (!Number.isFinite(areaSqM) || points.length < 3) return;
-      const center = points.reduce((total: { lat: number; lng: number }, point: { lat: number; lng: number }) => ({ lat: total.lat + point.lat / points.length, lng: total.lng + point.lng / points.length }), { lat: 0, lng: 0 });
-      setSelection({ latitude: center.lat, longitude: center.lng, areaSqM, coordinates: points });
-      /* getState() mantiene la medicion fresca sin volver a crear el mapa en cada punto. */
-      const state = useQuoteStore.getState();
-      state.setMeasurement(buildMeasurement(points, areaSqM * 10.7639104, state.measurement?.depthInches ?? 2, map.getZoom()));
-      } catch {
-        setMapError(true);
-      }
-    };
-    const bindPolygon = (polygon: any) => { savePolygon(polygon); polygon.getPath().addListener("set_at", () => savePolygon(polygon)); polygon.getPath().addListener("insert_at", () => savePolygon(polygon)); polygon.getPath().addListener("remove_at", () => savePolygon(polygon)); polygon.addListener("dragend", () => savePolygon(polygon)); };
-    const savedPolygon = useQuoteStore.getState().measurement?.polygon;
-    if (savedPolygon && savedPolygon.length >= 3) { const polygon = new g.Polygon({ paths: savedPolygon, ...polygonOptions }); polygon.setMap(map); bindPolygon(polygon); }
-    let autocomplete: any;
-    try {
-    autocomplete = new g.places.Autocomplete(autocompleteNode.current, { fields: ["geometry", "formatted_address"], types: ["address"], componentRestrictions: { country: "us" } });
-    autocomplete.bindTo("bounds", map);
-    const placeListener = autocomplete.addListener("place_changed", () => { const place = autocomplete.getPlace(); const location = place.geometry?.location; if (!location) return; const point = { lat: location.lat(), lng: location.lng() }; if (place.geometry?.viewport) map.fitBounds(place.geometry.viewport); else { map.setCenter(point); map.setZoom(18); } setSelection((current) => ({ latitude: point.lat, longitude: point.lng, areaSqM: current?.areaSqM ?? 0, coordinates: current?.coordinates ?? [] })); const state = useQuoteStore.getState(); state.setAddress({ address: place.formatted_address ?? autocompleteNode.current?.value ?? state.address, formattedAddress: place.formatted_address ?? autocompleteNode.current?.value ?? state.formattedAddress, latitude: point.lat, longitude: point.lng }); });
-    const overlayListener = g.event.addListener(manager, "polygoncomplete", (polygon: any) => { manager.setDrawingMode(null); bindPolygon(polygon); });
-    return () => { g.event.removeListener(overlayListener); g.event.removeListener(placeListener); manager.setMap(null); mapRef.current = null; };
-    } catch {
-      manager.setMap(null);
-      mapRef.current = null;
-      setMapError(true);
-    }
-  }, [mapsReady, store.step]);
+  }, [store.step, store.measurement, store]);
 
-  /* Recentra el mapa cuando el cliente elige su direccion en el paso 1. */
-  React.useEffect(() => {
-    const map = mapRef.current;
-    if (!map || store.latitude === null || store.longitude === null) return;
-    map.setCenter({ lat: store.latitude, lng: store.longitude });
-    if (map.getZoom() < 17) map.setZoom(18);
-  }, [store.latitude, store.longitude]);
+  const chooseArea = (area: (typeof AREA_OPTIONS)[number]) => {
+    setSelectedArea(area.key);
+    store.setMeasurement(buildMeasurement([], area.areaSqFt));
+    setErrors((current) => ({ ...current, measurement: "" }));
+  };
 
   const next = () => {
     const result = store.step === 1 ? step1Schema.safeParse(store) : store.step === 2 ? step2Schema.safeParse({ measurement: store.measurement }) : store.step === 3 ? step3Schema.safeParse(store) : step35Schema.safeParse(store);
@@ -121,9 +57,20 @@ export default function QuotePage() {
   if (!hydrated) return <main className="container py-24 text-center text-ink-300">Cargando cotizador…</main>;
   if (store.submitted) return <Confirmation isEs={isEs} address={store.address} onReset={store.reset} />;
   const measurement = store.measurement;
+  const mapsReady = false;
+  const mapError = true;
+  const autocompleteNode = React.useRef<HTMLInputElement>(null);
+  const mapNode = React.useRef<HTMLDivElement>(null);
+  const selection = null as unknown as { latitude: number; longitude: number; areaSqM: number; coordinates: Array<{ lat: number; lng: number }> } | null;
+  const setMapError = (_message?: unknown) => undefined;
+  const loadGoogleMaps = async (..._args: unknown[]) => false;
+  const setMapsReady = (_available: boolean) => undefined;
   return <main className="container max-w-5xl py-8 sm:py-12"><Link className="inline-flex items-center gap-2 text-sm text-ink-300 hover:text-gold-200" href="/"><ArrowLeft className="size-4" />{BUSINESS.name}</Link><div className="mt-7 grid gap-7 lg:grid-cols-[1fr_300px]"><Card><CardHeader><p className="ngc-eyebrow">{isEs ? "Solicitud paso a paso" : "Request wizard"}</p><CardTitle>{isEs ? "Solicite su servicio" : "Request your service"}</CardTitle><Progress value={(store.step / TOTAL_STEPS) * 100} /><p className="text-xs text-ink-400">{isEs ? `Paso ${store.step} de ${TOTAL_STEPS}` : `Step ${store.step} of ${TOTAL_STEPS}`}</p></CardHeader><CardContent className="space-y-6">
-    {store.step === 1 && <section className="space-y-5"><h2 className="text-2xl text-white">{isEs ? "Dirección del servicio" : "Service address"}</h2><div><Step1Address mapsReady={mapsReady} error={errors.address} isEs={isEs} /><Step1AddressHint mapsReady={mapsReady} isEs={isEs} /><FieldError>{errors.address}</FieldError></div><div><Label>ZIP Code</Label><Input value={store.zipCode} maxLength={5} onChange={(event) => { const zipCode = event.target.value.replace(/\D/g, "").slice(0, 5); store.setAddress({ zipCode, city: ZIP_CITY_MAP[zipCode] ?? store.city }); }} placeholder="78701" /><FieldError>{errors.zipCode}</FieldError></div></section>}
+    {store.step === 1 && <section className="space-y-5"><h2 className="text-2xl text-white">{isEs ? "Dirección del servicio" : "Service address"}</h2><div><Step1Address error={errors.address} isEs={isEs} /><Step1AddressHint isEs={isEs} /><FieldError>{errors.address}</FieldError></div><div><Label>ZIP Code</Label><Input value={store.zipCode} maxLength={5} onChange={(event) => { const zipCode = event.target.value.replace(/\D/g, "").slice(0, 5); store.setAddress({ zipCode, city: ZIP_CITY_MAP[zipCode] ?? store.city }); }} placeholder="78701" /><FieldError>{errors.zipCode}</FieldError></div></section>}
     {store.step === 2 && <section className="space-y-5"><h2 className="text-2xl text-white">{isEs ? "Medición satelital" : "Satellite measurement"}</h2>{mapsReady && !mapError ? <><p className="text-sm text-ink-300">{isEs ? "Busque una dirección o trace el perímetro de su patio sobre el mapa híbrido. Puede mover los puntos para ajustar el área." : "Search for an address or draw your yard boundary on the hybrid map. Move points to refine the area."}</p><div className="relative"><input id="pac-input" ref={autocompleteNode} defaultValue={store.formattedAddress || store.address} className="absolute left-3 top-3 z-10 h-12 w-[calc(100%-1.5rem)] rounded-xl border border-gold-500/40 bg-ink-950/95 px-4 text-sm text-white shadow-luxury outline-none placeholder:text-ink-400 focus:border-gold-400 sm:w-[390px]" placeholder={isEs ? "Buscar dirección" : "Search an address"} type="text" /><div id="map" ref={mapNode} className="h-[520px] overflow-hidden rounded-xl border border-gold-500/25" /><div className="absolute bottom-3 left-3 right-3 z-[1] max-h-48 overflow-y-auto rounded-xl border border-gold-500/25 bg-ink-950/95 p-4 text-sm shadow-luxury sm:left-auto sm:w-96"><p className="font-semibold text-white">{isEs ? "Información en tiempo real" : "Live information"}</p><dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-xs"><dt className="text-ink-400">{isEs ? "Latitud" : "Latitude"}</dt><dd className="text-right font-medium text-white">{selection ? selection.latitude.toFixed(6) : "—"}</dd><dt className="text-ink-400">{isEs ? "Longitud" : "Longitude"}</dt><dd className="text-right font-medium text-white">{selection ? selection.longitude.toFixed(6) : "—"}</dd><dt className="text-ink-400">{isEs ? "Área total" : "Total area"}</dt><dd className="text-right font-medium text-gold-300">{selection?.coordinates.length ? `${formatNumber(selection.areaSqM, 2)} m²` : "—"}</dd></dl>{selection?.coordinates.length ? <ol className="mt-3 space-y-1 border-t border-white/10 pt-3 text-[11px] text-ink-300">{selection.coordinates.map((point, index) => <li key={`${point.lat}-${point.lng}-${index}`}>#{index + 1}: {point.lat.toFixed(6)}, {point.lng.toFixed(6)}</li>)}</ol> : null}</div></div>{measurement ? <div className="grid grid-cols-3 gap-3"><Metric label="sq ft" value={formatNumber(measurement.areaSqFt)} /><Metric label="sq yd" value={formatNumber(measurement.areaSqYd, 1)} /><Metric label="yd³" value={formatNumber(measurement.estimatedCubicYards, 2)} /></div> : null}</> : <div className="rounded-xl border border-gold-500/25 bg-ink-950/50 p-4 text-sm text-ink-300"><p>{isEs ? "No fue posible iniciar el mapa de medición. Puede volver al paso anterior sin perder su dirección y reintentar; ningún botón del formulario queda bloqueado." : "The measurement map could not start. You can return to the previous step without losing your address and retry; no form controls are blocked."}</p><Button type="button" variant="outline" size="sm" className="mt-4" onClick={() => { setMapError(false); void loadGoogleMaps().then((available) => { setMapsReady(available); setMapError(!available); }).catch(() => setMapError(true)); }}>{isEs ? "Reintentar mapa" : "Retry map"}</Button></div>}</section>}
+      {store.step === 2 && <section className="space-y-5"><h2 className="text-2xl text-white">{isEs ? "Tamaño del terreno" : "Property size"}</h2><p className="text-sm text-ink-300">{isEs ? "Seleccione el tamaño aproximado de su terreno para preparar su cotización." : "Select your approximate property size to prepare your quote."}</p><div className="grid gap-3 sm:grid-cols-2">{AREA_OPTIONS.map((area) => { const selected = selectedArea === area.key; return <button key={area.key} type="button" onClick={() => chooseArea(area)} aria-pressed={selected} className={`rounded-xl border p-5 text-left transition ${selected ? "border-gold-400 bg-gold-500/15 shadow-luxury" : "border-white/15 bg-ink-950/50 hover:border-gold-500/50"}`}><span className="flex items-center justify-between gap-3"><span className="text-lg font-semibold text-white">{isEs ? area.labelEs : area.labelEn}</span>{selected && <Check className="size-5 text-gold-300" />}</span><span className="mt-2 block text-sm text-ink-300">{isEs ? area.rangeEs : area.rangeEn}</span></button>; })}</div><FieldError>{errors.measurement}</FieldError></section>}
+      {store.step === 1 && <section className="space-y-5"><h2 className="text-2xl text-white">{isEs ? "Dirección del servicio" : "Service address"}</h2><div><Step1Address error={errors.address} isEs={isEs} /><Step1AddressHint isEs={isEs} /><FieldError>{errors.address}</FieldError></div><div><Label>ZIP Code</Label><Input value={store.zipCode} maxLength={5} onChange={(event) => { const zipCode = event.target.value.replace(/\D/g, "").slice(0, 5); store.setAddress({ zipCode, city: ZIP_CITY_MAP[zipCode] ?? store.city }); }} placeholder="78701" /><FieldError>{errors.zipCode}</FieldError></div></section>}
+      {store.step === 2 && <section className="space-y-5"><h2 className="text-2xl text-white">{isEs ? "Tamaño del terreno" : "Property size"}</h2><p className="text-sm text-ink-300">{isEs ? "Seleccione el tamaño aproximado de su terreno para preparar su cotización." : "Select your approximate property size to prepare your quote."}</p><div className="grid gap-3 sm:grid-cols-2">{AREA_OPTIONS.map((area) => { const selected = selectedArea === area.key; return <button key={area.key} type="button" onClick={() => chooseArea(area)} aria-pressed={selected} className={`rounded-xl border p-5 text-left transition ${selected ? "border-gold-400 bg-gold-500/15 shadow-luxury" : "border-white/15 bg-ink-950/50 hover:border-gold-500/50"}`}><span className="flex items-center justify-between gap-3"><span className="text-lg font-semibold text-white">{isEs ? area.labelEs : area.labelEn}</span>{selected && <Check className="size-5 text-gold-300" />}</span><span className="mt-2 block text-sm text-ink-300">{isEs ? area.rangeEs : area.rangeEn}</span></button>; })}</div><FieldError>{errors.measurement}</FieldError></section>}
     {store.step === 3 && <section className="space-y-5"><h2 className="text-2xl text-white">{isEs ? "Servicios y fecha" : "Services and date"}</h2><div className="grid gap-3 sm:grid-cols-2">{SERVICES.map((service) => { const selected = store.selectedServices.includes(service.key); return <button key={service.key} type="button" onClick={() => store.toggleService(service.key)} className={`rounded-xl border p-4 text-left transition ${selected ? "border-black bg-black text-white" : "border-white/15 bg-ink-950/50 text-ink-200 hover:border-gold-500/50"}`} aria-pressed={selected}><span className="flex items-center justify-between gap-3 font-semibold"><span>{isEs ? service.nameEs : service.nameEn}</span>{selected && <Check className="size-5" />}</span></button>; })}</div><FieldError>{errors.selectedServices}</FieldError><div className="grid gap-4 sm:grid-cols-2"><div><Label>{isEs ? "Fecha solicitada" : "Requested date"}</Label><Input type="date" min={todayISO()} value={store.requestedDate ?? ""} onChange={(event) => store.setSchedule(event.target.value, store.requestedTimeWindow)} /><FieldError>{errors.requestedDate}</FieldError></div><div><Label>{isEs ? "Horario preferido" : "Preferred time"}</Label><Select value={store.requestedTimeWindow} onChange={(event) => store.setSchedule(store.requestedDate ?? "", event.target.value)}><option value="">Flexible</option>{TIME_WINDOWS.map((time) => <option key={time} value={time}>{time}</option>)}</Select></div></div></section>}
     {store.step === 4 && <section className="space-y-5"><h2 className="text-2xl text-white">{isEs ? "Datos de contacto" : "Contact details"}</h2><div><Label>{isEs ? "Nombre" : "Name"}</Label><Input value={store.customerName} onChange={(event) => store.setPersonal({ customerName: event.target.value })} /><FieldError>{errors.customerName}</FieldError></div><div><Label>{isEs ? "Teléfono" : "Phone"}</Label><Input value={store.customerPhone} onChange={(event) => store.setPersonal({ customerPhone: event.target.value })} /><FieldError>{errors.customerPhone}</FieldError></div><div><Label>Email ({isEs ? "opcional" : "optional"})</Label><Input type="email" value={store.customerEmail} onChange={(event) => store.setPersonal({ customerEmail: event.target.value })} /></div><div><Label>{isEs ? "Detalles del trabajo" : "Work details"}</Label><Textarea value={store.details} onChange={(event) => store.setPersonal({ details: event.target.value })} /></div><div><Label>{isEs ? "Método de pago preferido" : "Preferred payment method"}</Label><div className="mt-2 grid gap-3 sm:grid-cols-3">{PAYMENT_METHODS.map((method) => <button key={method.key} type="button" onClick={() => store.setPaymentMethod(method.key)} className={`rounded-xl border p-4 text-left transition ${store.paymentMethod === method.key ? "border-gold-400 bg-gold-500/10" : "border-white/10 bg-white/[0.03] hover:border-gold-500/35"}`}><p className="font-semibold text-white">{isEs ? method.labelEs : method.labelEn}</p><p className="mt-1 text-xs leading-relaxed text-ink-300">{isEs ? method.descriptionEs : method.descriptionEn}</p></button>)}</div><FieldError>{errors.paymentMethod}</FieldError></div></section>}
     {store.step === 5 && <section className="space-y-5"><h2 className="text-2xl text-white">{isEs ? "Confirme su solicitud" : "Confirm your request"}</h2><p className="text-sm text-ink-300">{isEs ? "Enviaremos sus datos, área medida, fecha solicitada y servicios seleccionados a Nieto Green Care LLC." : "We will send your details, measured area, requested date and selected services to Nieto Green Care LLC."}</p><LuxuryCard><p className="font-semibold text-white">{store.address}</p><p className="mt-2 text-sm text-ink-300">{measurement ? `${formatNumber(measurement.areaSqYd, 1)} sq yd · ${formatNumber(measurement.areaSqFt)} sq ft · ${formatNumber(measurement.estimatedCubicYards, 2)} yd³` : "—"}</p><p className="mt-2 text-sm text-ink-300">{store.selectedServices.map((key) => SERVICES.find((service) => service.key === key)?.[isEs ? "nameEs" : "nameEn"] ?? key).join(", ")}</p></LuxuryCard><div className="grid gap-3 sm:grid-cols-2"><Button asChild variant="outline" size="lg"><a href={buildOwnerSmsHref(store.address)}><MessageSquare className="size-5" />{isEs ? "Enviar SMS directo al propietario" : "Text the owner directly"}</a></Button><Button size="lg" onClick={submit} disabled={sending}><Send className="size-5" />{sending ? (isEs ? "Enviando…" : "Sending…") : (isEs ? "Confirmar Solicitud" : "Confirm Request")}</Button></div></section>}

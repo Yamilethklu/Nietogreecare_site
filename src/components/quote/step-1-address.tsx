@@ -7,7 +7,6 @@ import { FieldHint, Input, Label } from "@/components/ui/input";
 import { useQuoteStore } from "@/store/quote-store";
 
 type AddressAutocompleteProps = {
-  mapsReady: boolean;
   error?: string;
   isEs: boolean;
 };
@@ -127,7 +126,7 @@ export function Step1Address({ error, isEs }: AddressAutocompleteProps) {
         <div
           id="quote-address-suggestions"
           role="listbox"
-          className="absolute z-30 mt-2 max-h-64 w-full overflow-y-auto rounded-xl border border-gold-500/35 bg-ink-950/95 p-1 shadow-luxury backdrop-blur"
+          className="absolute z-[9999] mt-2 max-h-64 w-full overflow-y-auto rounded-xl border border-gold-500/45 bg-slate-900 p-1 shadow-luxury backdrop-blur"
         >
           {isSearching ? (
             <p className="px-3 py-2 text-xs text-ink-400">
@@ -154,16 +153,12 @@ export function Step1Address({ error, isEs }: AddressAutocompleteProps) {
   );
 }
 
-export function Step1AddressHint({ mapsReady, isEs }: Pick<AddressAutocompleteProps, "mapsReady" | "isEs">) {
+export function Step1AddressHint({ isEs }: Pick<AddressAutocompleteProps, "isEs">) {
   return (
     <FieldHint className="mt-2">
-      {mapsReady
-        ? isEs
-          ? "Seleccione una sugerencia o escriba la dirección completa manualmente para continuar."
-          : "Select a suggestion or enter the full address manually to continue."
-        : isEs
-          ? "Puede seleccionar una sugerencia o escribir la dirección completa manualmente para continuar."
-          : "You can select a suggestion or enter the full address manually to continue."}
+      {isEs
+        ? "Seleccione una sugerencia o escriba la dirección completa manualmente para continuar."
+        : "Select a suggestion or enter the full address manually to continue."}
     </FieldHint>
   );
 }
