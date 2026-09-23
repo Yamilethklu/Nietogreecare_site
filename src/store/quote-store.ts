@@ -126,6 +126,21 @@ export function buildMeasurement(
   };
 }
 
+const dummyStorage = {
+  getItem: () => null,
+  setItem: () => {},
+  removeItem: () => {},
+};
+
+const safeLocalStorage = () => {
+  if (typeof window === "undefined") return dummyStorage;
+  try {
+    return window.localStorage ?? dummyStorage;
+  } catch {
+    return dummyStorage;
+  }
+};
+
 export const useQuoteStore = create<QuoteStore>()(
   persist(
     (set, get) => ({
@@ -137,7 +152,7 @@ export const useQuoteStore = create<QuoteStore>()(
       },
 
       goNext: () => {
-        const { step, completedSteps } = get();
+        const { step, completedSteps = [] } = get();
         const next = Math.min(TOTAL_STEPS, step + 1);
         const completed = completedSteps.includes(step)
           ? completedSteps
@@ -151,7 +166,7 @@ export const useQuoteStore = create<QuoteStore>()(
       },
 
       completeStep: (step) => {
-        const { completedSteps } = get();
+        const { completedSteps = [] } = get();
         if (completedSteps.includes(step)) return;
         set({ completedSteps: [...completedSteps, step], updatedAt: new Date().toISOString() });
       },
@@ -191,14 +206,14 @@ export const useQuoteStore = create<QuoteStore>()(
       clearMeasurement: () => set({ measurement: null, updatedAt: new Date().toISOString() }),
 
       toggleService: (key) => {
-        const { selectedServices } = get();
+        const selectedServices = get().selectedServices ?? [];
         const next = selectedServices.includes(key)
           ? selectedServices.filter((item) => item !== key)
           : [...selectedServices, key];
         set({ selectedServices: next, updatedAt: new Date().toISOString() });
       },
 
-      setServices: (keys) => set({ selectedServices: keys, updatedAt: new Date().toISOString() }),
+      setServices: (keys) => set({ selectedServices: keys ?? [], updatedAt: new Date().toISOString() }),
 
       setGate: (hasGateCode, gateCode = "") =>
         set({
@@ -234,16 +249,38 @@ export const useQuoteStore = create<QuoteStore>()(
       hasDraftData: () => {
         const state = get();
         return Boolean(
-          state.address || state.zipCode || state.measurement || state.selectedServices.length,
+          state.address || state.zipCode || state.measurement || (state.selectedServices ?? []).length,
         );
       },
     }),
     {
       name: DRAFT_STORAGE_KEY,
       version: 1,
-      storage: createJSONStorage(() => localStorage),
-      // Se rehidrata manualmente en el cliente para evitar desajustes de SSR.
+      storage: createJSONStorage(safeLocalStorage),
       skipHydration: true,
+      merge: (persistedState, currentState) => {
+        const persisted = (persistedState as Partial<QuoteStateFields>) || {};
+        return {
+          ...currentState,
+          ...persisted,
+          step: typeof persisted.step === "number" && persisted.step >= 1 && persisted.step <= TOTAL_STEPS ? persisted.step : 1,
+          completedSteps: Array.isArray(persisted.completedSteps) ? persisted.completedSteps : [],
+          selectedServices: Array.isArray(persisted.selectedServices) ? persisted.selectedServices : [],
+          address: typeof persisted.address === "string" ? persisted.address : "",
+          formattedAddress: typeof persisted.formattedAddress === "string" ? persisted.formattedAddress : "",
+          zipCode: typeof persisted.zipCode === "string" ? persisted.zipCode : "",
+          city: typeof persisted.city === "string" ? persisted.city : "",
+          state: typeof persisted.state === "string" ? persisted.state : "TX",
+          customerName: typeof persisted.customerName === "string" ? persisted.customerName : "",
+          customerPhone: typeof persisted.customerPhone === "string" ? persisted.customerPhone : "",
+          customerEmail: typeof persisted.customerEmail === "string" ? persisted.customerEmail : "",
+          details: typeof persisted.details === "string" ? persisted.details : "",
+          additionalNotes: typeof persisted.additionalNotes === "string" ? persisted.additionalNotes : "",
+          gateCode: typeof persisted.gateCode === "string" ? persisted.gateCode : "",
+          hasGateCode: Boolean(persisted.hasGateCode),
+          submitted: Boolean(persisted.submitted),
+        };
+      },
     },
   ),
 );
