@@ -4,7 +4,7 @@
  * son el espejo para calculos offline en el cliente y para el seed inicial.
  */
 
-import { DEFAULT_DEPTH_INCHES, SERVICES } from "./constants";
+import { DEFAULT_DEPTH_INCHES, SERVICE_MAP, SERVICES } from "./constants";
 import {
   cubicYardsFromArea,
   squareFeetToSquareYards,
@@ -26,6 +26,25 @@ export type PricingRuleLike = {
   is_active?: boolean;
   notes?: string | null;
 };
+
+const SERVICE_FEE_BY_KEY: Record<string, number> = {
+  weekly_biweekly_lawn_service: 80,
+  tree_trimming: 120,
+  sod_installation: 180,
+  flower_beds: 95,
+  fertilizer: 70,
+  gravel_rock_installation: 140,
+  metal_edging: 110,
+  mulch: 90,
+  yard_cleanup: 100,
+  top_soil: 135,
+};
+
+const SERVICE_FREQUENCY_MULTIPLIER = {
+  one_time: 1,
+  weekly: 1,
+  biweekly: 0.75,
+} as const;
 
 /** Espejo del seed de /supabase/schema.sql (usado si Supabase no esta disponible). */
 export const FALLBACK_PRICING_RULES: PricingRuleLike[] = [
@@ -131,6 +150,7 @@ export type EstimateInput = {
   depthInches?: number;
   rules?: PricingRuleLike[];
   travelFee?: number;
+  frequency?: "weekly" | "biweekly" | "one_time";
 };
 
 export type EstimateBreakdownItem = {
@@ -150,6 +170,15 @@ export type EstimateResult = {
   breakdown: EstimateBreakdownItem[];
 };
 
+function normalizeSelectedServices(services: string[]): string[] {
+  const seen = new Set<string>();
+  return (services ?? []).filter((key) => {
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 /**
  * Estima el precio combinando:
  *  - la regla de rango de pies cuadrados (servicio base de corte)
@@ -161,25 +190,41 @@ export function estimateQuote({
   depthInches = DEFAULT_DEPTH_INCHES,
   rules = FALLBACK_PRICING_RULES,
   travelFee = 0,
+  frequency = "weekly",
 }: EstimateInput): EstimateResult {
   const safeSqFt = Math.max(0, toNumberSafe(squareFeet));
   const matchedRule = matchPricingRule(rules, safeSqFt) ?? FALLBACK_PRICING_RULES[0];
   const breakdown: EstimateBreakdownItem[] = [];
+  const selectedServices = normalizeSelectedServices(services ?? []);
 
   const baseByArea =
     toNumberSafe(matchedRule.price) || safeSqFt * toNumberSafe(matchedRule.price_per_sq_ft, 0.02);
 
-  void services;
   breakdown.push({ key: "area", label: matchedRule.name, amount: Math.round(baseByArea) });
+
+  const serviceCost = selectedServices.reduce((total, key) => {
+    const definition = SERVICE_MAP[key] ?? null;
+    const fallbackPrice = SERVICE_FEE_BY_KEY[key] ?? 0;
+    const amount = definition ? fallbackPrice || 0 : fallbackPrice;
+    if (!amount) return total;
+    breakdown.push({
+      key: `service:${key}`,
+      label: definition?.nameEs ?? definition?.nameEn ?? key,
+      amount,
+    });
+    return total + amount;
+  }, 0);
 
   if (travelFee > 0) {
     breakdown.push({ key: "travel", label: "Recargo por distancia", amount: travelFee });
   }
 
-  const price = breakdown.reduce((total, item) => total + item.amount, 0);
+  const frequencyMultiplier = SERVICE_FREQUENCY_MULTIPLIER[frequency] ?? 1;
+  const subtotal = breakdown.reduce((total, item) => total + item.amount, 0);
+  const price = Math.round(subtotal * frequencyMultiplier);
 
   return {
-    price: Math.round(price),
+    price,
     range: { min: Math.round(price * 0.92), max: Math.round(price * 1.15) },
     squareFeet: Math.round(safeSqFt),
     squareYards: Number(squareFeetToSquareYards(safeSqFt).toFixed(1)),
