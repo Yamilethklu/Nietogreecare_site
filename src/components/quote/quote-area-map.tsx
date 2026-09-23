@@ -162,141 +162,37 @@ export function QuoteAreaMap({ isEs }: { isEs: boolean }) {
       }
     }
 
-    let listener: any = null;
-    let managerListener: any = null;
-    let timerId: any = null;
-    let cancelled = false;
-
-    const initDrawingManager = async () => {
-      if (cancelled) return;
-
-      try {
-        if (!g.drawing?.DrawingManager && typeof g.importLibrary === "function") {
-          try {
-            await g.importLibrary("drawing");
-          } catch {
-            // ignore
-          }
-        }
-
-        if (!g.drawing?.DrawingManager || !g.drawing?.OverlayType || !g.geometry?.spherical || !g.ControlPosition) {
-          if (!cancelled) {
-            timerId = setTimeout(initDrawingManager, 100);
-          }
-          return;
-        }
-
-        if (cancelled) return;
-
-        const currentSaved = useQuoteStore.getState().measurement?.polygon;
-        const manager = new g.drawing.DrawingManager({
-          drawingMode: Array.isArray(currentSaved) && currentSaved.length >= 3 ? null : g.drawing.OverlayType.POLYGON,
-          drawingControl: true,
-          drawingControlOptions: {
-            position: g.ControlPosition.TOP_CENTER,
-            drawingModes: [
-              g.drawing.OverlayType.POLYGON,
-              g.drawing.OverlayType.RECTANGLE,
-            ],
-          },
-          polygonOptions: {
-            fillColor: "#22c55e",
-            fillOpacity: 0.45,
-            strokeColor: "#16a34a",
-            strokeWeight: 2.5,
-            clickable: true,
-            editable: true,
-            draggable: true,
-            zIndex: 10,
-          },
-        });
-        manager.setMap(map);
-        managerRef.current = manager;
-        managerListener = g.event.addListener(manager, "overlaycomplete", (event: any) => {
-          if (event.type === g.drawing.OverlayType.POLYGON) {
-            polygonRef.current?.setMap(null);
-            bind(event.overlay);
-            manager.setDrawingMode(null);
-            isDrawingModeRef.current = false;
-          } else if (event.type === g.drawing.OverlayType.RECTANGLE) {
-            const bounds = event.overlay.getBounds();
-            const ne = bounds.getNorthEast();
-            const sw = bounds.getSouthWest();
-            const rectPolygon = new g.Polygon({
-              paths: [
-                { lat: ne.lat(), lng: ne.lng() },
-                { lat: ne.lat(), lng: sw.lng() },
-                { lat: sw.lat(), lng: sw.lng() },
-                { lat: sw.lat(), lng: ne.lng() },
-              ],
-              map,
-              editable: true,
-              draggable: true,
-              strokeColor: "#16a34a",
-              fillColor: "#22c55e",
-              fillOpacity: 0.45,
-              strokeWeight: 2.5,
-            });
-            event.overlay.setMap(null);
-            polygonRef.current?.setMap(null);
-            bind(rectPolygon);
-            manager.setDrawingMode(null);
-            isDrawingModeRef.current = false;
-          }
-        });
-      } catch (err) {
-        console.error("Error initializing DrawingManager:", err);
-      }
-    };
-
-    void initDrawingManager();
-
     return () => {
-      cancelled = true;
-      if (timerId) clearTimeout(timerId);
       if (clickListener && g?.event) g.event.removeListener(clickListener);
-      if (managerListener && g?.event) g.event.removeListener(managerListener);
       try {
         polygonRef.current?.setMap(null);
-        managerRef.current?.setMap(null);
       } catch {
         // ignore cleanup error
       }
       mapRef.current = null;
-      managerRef.current = null;
       polygonRef.current = null;
     };
   }, [mapsReady, latitude, longitude, setMeasurement]);
 
-  const startDrawing = async () => {
-    const g = window.google?.maps;
-    if (!g) return;
-    if (!managerRef.current && typeof g.importLibrary === "function") {
-      try {
-        await g.importLibrary("drawing");
-      } catch {
-        // ignore
-      }
-    }
+  const startDrawing = () => {
+    isDrawingModeRef.current = true;
+    activePointsRef.current = [];
     polygonRef.current?.setMap(null);
     polygonRef.current = null;
     setDrawn(false);
     setAreaSqFt(0);
     clearMeasurement();
 
-    if (managerRef.current && g.drawing?.OverlayType) {
-      managerRef.current.setMap(mapRef.current);
-      managerRef.current.setDrawingMode(g.drawing.OverlayType.POLYGON);
-    }
     if (mapRef.current) {
       mapRef.current.setZoom(19);
     }
   };
 
   const clearArea = () => {
+    isDrawingModeRef.current = false;
+    activePointsRef.current = [];
     polygonRef.current?.setMap(null);
     polygonRef.current = null;
-    managerRef.current?.setDrawingMode(null);
     setDrawn(false);
     setAreaSqFt(0);
     clearMeasurement();
