@@ -60,7 +60,7 @@ export function loadGoogleMaps(): Promise<boolean> {
     window.initNgcMaps = () => finish(Boolean(window.google?.maps));
     script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(
       GOOGLE_MAPS_API_KEY,
-    )}&v=weekly&loading=async&libraries=places,geometry&callback=initNgcMaps`;
+    )}&v=weekly&libraries=places,geometry&callback=initNgcMaps`;
     script.onload = () => finish(Boolean(window.google?.maps));
     script.onerror = () => finish(false);
     document.head.appendChild(script);

@@ -43,127 +43,158 @@ export function QuoteAreaMap({ isEs }: { isEs: boolean }) {
   React.useEffect(() => {
     if (!mapsReady || !mapElement || !window.google?.maps) return;
     const g = window.google.maps;
-    const safeLat = typeof latitude === "number" && Number.isFinite(latitude) ? latitude : (typeof latitude === "string" && Number.isFinite(Number.parseFloat(latitude)) ? Number.parseFloat(latitude) : AUSTIN_CENTER.lat);
-    const safeLng = typeof longitude === "number" && Number.isFinite(longitude) ? longitude : (typeof longitude === "string" && Number.isFinite(Number.parseFloat(longitude)) ? Number.parseFloat(longitude) : AUSTIN_CENTER.lng);
+    let clickListener: any = null;
+    let cancelled = false;
 
-    const map = new g.Map(mapElement, {
-      center: { lat: safeLat, lng: safeLng },
-      zoom: 19,
-      mapTypeId: "hybrid",
-      streetViewControl: false,
-      fullscreenControl: false,
-    });
-    mapRef.current = map;
+    const initMap = async () => {
+      let MapConstructor = g.Map;
+      let PolygonConstructor = g.Polygon;
 
-    const save = (polygon: any) => {
-      try {
-        if (!polygon || !g.geometry?.spherical) return;
-        const path = polygon.getPath?.();
-        if (!path) return;
-        const rawArray = path.getArray ? path.getArray() : [];
-        const points: PolygonPoint[] = [];
-        for (const pt of rawArray) {
-          const lat = typeof pt?.lat === "function" ? pt.lat() : Number(pt?.lat);
-          const lng = typeof pt?.lng === "function" ? pt.lng() : Number(pt?.lng);
-          if (Number.isFinite(lat) && Number.isFinite(lng)) {
-            points.push({ lat, lng });
+      if (!MapConstructor && typeof g.importLibrary === "function") {
+        try {
+          const mapsLib = await g.importLibrary("maps");
+          MapConstructor = mapsLib?.Map || g.Map;
+          PolygonConstructor = mapsLib?.Polygon || g.Polygon;
+        } catch {
+          // ignore
+        }
+      }
+
+      if (!MapConstructor || cancelled) return;
+
+      const safeLat = typeof latitude === "number" && Number.isFinite(latitude)
+        ? latitude
+        : (typeof latitude === "string" && Number.isFinite(Number.parseFloat(latitude)) ? Number.parseFloat(latitude) : AUSTIN_CENTER.lat);
+      const safeLng = typeof longitude === "number" && Number.isFinite(longitude)
+        ? longitude
+        : (typeof longitude === "string" && Number.isFinite(Number.parseFloat(longitude)) ? Number.parseFloat(longitude) : AUSTIN_CENTER.lng);
+
+      const map = new MapConstructor(mapElement, {
+        center: { lat: safeLat, lng: safeLng },
+        zoom: 19,
+        mapTypeId: "hybrid",
+        streetViewControl: false,
+        fullscreenControl: false,
+      });
+      mapRef.current = map;
+
+      const save = (polygon: any) => {
+        try {
+          if (!polygon || !g.geometry?.spherical) return;
+          const path = polygon.getPath?.();
+          if (!path) return;
+          const rawArray = path.getArray ? path.getArray() : [];
+          const points: PolygonPoint[] = [];
+          for (const pt of rawArray) {
+            const lat = typeof pt?.lat === "function" ? pt.lat() : Number(pt?.lat);
+            const lng = typeof pt?.lng === "function" ? pt.lng() : Number(pt?.lng);
+            if (Number.isFinite(lat) && Number.isFinite(lng)) {
+              points.push({ lat, lng });
+            }
+          }
+          if (points.length < 2) return;
+          const area = points.length >= 3 ? Math.round(g.geometry.spherical.computeArea(path) * 10.7639) : 0;
+          if (Number.isFinite(area) && area >= 0) {
+            setAreaSqFt(area);
+            if (points.length >= 3) setDrawn(true);
+            setMeasurement(buildMeasurement(points, area, useQuoteStore.getState().measurement?.depthInches ?? 2, map.getZoom()));
+          }
+        } catch (err) {
+          console.error("Error saving measurement:", err);
+        }
+      };
+
+      const bind = (polygon: any) => {
+        try {
+          polygonRef.current = polygon;
+          polygon.setEditable?.(true);
+          polygon.setDraggable?.(true);
+          polygon.setOptions?.({
+            strokeColor: "#16a34a",
+            strokeWeight: 2.5,
+            fillColor: "#22c55e",
+            fillOpacity: 0.45,
+            clickable: true,
+            zIndex: 10,
+          });
+          save(polygon);
+          const path = polygon.getPath?.();
+          if (path) {
+            ["set_at", "insert_at", "remove_at"].forEach((eventName) => {
+              path.addListener?.(eventName, () => save(polygon));
+            });
+          }
+          polygon.addListener?.("dragend", () => save(polygon));
+        } catch (err) {
+          console.error("Error binding polygon:", err);
+        }
+      };
+
+      const onMapClick = (e: any) => {
+        if (!isDrawingModeRef.current || !e.latLng) return;
+        const lat = typeof e.latLng.lat === "function" ? e.latLng.lat() : Number(e.latLng.lat);
+        const lng = typeof e.latLng.lng === "function" ? e.latLng.lng() : Number(e.latLng.lng);
+        if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+
+        activePointsRef.current.push({ lat, lng });
+        const pts = activePointsRef.current;
+
+        if (pts.length >= 2) {
+          const Poly = PolygonConstructor || g.Polygon;
+          if (!polygonRef.current && Poly) {
+            const poly = new Poly({
+              paths: pts,
+              map,
+              editable: true,
+              draggable: true,
+              strokeColor: "#16a34a",
+              fillColor: "#22c55e",
+              fillOpacity: 0.45,
+              strokeWeight: 2.5,
+              clickable: true,
+              zIndex: 10,
+            });
+            polygonRef.current = poly;
+            bind(poly);
+          } else if (polygonRef.current) {
+            polygonRef.current.setPath(pts.map((p) => new g.LatLng(p.lat, p.lng)));
+            save(polygonRef.current);
           }
         }
-        if (points.length < 2) return;
-        const area = points.length >= 3 ? Math.round(g.geometry.spherical.computeArea(path) * 10.7639) : 0;
-        if (Number.isFinite(area) && area >= 0) {
-          setAreaSqFt(area);
-          if (points.length >= 3) setDrawn(true);
-          setMeasurement(buildMeasurement(points, area, useQuoteStore.getState().measurement?.depthInches ?? 2, map.getZoom()));
-        }
-      } catch (err) {
-        console.error("Error saving measurement:", err);
-      }
-    };
+      };
 
-    const bind = (polygon: any) => {
-      try {
-        polygonRef.current = polygon;
-        polygon.setEditable?.(true);
-        polygon.setDraggable?.(true);
-        polygon.setOptions?.({
-          strokeColor: "#16a34a",
-          strokeWeight: 2.5,
-          fillColor: "#22c55e",
-          fillOpacity: 0.45,
-          clickable: true,
-          zIndex: 10,
-        });
-        save(polygon);
-        const path = polygon.getPath?.();
-        if (path) {
-          ["set_at", "insert_at", "remove_at"].forEach((eventName) => {
-            path.addListener?.(eventName, () => save(polygon));
-          });
-        }
-        polygon.addListener?.("dragend", () => save(polygon));
-      } catch (err) {
-        console.error("Error binding polygon:", err);
-      }
-    };
+      clickListener = g.event.addListener(map, "click", onMapClick);
 
-    const onMapClick = (e: any) => {
-      if (!isDrawingModeRef.current || !e.latLng) return;
-      const lat = typeof e.latLng.lat === "function" ? e.latLng.lat() : Number(e.latLng.lat);
-      const lng = typeof e.latLng.lng === "function" ? e.latLng.lng() : Number(e.latLng.lng);
-      if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
-
-      activePointsRef.current.push({ lat, lng });
-      const pts = activePointsRef.current;
-
-      if (pts.length >= 2) {
-        if (!polygonRef.current) {
-          const poly = new g.Polygon({
-            paths: pts,
-            map,
-            editable: true,
-            draggable: true,
-            strokeColor: "#16a34a",
-            fillColor: "#22c55e",
-            fillOpacity: 0.45,
-            strokeWeight: 2.5,
-            clickable: true,
-            zIndex: 10,
-          });
-          polygonRef.current = poly;
-          bind(poly);
-        } else {
-          polygonRef.current.setPath(pts.map((p) => new g.LatLng(p.lat, p.lng)));
-          save(polygonRef.current);
+      const saved = useQuoteStore.getState().measurement?.polygon;
+      if (Array.isArray(saved) && saved.length >= 3) {
+        const Poly = PolygonConstructor || g.Polygon;
+        if (Poly) {
+          try {
+            bind(
+              new Poly({
+                paths: saved,
+                map,
+                editable: true,
+                draggable: true,
+                strokeColor: "#16a34a",
+                fillColor: "#22c55e",
+                fillOpacity: 0.45,
+                strokeWeight: 2.5,
+                clickable: true,
+                zIndex: 10,
+              })
+            );
+          } catch (err) {
+            console.error("Error rendering saved polygon:", err);
+          }
         }
       }
     };
 
-    const clickListener = g.event.addListener(map, "click", onMapClick);
-
-    const saved = useQuoteStore.getState().measurement?.polygon;
-    if (Array.isArray(saved) && saved.length >= 3) {
-      try {
-        bind(
-          new g.Polygon({
-            paths: saved,
-            map,
-            editable: true,
-            draggable: true,
-            strokeColor: "#16a34a",
-            fillColor: "#22c55e",
-            fillOpacity: 0.45,
-            strokeWeight: 2.5,
-            clickable: true,
-            zIndex: 10,
-          })
-        );
-      } catch (err) {
-        console.error("Error rendering saved polygon:", err);
-      }
-    }
+    void initMap();
 
     return () => {
+      cancelled = true;
       if (clickListener && g?.event) g.event.removeListener(clickListener);
       try {
         polygonRef.current?.setMap(null);
