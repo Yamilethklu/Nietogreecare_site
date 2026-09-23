@@ -148,7 +148,7 @@ about: {
     success: "Thank you, we received your message.",
     successDetail: "We will contact you very soon.",
     error: "We could not send your message. Please try again or call us.",
-    note: "Message us directly on WhatsApp.",
+    note: "Message us directly by SMS.",
     drag: "",
     close: "Close",
     callInstead: "I prefer to call",

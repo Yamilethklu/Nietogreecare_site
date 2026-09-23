@@ -1,10 +1,9 @@
 "use client";
 
 import * as React from "react";
-import { LoaderCircle, MapPin, ShieldCheck } from "lucide-react";
+import { MapPin } from "lucide-react";
 
 import { FieldHint, Input, Label } from "@/components/ui/input";
-import { AUSTIN_CENTER } from "@/lib/google-maps";
 import { useQuoteStore } from "@/store/quote-store";
 
 type AddressAutocompleteProps = {
@@ -13,84 +12,29 @@ type AddressAutocompleteProps = {
   isEs: boolean;
 };
 
-function placeComponent(components: any[], type: string) {
-  return components.find((component) => component.types?.includes(type))?.long_name ?? "";
-}
+type AddressSuggestion = {
+  id: string;
+  label: string;
+  address: string;
+  city: string;
+  zipCode: string;
+  state: string;
+  latitude: number;
+  longitude: number;
+};
 
 /**
- * Campo de dirección con Google Places Autocomplete nativo. El componente se
- * inicializa solo cuando la API está disponible; de lo contrario mantiene el
- * input controlado para captura manual sin bloquear el avance del cotizador.
+ * Campo de dirección manual del primer paso. Google Places no se inicializa
+ * aquí para que errores de credenciales o facturación de Maps nunca muestren
+ * un popup ni impidan continuar con la dirección escrita por el cliente.
  */
-export function Step1Address({ mapsReady, error, isEs }: AddressAutocompleteProps) {
+export function Step1Address({ error, isEs }: AddressAutocompleteProps) {
   const address = useQuoteStore((state) => state.address);
   const setAddress = useQuoteStore((state) => state.setAddress);
-  const inputRef = React.useRef<HTMLInputElement>(null);
-  const autocompleteRef = React.useRef<any>(null);
-  const [placesEnabled, setPlacesEnabled] = React.useState(false);
-
-  React.useEffect(() => {
-    const input = inputRef.current;
-    if (!mapsReady || !input || !window.google?.maps?.places?.Autocomplete) {
-      setPlacesEnabled(false);
-      return;
-    }
-
-    try {
-      const autocomplete = new window.google.maps.places.Autocomplete(input, {
-        fields: ["address_components", "formatted_address", "geometry", "place_id"],
-        types: ["address"],
-        componentRestrictions: { country: "us" },
-        bounds: new window.google.maps.LatLngBounds(
-          new window.google.maps.LatLng(29.7, -98.45),
-          new window.google.maps.LatLng(31.2, -96.8),
-        ),
-        strictBounds: false,
-      });
-
-      autocomplete.setBounds(
-        new window.google.maps.LatLngBounds(
-          new window.google.maps.LatLng(AUSTIN_CENTER.lat - 0.8, AUSTIN_CENTER.lng - 0.9),
-          new window.google.maps.LatLng(AUSTIN_CENTER.lat + 0.8, AUSTIN_CENTER.lng + 0.9),
-        ),
-      );
-      autocompleteRef.current = autocomplete;
-      setPlacesEnabled(true);
-
-      const listener = autocomplete.addListener("place_changed", () => {
-        const place = autocomplete.getPlace();
-        const formattedAddress = place.formatted_address ?? input.value.trim();
-        const components: any[] = place.address_components ?? [];
-        const city =
-          placeComponent(components, "locality") ||
-          placeComponent(components, "postal_town") ||
-          placeComponent(components, "sublocality") ||
-          "";
-        const zipCode = placeComponent(components, "postal_code");
-        const state = placeComponent(components, "administrative_area_level_1") || "TX";
-        const location = place.geometry?.location;
-
-        setAddress({
-          address: formattedAddress,
-          formattedAddress,
-          city,
-          zipCode,
-          state,
-          placeId: place.place_id ?? null,
-          latitude: location?.lat?.() ?? null,
-          longitude: location?.lng?.() ?? null,
-        });
-      });
-
-      return () => {
-        window.google?.maps?.event?.removeListener(listener);
-        autocompleteRef.current = null;
-      };
-    } catch {
-      autocompleteRef.current = null;
-      setPlacesEnabled(false);
-    }
-  }, [mapsReady, setAddress]);
+  const [suggestions, setSuggestions] = React.useState<AddressSuggestion[]>([]);
+  const [isSearching, setIsSearching] = React.useState(false);
+  const [isOpen, setIsOpen] = React.useState(false);
+  const selectedAddressRef = React.useRef<string | null>(null);
 
   const updateManualAddress = (address: string) => {
     setAddress({
@@ -100,6 +44,61 @@ export function Step1Address({ mapsReady, error, isEs }: AddressAutocompleteProp
       latitude: null,
       longitude: null,
     });
+    setIsOpen(true);
+  };
+
+  React.useEffect(() => {
+    const query = address.trim();
+    if (selectedAddressRef.current === query) {
+      selectedAddressRef.current = null;
+      return;
+    }
+
+    if (query.length < 3) {
+      setSuggestions([]);
+      setIsSearching(false);
+      return;
+    }
+
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(async () => {
+      setIsSearching(true);
+      try {
+        const response = await fetch(`/api/address-search?q=${encodeURIComponent(query)}`, {
+          signal: controller.signal,
+        });
+        const payload = (await response.json()) as { suggestions?: AddressSuggestion[] };
+        if (!controller.signal.aborted) {
+          setSuggestions(payload.suggestions ?? []);
+          setIsOpen(true);
+        }
+      } catch {
+        if (!controller.signal.aborted) setSuggestions([]);
+      } finally {
+        if (!controller.signal.aborted) setIsSearching(false);
+      }
+    }, 350);
+
+    return () => {
+      controller.abort();
+      window.clearTimeout(timeoutId);
+    };
+  }, [address]);
+
+  const selectSuggestion = (suggestion: AddressSuggestion) => {
+    selectedAddressRef.current = suggestion.address;
+    setAddress({
+      address: suggestion.address,
+      formattedAddress: suggestion.label,
+      city: suggestion.city,
+      zipCode: suggestion.zipCode,
+      state: suggestion.state || "TX",
+      placeId: suggestion.id,
+      latitude: Number.isFinite(suggestion.latitude) ? suggestion.latitude : null,
+      longitude: Number.isFinite(suggestion.longitude) ? suggestion.longitude : null,
+    });
+    setSuggestions([]);
+    setIsOpen(false);
   };
 
   return (
@@ -107,31 +106,49 @@ export function Step1Address({ mapsReady, error, isEs }: AddressAutocompleteProp
       <Label htmlFor="quote-address">{isEs ? "Dirección completa" : "Full address"}</Label>
       <div className="relative mt-2">
         <Input
-          ref={inputRef}
           id="quote-address"
           value={address}
           onChange={(event) => updateManualAddress(event.target.value)}
+          onFocus={() => setIsOpen(true)}
+          onBlur={() => window.setTimeout(() => setIsOpen(false), 150)}
           placeholder={isEs ? "Ej. 1200 Barton Springs Rd, Austin, TX" : "e.g. 1200 Barton Springs Rd, Austin, TX"}
           autoComplete="street-address"
           aria-invalid={Boolean(error)}
+          aria-autocomplete="list"
+          aria-expanded={isOpen && suggestions.length > 0}
+          aria-controls="quote-address-suggestions"
           className="pr-11"
         />
         <span className="pointer-events-none absolute inset-y-0 right-4 flex items-center">
-          {mapsReady && !placesEnabled ? (
-            <LoaderCircle className="size-4 animate-spin text-amber-300" />
-          ) : (
-            <MapPin className="size-4 text-amber-300" />
-          )}
+          <MapPin className="size-4 text-amber-300" />
         </span>
       </div>
-
-      {placesEnabled ? (
-        <FieldHint className="mt-2 flex items-start gap-2">
-          <ShieldCheck className="mt-0.5 size-3.5 shrink-0 text-amber-300" />
-          {isEs
-            ? "Seleccione una sugerencia para guardar automáticamente ciudad, código ZIP y ubicación."
-            : "Select a suggestion to save the city, ZIP code, and location automatically."}
-        </FieldHint>
+      {isOpen && (isSearching || suggestions.length > 0) ? (
+        <div
+          id="quote-address-suggestions"
+          role="listbox"
+          className="absolute z-30 mt-2 max-h-64 w-full overflow-y-auto rounded-xl border border-gold-500/35 bg-ink-950/95 p-1 shadow-luxury backdrop-blur"
+        >
+          {isSearching ? (
+            <p className="px-3 py-2 text-xs text-ink-400">
+              {isEs ? "Buscando direcciones…" : "Searching addresses…"}
+            </p>
+          ) : (
+            suggestions.map((suggestion) => (
+              <button
+                key={suggestion.id}
+                type="button"
+                role="option"
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => selectSuggestion(suggestion)}
+                className="w-full rounded-lg px-3 py-2.5 text-left transition hover:bg-white/10 focus-visible:bg-white/10 focus-visible:outline-none"
+              >
+                <span className="block text-sm font-medium text-white">{suggestion.address}</span>
+                <span className="mt-0.5 block text-xs text-ink-400">{suggestion.label}</span>
+              </button>
+            ))
+          )}
+        </div>
       ) : null}
     </div>
   );
@@ -142,11 +159,11 @@ export function Step1AddressHint({ mapsReady, isEs }: Pick<AddressAutocompletePr
     <FieldHint className="mt-2">
       {mapsReady
         ? isEs
-          ? "También puede escribir la dirección manualmente si no aparece una sugerencia."
-          : "You can also enter the address manually if no suggestion appears."
+          ? "Seleccione una sugerencia o escriba la dirección completa manualmente para continuar."
+          : "Select a suggestion or enter the full address manually to continue."
         : isEs
-          ? "Puede escribir la dirección manualmente mientras cargan las sugerencias."
-          : "You can enter the address manually while suggestions load."}
+          ? "Puede seleccionar una sugerencia o escribir la dirección completa manualmente para continuar."
+          : "You can select a suggestion or enter the full address manually to continue."}
     </FieldHint>
   );
 }

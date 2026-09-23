@@ -3,7 +3,7 @@
 import { MapPin, MessageSquare, Phone, Satellite } from "lucide-react";
 
 import { useLanguage } from "@/components/providers/language-provider";
-import { buildWhatsAppHref, BUSINESS, SERVICE_CITIES } from "@/lib/constants";
+import { buildSmsHref, BUSINESS, SERVICE_CITIES } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 
 const SATELLITE_EMBED_SRC =
@@ -43,13 +43,7 @@ export function CoverageMap({ className }: { className?: string }) {
         {SERVICE_CITIES.map((city) => (
           <a
             key={city}
-            href={buildWhatsAppHref(
-              isEs
-                ? `Hola, necesito servicio de paisajismo en ${city}.`
-                : `Hello, I need landscaping service in ${city}.`,
-            )}
-            target="_blank"
-            rel="noreferrer"
+            href={buildSmsHref()}
             className="inline-flex items-center gap-1.5 rounded-full border border-amber-400/45 bg-black/55 px-3 py-2 text-xs font-semibold text-white transition hover:border-amber-400 hover:bg-black/75"
           >
             <MapPin className="size-3.5 text-amber-400" />
@@ -67,9 +61,7 @@ export function CoverageMap({ className }: { className?: string }) {
           {isEs ? "Llamar ahora" : "Call now"}
         </a>
         <a
-          href={buildWhatsAppHref()}
-          target="_blank"
-          rel="noreferrer"
+          href={buildSmsHref()}
           className="inline-flex items-center justify-center gap-2 rounded-full bg-emerald-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-emerald-500"
         >
           <MessageSquare className="size-4" />

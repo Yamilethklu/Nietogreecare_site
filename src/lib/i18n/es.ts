@@ -147,7 +147,7 @@ export const es = {
     success: "Gracias, recibimos su mensaje.",
     successDetail: "Nos pondremos en contacto muy pronto con usted.",
     error: "No pudimos enviar el mensaje. Intente de nuevo o llamenos.",
-    note: "Escribanos directamente por WhatsApp.",
+    note: "Escríbanos directamente por SMS.",
     drag: "",
     close: "Cerrar",
     callInstead: "Prefiero llamar",

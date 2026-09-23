@@ -19,7 +19,7 @@ import { CallButton } from "@/components/site/brand";
 import { CoverageMap } from "@/components/site/coverage-map";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { buildWhatsAppHref, BUSINESS, SERVICE_CITIES, SERVICE_ZIP_CODES } from "@/lib/constants";
+import { buildSmsHref, BUSINESS, SERVICE_CITIES, SERVICE_ZIP_CODES } from "@/lib/constants";
 import { usePublicAsset } from "@/lib/use-public-asset";
 
 const fadeUp = {
@@ -188,13 +188,7 @@ export function Hero() {
             {SERVICE_CITIES.map((city) => (
               <a
                 key={city}
-                href={buildWhatsAppHref(
-                  isEs
-                    ? `Hola, necesito servicio de paisajismo en ${city}.`
-                    : `Hello, I need landscaping service in ${city}.`,
-                )}
-                target="_blank"
-                rel="noreferrer"
+                href={buildSmsHref()}
                 className="rounded-full border border-amber-300/55 bg-black/50 px-3 py-1 text-xs font-semibold text-white transition hover:border-amber-300 hover:text-amber-300"
               >
                 {city}
