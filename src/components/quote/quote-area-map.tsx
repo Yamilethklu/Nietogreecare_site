@@ -50,41 +50,66 @@ export function QuoteAreaMap({ isEs }: { isEs: boolean }) {
     mapRef.current = map;
 
     const save = (polygon: any) => {
-      const path = polygon.getPath();
-      const points = path.getArray().map((point: any) => ({ lat: point.lat(), lng: point.lng() })) as PolygonPoint[];
-      if (points.length < 3 || !g.geometry?.spherical) return;
-      const area = Math.round(g.geometry.spherical.computeArea(path) * 10.7639);
-      if (!Number.isFinite(area) || area < 0) return;
-      setAreaSqFt(area);
-      setDrawn(true);
-      setMeasurement(buildMeasurement(points, area, useQuoteStore.getState().measurement?.depthInches ?? 2, map.getZoom()));
+      try {
+        if (!polygon || !g.geometry?.spherical) return;
+        const path = polygon.getPath?.();
+        if (!path) return;
+        const rawArray = path.getArray ? path.getArray() : [];
+        const points: PolygonPoint[] = [];
+        for (const pt of rawArray) {
+          const lat = typeof pt?.lat === "function" ? pt.lat() : Number(pt?.lat);
+          const lng = typeof pt?.lng === "function" ? pt.lng() : Number(pt?.lng);
+          if (Number.isFinite(lat) && Number.isFinite(lng)) {
+            points.push({ lat, lng });
+          }
+        }
+        if (points.length < 3) return;
+        const area = Math.round(g.geometry.spherical.computeArea(path) * 10.7639);
+        if (!Number.isFinite(area) || area < 0) return;
+        setAreaSqFt(area);
+        setDrawn(true);
+        setMeasurement(buildMeasurement(points, area, useQuoteStore.getState().measurement?.depthInches ?? 2, map.getZoom()));
+      } catch (err) {
+        console.error("Error saving measurement:", err);
+      }
     };
 
     const bind = (polygon: any) => {
-      polygonRef.current = polygon;
-      save(polygon);
-      ["set_at", "insert_at", "remove_at"].forEach((eventName) => {
-        polygon.getPath().addListener(eventName, () => save(polygon));
-      });
-      polygon.addListener("dragend", () => save(polygon));
+      try {
+        polygonRef.current = polygon;
+        save(polygon);
+        const path = polygon.getPath?.();
+        if (path) {
+          ["set_at", "insert_at", "remove_at"].forEach((eventName) => {
+            path.addListener?.(eventName, () => save(polygon));
+          });
+        }
+        polygon.addListener?.("dragend", () => save(polygon));
+      } catch (err) {
+        console.error("Error binding polygon:", err);
+      }
     };
 
     const saved = useQuoteStore.getState().measurement?.polygon;
-    if (saved && saved.length >= 3) {
-      bind(
-        new g.Polygon({
-          paths: saved,
-          map,
-          editable: true,
-          draggable: true,
-          strokeColor: "#16a34a",
-          fillColor: "#22c55e",
-          fillOpacity: 0.45,
-          strokeWeight: 2,
-          clickable: true,
-          zIndex: 1,
-        })
-      );
+    if (Array.isArray(saved) && saved.length >= 3) {
+      try {
+        bind(
+          new g.Polygon({
+            paths: saved,
+            map,
+            editable: true,
+            draggable: true,
+            strokeColor: "#16a34a",
+            fillColor: "#22c55e",
+            fillOpacity: 0.45,
+            strokeWeight: 2,
+            clickable: true,
+            zIndex: 1,
+          })
+        );
+      } catch (err) {
+        console.error("Error rendering saved polygon:", err);
+      }
     }
 
     let listener: any = null;
@@ -94,49 +119,53 @@ export function QuoteAreaMap({ isEs }: { isEs: boolean }) {
     const initDrawingManager = async () => {
       if (cancelled) return;
 
-      if (!g.drawing?.DrawingManager && typeof g.importLibrary === "function") {
-        try {
-          await g.importLibrary("drawing");
-        } catch {
-          // ignore
+      try {
+        if (!g.drawing?.DrawingManager && typeof g.importLibrary === "function") {
+          try {
+            await g.importLibrary("drawing");
+          } catch {
+            // ignore
+          }
         }
-      }
 
-      if (!g.drawing?.DrawingManager || !g.drawing?.OverlayType || !g.geometry?.spherical || !g.ControlPosition) {
-        if (!cancelled) {
-          timerId = setTimeout(initDrawingManager, 100);
+        if (!g.drawing?.DrawingManager || !g.drawing?.OverlayType || !g.geometry?.spherical || !g.ControlPosition) {
+          if (!cancelled) {
+            timerId = setTimeout(initDrawingManager, 100);
+          }
+          return;
         }
-        return;
+
+        if (cancelled) return;
+
+        const currentSaved = useQuoteStore.getState().measurement?.polygon;
+        const manager = new g.drawing.DrawingManager({
+          drawingMode: Array.isArray(currentSaved) && currentSaved.length >= 3 ? null : g.drawing.OverlayType.POLYGON,
+          drawingControl: true,
+          drawingControlOptions: {
+            position: g.ControlPosition.TOP_CENTER,
+            drawingModes: [g.drawing.OverlayType.POLYGON],
+          },
+          polygonOptions: {
+            fillColor: "#22c55e",
+            fillOpacity: 0.45,
+            strokeColor: "#16a34a",
+            strokeWeight: 2,
+            clickable: true,
+            editable: true,
+            zIndex: 1,
+          },
+        });
+        manager.setMap(map);
+        managerRef.current = manager;
+        listener = g.event.addListener(manager, "overlaycomplete", (event: any) => {
+          if (event.type !== g.drawing.OverlayType.POLYGON) return;
+          polygonRef.current?.setMap(null);
+          bind(event.overlay);
+          manager.setDrawingMode(null);
+        });
+      } catch (err) {
+        console.error("Error initializing DrawingManager:", err);
       }
-
-      if (cancelled) return;
-
-      const currentSaved = useQuoteStore.getState().measurement?.polygon;
-      const manager = new g.drawing.DrawingManager({
-        drawingMode: currentSaved && currentSaved.length >= 3 ? null : g.drawing.OverlayType.POLYGON,
-        drawingControl: true,
-        drawingControlOptions: {
-          position: g.ControlPosition.TOP_CENTER,
-          drawingModes: [g.drawing.OverlayType.POLYGON],
-        },
-        polygonOptions: {
-          fillColor: "#22c55e",
-          fillOpacity: 0.45,
-          strokeColor: "#16a34a",
-          strokeWeight: 2,
-          clickable: true,
-          editable: true,
-          zIndex: 1,
-        },
-      });
-      manager.setMap(map);
-      managerRef.current = manager;
-      listener = g.event.addListener(manager, "overlaycomplete", (event: any) => {
-        if (event.type !== g.drawing.OverlayType.POLYGON) return;
-        polygonRef.current?.setMap(null);
-        bind(event.overlay);
-        manager.setDrawingMode(null);
-      });
     };
 
     void initDrawingManager();
@@ -144,9 +173,13 @@ export function QuoteAreaMap({ isEs }: { isEs: boolean }) {
     return () => {
       cancelled = true;
       if (timerId) clearTimeout(timerId);
-      if (listener) g.event.removeListener(listener);
-      polygonRef.current?.setMap(null);
-      managerRef.current?.setMap(null);
+      if (listener && g?.event) g.event.removeListener(listener);
+      try {
+        polygonRef.current?.setMap(null);
+        managerRef.current?.setMap(null);
+      } catch {
+        // ignore cleanup error
+      }
       mapRef.current = null;
       managerRef.current = null;
       polygonRef.current = null;

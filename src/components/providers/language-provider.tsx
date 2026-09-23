@@ -53,7 +53,7 @@ export function LanguageProvider({
   }, [locale, setLocale]);
 
   const value = React.useMemo<LanguageContextValue>(() => {
-    const t = dictionaries[locale];
+    const t = dictionaries[locale] ?? dictionaries.es;
     return {
       locale,
       isEs: locale === "es",

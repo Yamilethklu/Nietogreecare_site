@@ -30,7 +30,7 @@ function isVideoUrl(url: string) {
  */
 export function GalleryCarousel({ items }: { items: GalleryCarouselItem[] }) {
   const { t, isEs } = useLanguage();
-  const slides = items.slice(0, 5);
+  const slides = (items ?? []).slice(0, 5);
   const [index, setIndex] = React.useState(0);
   const [paused, setPaused] = React.useState(false);
 
