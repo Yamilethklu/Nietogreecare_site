@@ -71,15 +71,40 @@ export function QuoteAreaMap({ isEs }: { isEs: boolean }) {
 
     const saved = useQuoteStore.getState().measurement?.polygon;
     if (saved && saved.length >= 3) {
-      bind(new g.Polygon({ paths: saved, map, editable: true, draggable: true, strokeColor: "#f5c96b", fillColor: "#f5c96b", fillOpacity: 0.25 }));
+      bind(
+        new g.Polygon({
+          paths: saved,
+          map,
+          editable: true,
+          draggable: true,
+          strokeColor: "#16a34a",
+          fillColor: "#22c55e",
+          fillOpacity: 0.45,
+          strokeWeight: 2,
+          clickable: true,
+          zIndex: 1,
+        })
+      );
     }
 
     let listener: any = null;
     if (g.drawing?.DrawingManager && g.drawing?.OverlayType && g.geometry?.spherical) {
       const manager = new g.drawing.DrawingManager({
-        drawingMode: null,
-        drawingControl: false,
-        polygonOptions: { editable: true, draggable: true, strokeColor: "#f5c96b", fillColor: "#f5c96b", fillOpacity: 0.25 },
+        drawingMode: g.drawing.OverlayType.POLYGON,
+        drawingControl: true,
+        drawingControlOptions: {
+          position: g.ControlPosition.TOP_CENTER,
+          drawingModes: [g.drawing.OverlayType.POLYGON],
+        },
+        polygonOptions: {
+          fillColor: "#22c55e",
+          fillOpacity: 0.45,
+          strokeColor: "#16a34a",
+          strokeWeight: 2,
+          clickable: true,
+          editable: true,
+          zIndex: 1,
+        },
       });
       manager.setMap(map);
       managerRef.current = manager;
