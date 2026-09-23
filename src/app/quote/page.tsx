@@ -57,8 +57,9 @@ export default function QuotePage() {
     try {
       map = new g.Map(mapNode.current, { center, zoom: 19, mapTypeId: "hybrid", streetViewControl: false, fullscreenControl: false });
       mapRef.current = map;
-      manager = new g.drawing.DrawingManager({ drawingMode: g.drawing.OverlayType.POLYGON, drawingControl: true, drawingControlOptions: { position: g.ControlPosition.TOP_CENTER, drawingModes: [g.drawing.OverlayType.POLYGON] }, polygonOptions: { fillColor: "#16a34a", fillOpacity: 0.4, strokeWeight: 2, strokeColor: "#22c55e", clickable: true, editable: true, zIndex: 1 } });
+      manager = new g.drawing.DrawingManager({ drawingMode: g.drawing.OverlayType.POLYGON, drawingControl: true, drawingControlOptions: { position: g.ControlPosition.TOP_CENTER, drawingModes: [g.drawing.OverlayType.POLYGON] }, polygonOptions: { fillColor: "#22c55e", fillOpacity: 0.45, strokeColor: "#16a34a", strokeWeight: 2, clickable: true, editable: true, zIndex: 1 } });
       manager.setMap(map);
+      let previousPolygon: any = null;
       const savePolygon = (polygon: any) => {
         try {
           const points = polygon.getPath().getArray().map((point: any) => ({ lat: point.lat(), lng: point.lng() })) as PolygonPoint[];
@@ -75,14 +76,15 @@ export default function QuotePage() {
         }
       };
       const bindPolygon = (polygon: any) => {
+        previousPolygon = polygon;
         savePolygon(polygon);
         ["set_at", "insert_at", "remove_at"].forEach((eventName) => polygon.getPath().addListener(eventName, () => savePolygon(polygon)));
         polygon.addListener("dragend", () => savePolygon(polygon));
       };
       const savedPolygon = useQuoteStore.getState().measurement?.polygon;
       if (savedPolygon && savedPolygon.length >= 3) bindPolygon(new g.Polygon({ paths: savedPolygon, editable: true, draggable: true, map }));
-      const overlayListener = g.event.addListener(manager, "overlaycomplete", (event: any) => { if (event.type === g.drawing.OverlayType.POLYGON) { manager.setDrawingMode(null); bindPolygon(event.overlay); } });
-      return () => { g.event.removeListener(overlayListener); manager.setMap(null); mapRef.current = null; };
+      const overlayListener = g.event.addListener(manager, "overlaycomplete", (event: any) => { if (event.type === g.drawing.OverlayType.POLYGON) { previousPolygon?.setMap(null); manager.setDrawingMode(null); bindPolygon(event.overlay); } });
+      return () => { g.event.removeListener(overlayListener); previousPolygon?.setMap(null); manager.setMap(null); mapRef.current = null; };
     } catch {
       mapRef.current = null;
       return () => undefined;
