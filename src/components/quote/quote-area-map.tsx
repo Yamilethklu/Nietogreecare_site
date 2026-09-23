@@ -28,6 +28,8 @@ export function QuoteAreaMap({ isEs }: { isEs: boolean }) {
   const mapRef = React.useRef<any>(null);
   const managerRef = React.useRef<any>(null);
   const polygonRef = React.useRef<any>(null);
+  const activePointsRef = React.useRef<PolygonPoint[]>([]);
+  const isDrawingModeRef = React.useRef<boolean>(false);
 
   React.useEffect(() => {
     let active = true;
@@ -63,12 +65,13 @@ export function QuoteAreaMap({ isEs }: { isEs: boolean }) {
             points.push({ lat, lng });
           }
         }
-        if (points.length < 3) return;
-        const area = Math.round(g.geometry.spherical.computeArea(path) * 10.7639);
-        if (!Number.isFinite(area) || area < 0) return;
-        setAreaSqFt(area);
-        setDrawn(true);
-        setMeasurement(buildMeasurement(points, area, useQuoteStore.getState().measurement?.depthInches ?? 2, map.getZoom()));
+        if (points.length < 2) return;
+        const area = points.length >= 3 ? Math.round(g.geometry.spherical.computeArea(path) * 10.7639) : 0;
+        if (Number.isFinite(area) && area >= 0) {
+          setAreaSqFt(area);
+          if (points.length >= 3) setDrawn(true);
+          setMeasurement(buildMeasurement(points, area, useQuoteStore.getState().measurement?.depthInches ?? 2, map.getZoom()));
+        }
       } catch (err) {
         console.error("Error saving measurement:", err);
       }
@@ -99,6 +102,40 @@ export function QuoteAreaMap({ isEs }: { isEs: boolean }) {
         console.error("Error binding polygon:", err);
       }
     };
+
+    const onMapClick = (e: any) => {
+      if (!isDrawingModeRef.current || !e.latLng) return;
+      const lat = typeof e.latLng.lat === "function" ? e.latLng.lat() : Number(e.latLng.lat);
+      const lng = typeof e.latLng.lng === "function" ? e.latLng.lng() : Number(e.latLng.lng);
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+
+      activePointsRef.current.push({ lat, lng });
+      const pts = activePointsRef.current;
+
+      if (pts.length >= 2) {
+        if (!polygonRef.current) {
+          const poly = new g.Polygon({
+            paths: pts,
+            map,
+            editable: true,
+            draggable: true,
+            strokeColor: "#16a34a",
+            fillColor: "#22c55e",
+            fillOpacity: 0.45,
+            strokeWeight: 2.5,
+            clickable: true,
+            zIndex: 10,
+          });
+          polygonRef.current = poly;
+          bind(poly);
+        } else {
+          polygonRef.current.setPath(pts.map((p) => new g.LatLng(p.lat, p.lng)));
+          save(polygonRef.current);
+        }
+      }
+    };
+
+    const clickListener = g.event.addListener(map, "click", onMapClick);
 
     const saved = useQuoteStore.getState().measurement?.polygon;
     if (Array.isArray(saved) && saved.length >= 3) {
@@ -171,11 +208,12 @@ export function QuoteAreaMap({ isEs }: { isEs: boolean }) {
         });
         manager.setMap(map);
         managerRef.current = manager;
-        listener = g.event.addListener(manager, "overlaycomplete", (event: any) => {
+        managerListener = g.event.addListener(manager, "overlaycomplete", (event: any) => {
           if (event.type === g.drawing.OverlayType.POLYGON) {
             polygonRef.current?.setMap(null);
             bind(event.overlay);
             manager.setDrawingMode(null);
+            isDrawingModeRef.current = false;
           } else if (event.type === g.drawing.OverlayType.RECTANGLE) {
             const bounds = event.overlay.getBounds();
             const ne = bounds.getNorthEast();
@@ -199,6 +237,7 @@ export function QuoteAreaMap({ isEs }: { isEs: boolean }) {
             polygonRef.current?.setMap(null);
             bind(rectPolygon);
             manager.setDrawingMode(null);
+            isDrawingModeRef.current = false;
           }
         });
       } catch (err) {
@@ -211,7 +250,8 @@ export function QuoteAreaMap({ isEs }: { isEs: boolean }) {
     return () => {
       cancelled = true;
       if (timerId) clearTimeout(timerId);
-      if (listener && g?.event) g.event.removeListener(listener);
+      if (clickListener && g?.event) g.event.removeListener(clickListener);
+      if (managerListener && g?.event) g.event.removeListener(managerListener);
       try {
         polygonRef.current?.setMap(null);
         managerRef.current?.setMap(null);
