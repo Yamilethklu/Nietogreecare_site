@@ -137,9 +137,9 @@ export function Hero() {
             className="flex flex-col gap-3 sm:flex-row sm:items-center"
           >
             <Button asChild variant="gold" size="lg">
-              <a href={buildWhatsAppHref()} target="_blank" rel="noreferrer">
+              <Link href="/quote">
                 {t.hero.ctaQuote}
-              </a>
+              </Link>
             </Button>
             <CallButton label={t.hero.ctaCall} size="lg" />
             <Button asChild variant="ghost" size="lg">

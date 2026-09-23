@@ -39,9 +39,10 @@ export default async function HomePage() {
   const locale = normalizeLocale(cookieStore.get(LOCALE_COOKIE)?.value);
   const t = getDictionary(locale);
 
-  const [slides, qrDataUrl] = await Promise.all([
+  const [slides, cashAppQrDataUrl, venmoQrDataUrl] = await Promise.all([
     fetchCarouselSlides(),
     buildQrDataUrl(BUSINESS.cashAppUrl),
+    buildQrDataUrl(BUSINESS.venmoUrl),
   ]);
 
   const structuredData = {
@@ -62,7 +63,7 @@ export default async function HomePage() {
     },
     openingHours: "Mo-Sa 07:00-19:00",
     priceRange: "$$",
-    paymentAccepted: ["Cash", "Cash App", "Zelle"],
+    paymentAccepted: ["Cash", "Cash App", "Venmo", "Zelle"],
     url: process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000",
   };
 
@@ -81,7 +82,7 @@ export default async function HomePage() {
         <QuoteCta />
         <AboutSection />
 
-        <PaymentsSection qrDataUrl={qrDataUrl} />
+        <PaymentsSection cashAppQrDataUrl={cashAppQrDataUrl} venmoQrDataUrl={venmoQrDataUrl} />
 
         <ContactSection />
       </main>

@@ -1,21 +1,22 @@
 "use client";
 
-import { MessageSquare, Phone, Zap } from "lucide-react";
+import Link from "next/link";
+import { ClipboardList, Phone, Zap } from "lucide-react";
 
 import { useLanguage } from "@/components/providers/language-provider";
 import { SectionHeading } from "@/components/site/section-heading";
 import { Button } from "@/components/ui/button";
 import { LuxuryCard } from "@/components/ui/card";
-import { buildWhatsAppHref, BUSINESS } from "@/lib/constants";
+import { BUSINESS } from "@/lib/constants";
 
-/** Bloque de conversión directa: conversación por WhatsApp o llamada inmediata. */
+/** Bloque de conversión hacia el cotizador interactivo oficial. */
 export function QuoteCta() {
   const { t, isEs } = useLanguage();
 
   const benefits = [
-    isEs ? "Cuéntenos qué necesita" : "Tell us what you need",
-    isEs ? "Comparta fotos si lo desea" : "Share photos if you wish",
-    isEs ? "Reciba respuesta el mismo día" : "Get a same-day reply",
+    isEs ? "Ingrese su dirección y código postal" : "Enter your address and ZIP code",
+    isEs ? "Mida o seleccione el tamaño de su terreno" : "Measure or choose your yard size",
+    isEs ? "Elija servicios y complete su solicitud" : "Choose services and complete your request",
   ];
 
   return (
@@ -28,13 +29,9 @@ export function QuoteCta() {
           />
 
           <SectionHeading
-            eyebrow={isEs ? "Contacto directo" : "Direct contact"}
-            title={isEs ? "Cotice por mensaje o llamada" : "Get a quote by message or phone"}
-            subtitle={
-              isEs
-                ? "Sin formularios largos ni mapas: escriba directamente a nuestro equipo y cuéntenos sobre su proyecto."
-                : "No long forms or maps: message our team directly and tell us about your project."
-            }
+            eyebrow={t.quoteCta.eyebrow}
+            title={t.quoteCta.title}
+            subtitle={t.quoteCta.subtitle}
             align="left"
             className="relative"
           />
@@ -53,10 +50,10 @@ export function QuoteCta() {
 
           <div className="relative flex flex-col gap-3 sm:flex-row">
             <Button asChild variant="gold" size="lg">
-              <a href={buildWhatsAppHref()} target="_blank" rel="noreferrer">
-                <MessageSquare className="size-5" />
+              <Link href="/quote">
+                <ClipboardList className="size-5" />
                 {t.quoteCta.button}
-              </a>
+              </Link>
             </Button>
             <Button asChild variant="outline" size="lg">
               <a href={BUSINESS.telHref}>

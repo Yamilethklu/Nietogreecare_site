@@ -25,9 +25,12 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-/** Pagina de metodos de pago: efectivo, Cash App y Zelle (sin tarjetas de credito). */
+/** Pagina de metodos de pago: efectivo, Cash App, Venmo y Zelle (sin tarjetas de credito). */
 export default async function PaymentsPage() {
-  const qrDataUrl = await buildQrDataUrl(BUSINESS.cashAppUrl);
+  const [cashAppQrDataUrl, venmoQrDataUrl] = await Promise.all([
+    buildQrDataUrl(BUSINESS.cashAppUrl),
+    buildQrDataUrl(BUSINESS.venmoUrl),
+  ]);
 
   return (
     <>
@@ -41,7 +44,11 @@ export default async function PaymentsPage() {
             </Link>
           </Button>
         </div>
-        <PaymentsSection qrDataUrl={qrDataUrl} className="pt-4 pb-14" />
+        <PaymentsSection
+          cashAppQrDataUrl={cashAppQrDataUrl}
+          venmoQrDataUrl={venmoQrDataUrl}
+          className="pt-4 pb-14"
+        />
       </main>
       <SiteFooter />
       <FloatingContact />

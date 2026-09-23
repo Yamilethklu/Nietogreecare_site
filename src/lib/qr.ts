@@ -2,7 +2,7 @@ import QRCode from "qrcode";
 
 /**
  * Generacion de codigos QR (solo servidor).
- * Se usa para el pago por Cash App: el QR apunta al perfil oficial del negocio.
+ * Se usa para enlaces oficiales de pago: cada QR apunta al perfil del negocio.
  */
 export async function buildQrDataUrl(
   value: string,

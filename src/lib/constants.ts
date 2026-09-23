@@ -29,6 +29,8 @@ export const BUSINESS = {
   hoursEn: "Monday to Saturday · 7:00 AM - 7:00 PM",
   cashAppTag: "$JaimeNietoMorales",
   cashAppUrl: "https://cash.app/$JaimeNietoMorales",
+  venmoHandle: "@gxrciaa_",
+  venmoUrl: "https://venmo.com/u/gxrciaa_",
   zelleName: "Nieto Green Care LLC",
   zellePhone: "737-314-4215",
 } as const;
@@ -135,6 +137,9 @@ export type ServiceDefinition = {
 
 export const SERVICES: ServiceDefinition[] = [
   {
+    key: "weekly_biweekly_lawn_service", nameEs: "Servicio de césped semanal y quincenal", nameEn: "Weekly & Biweekly Lawn Service", descriptionEs: "Mantenimiento recurrente de césped semanal o cada dos semanas.", descriptionEn: "Recurring lawn maintenance weekly or every two weeks.", icon: "CalendarCheck", featured: true,
+  },
+  {
     key: "tree_trimming",
     nameEs: "Poda de arboles y arbustos",
     nameEn: "Tree & Bush Trimming",
@@ -168,9 +173,6 @@ export const SERVICES: ServiceDefinition[] = [
   {
     key: "top_soil", nameEs: "Tierra vegetal", nameEn: "Top Soil", descriptionEs: "Suministro e instalación de tierra vegetal de calidad.", descriptionEn: "Quality top soil supply and installation.", icon: "Sprout",
   },
-  {
-    key: "weekly_biweekly_lawn_service", nameEs: "Servicio de césped semanal y quincenal", nameEn: "Weekly & Biweekly Lawn Service", descriptionEs: "Mantenimiento recurrente de césped semanal o cada dos semanas.", descriptionEn: "Recurring lawn maintenance weekly or every two weeks.", icon: "CalendarCheck", featured: true,
-  },
 ];
 
 export const SERVICE_MAP: Record<string, ServiceDefinition> = SERVICES.reduce(
@@ -192,10 +194,10 @@ export const PAYMENT_METHODS = [
   },
   {
     key: "transfer" as const,
-    labelEs: "Transferencia (Cash App o Zelle)",
-    labelEn: "Transfer (Cash App or Zelle)",
-    descriptionEs: `Cash App ${BUSINESS.cashAppTag} o Zelle a ${BUSINESS.zelleName}.`,
-    descriptionEn: `Cash App ${BUSINESS.cashAppTag} or Zelle to ${BUSINESS.zelleName}.`,
+    labelEs: "Transferencia (Cash App, Venmo o Zelle)",
+    labelEn: "Transfer (Cash App, Venmo or Zelle)",
+    descriptionEs: `Cash App ${BUSINESS.cashAppTag}, Venmo ${BUSINESS.venmoHandle} o Zelle a ${BUSINESS.zelleName}.`,
+    descriptionEn: `Cash App ${BUSINESS.cashAppTag}, Venmo ${BUSINESS.venmoHandle} or Zelle to ${BUSINESS.zelleName}.`,
     icon: "Smartphone",
   },
   {

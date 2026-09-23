@@ -4,7 +4,7 @@ import { Clock, Facebook, Instagram, Mail, MapPin, Phone } from "lucide-react";
 import { FooterNote } from "@/components/site/footer-note";
 import { SiteLogo } from "@/components/site/brand";
 import { Badge } from "@/components/ui/badge";
-import { buildWhatsAppHref, BUSINESS, NEARBY_CITIES, SERVICE_CITIES } from "@/lib/constants";
+import { BUSINESS, NEARBY_CITIES, SERVICE_CITIES } from "@/lib/constants";
 import { getDictionary } from "@/lib/i18n";
 import { LOCALE_COOKIE } from "@/lib/i18n/config";
 import { cookies } from "next/headers";
@@ -24,7 +24,7 @@ export async function SiteFooter() {
     { href: "/#servicios", label: t.nav.services },
     { href: "/#galeria", label: t.nav.gallery },
     { href: "/#empresa", label: t.nav.about },
-    { href: buildWhatsAppHref(), label: t.nav.quote, external: true },
+    { href: "/quote", label: t.nav.quote },
     { href: "/payments", label: t.nav.payments },
     { href: "/#contacto", label: t.nav.contact },
   ];
@@ -48,23 +48,12 @@ export async function SiteFooter() {
           <ul className="flex flex-col gap-2">
             {quickLinks.map((link) => (
               <li key={link.href}>
-                {link.external ? (
-                  <a
-                    href={link.href}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-sm text-ink-200/80 transition-colors hover:text-gold-200"
-                  >
-                    {link.label}
-                  </a>
-                ) : (
-                  <Link
-                    href={link.href}
-                    className="text-sm text-ink-200/80 transition-colors hover:text-gold-200"
-                  >
-                    {link.label}
-                  </Link>
-                )}
+                <Link
+                  href={link.href}
+                  className="text-sm text-ink-200/80 transition-colors hover:text-gold-200"
+                >
+                  {link.label}
+                </Link>
               </li>
             ))}
           </ul>

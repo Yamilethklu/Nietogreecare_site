@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import {
   Ban,
   Banknote,
@@ -20,18 +21,20 @@ import { SectionHeading } from "@/components/site/section-heading";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, LuxuryCard } from "@/components/ui/card";
-import { buildWhatsAppHref, BUSINESS } from "@/lib/constants";
+import { BUSINESS } from "@/lib/constants";
 
 /**
- * Metodos de pago (efectivo, Cash App y Zelle).
+ * Metodos de pago (efectivo, Cash App, Venmo y Zelle).
  * Requisito estricto: la plataforma NO procesa ni almacena tarjetas de credito.
  */
 export function PaymentsSection({
-  qrDataUrl = null,
+  cashAppQrDataUrl = null,
+  venmoQrDataUrl = null,
   withHeading = true,
   className,
 }: {
-  qrDataUrl?: string | null;
+  cashAppQrDataUrl?: string | null;
+  venmoQrDataUrl?: string | null;
   withHeading?: boolean;
   className?: string;
 }) {
@@ -61,7 +64,7 @@ export function PaymentsSection({
           />
         ) : null}
 
-        <div className="grid gap-6 lg:grid-cols-3">
+        <div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-4">
           <Card className="flex flex-col gap-4 border-red-500/20 bg-red-950/10 p-7">
             <span className="flex items-center gap-2">
               <Ban className="size-5 text-red-300" />
@@ -121,10 +124,10 @@ export function PaymentsSection({
                 <QrCode className="size-4" />
                 {t.payments.cashAppQr}
               </span>
-              {qrDataUrl ? (
+              {cashAppQrDataUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
-                  src={qrDataUrl}
+                  src={cashAppQrDataUrl}
                   alt={`Cash App ${BUSINESS.cashAppTag}`}
                   width={168}
                   height={168}
@@ -137,6 +140,67 @@ export function PaymentsSection({
               )}
               <p className="text-center text-xs leading-relaxed text-ink-400">
                 {t.payments.cashAppQrHint}
+              </p>
+            </div>
+          </Card>
+
+          <Card className="flex flex-col gap-4 p-7">
+            <span className="flex items-center gap-2">
+              <Smartphone className="size-5 text-gold-300" />
+              <h3 className="font-display text-lg font-semibold text-white">
+                {t.payments.venmoTitle}
+              </h3>
+            </span>
+            <p className="text-sm leading-relaxed text-ink-200/80">{t.payments.venmoDesc}</p>
+
+            <div className="flex items-center justify-between gap-3 rounded-2xl border border-gold-500/25 bg-ink-950/70 px-4 py-3">
+              <span className="text-[11px] uppercase tracking-[0.16em] text-ink-400">
+                {t.payments.venmoHandle}
+              </span>
+              <span className="font-display text-base font-semibold text-gold-200">
+                {BUSINESS.venmoHandle}
+              </span>
+            </div>
+
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => copy(BUSINESS.venmoHandle, t.payments.venmoTitle)}
+                className="flex-1"
+              >
+                <Copy className="size-4" />
+                {t.payments.copyTag}
+              </Button>
+              <Button asChild variant="gold" className="flex-1">
+                <a href={BUSINESS.venmoUrl} target="_blank" rel="noreferrer noopener">
+                  <ExternalLink className="size-4" />
+                  {t.payments.venmoButton}
+                </a>
+              </Button>
+            </div>
+
+            <div className="flex flex-col items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+              <span className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-gold-200">
+                <QrCode className="size-4" />
+                {t.payments.venmoQr}
+              </span>
+              {venmoQrDataUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={venmoQrDataUrl}
+                  alt={`Venmo ${BUSINESS.venmoHandle}`}
+                  width={168}
+                  height={168}
+                  className="rounded-xl border border-gold-500/25 bg-white p-2"
+                />
+              ) : (
+                <span className="rounded-xl border border-dashed border-white/15 px-4 py-8 text-center text-xs text-ink-400">
+                  {BUSINESS.venmoUrl}
+                </span>
+              )}
+              <p className="text-center text-xs leading-relaxed text-ink-400">
+                {t.payments.venmoQrHint}
               </p>
             </div>
           </Card>
@@ -233,17 +297,17 @@ export function PaymentsSection({
 
         <div className="flex flex-col items-center justify-center gap-3 sm:flex-row">
           <Button asChild variant="gold" size="lg">
-            <a href={buildWhatsAppHref()} target="_blank" rel="noreferrer">
+            <Link href="/quote">
               {t.payments.ctaQuote}
-            </a>
+            </Link>
           </Button>
           <Button asChild variant="outline" size="lg">
             <a href={BUSINESS.telHref}>{t.payments.ctaCall}</a>
           </Button>
           <Badge variant="dark" className="h-fit">
             {isEs
-              ? "Solo efectivo, Cash App o Zelle"
-              : "Cash, Cash App or Zelle only"}
+              ? "Solo efectivo, Cash App, Venmo o Zelle"
+              : "Cash, Cash App, Venmo or Zelle only"}
           </Badge>
         </div>
       </div>

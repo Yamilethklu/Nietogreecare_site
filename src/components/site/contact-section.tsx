@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Clock, Mail, MapPin, Phone } from "lucide-react";
 
 import { useLanguage } from "@/components/providers/language-provider";
@@ -7,7 +8,7 @@ import { CallButton } from "@/components/site/brand";
 import { SectionHeading } from "@/components/site/section-heading";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { buildWhatsAppHref, BUSINESS, NEARBY_CITIES, SERVICE_CITIES } from "@/lib/constants";
+import { BUSINESS, NEARBY_CITIES, SERVICE_CITIES } from "@/lib/constants";
 
 /** Bloque de contacto (telefono, correo, cobertura y horario). */
 export function ContactSection() {
@@ -81,9 +82,9 @@ export function ContactSection() {
             </a>
           </Button>
           <Button asChild variant="gold" size="lg">
-            <a href={buildWhatsAppHref()} target="_blank" rel="noreferrer">
+            <Link href="/quote">
               {t.contact.ctaQuote}
-            </a>
+            </Link>
           </Button>
         </div>
       </div>
