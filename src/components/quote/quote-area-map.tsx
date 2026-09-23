@@ -22,6 +22,7 @@ export function QuoteAreaMap({ isEs }: { isEs: boolean }) {
   const setMeasurement = useQuoteStore((state) => state.setMeasurement);
   const clearMeasurement = useQuoteStore((state) => state.clearMeasurement);
   const [mapsReady, setMapsReady] = React.useState(false);
+  const [mapElement, setMapElement] = React.useState<HTMLDivElement | null>(null);
   const [areaSqFt, setAreaSqFt] = React.useState(measurement?.areaSqFt ?? 0);
   const [drawn, setDrawn] = React.useState(Boolean(measurement?.polygon?.length));
   const mapNode = React.useRef<HTMLDivElement>(null);
@@ -40,12 +41,12 @@ export function QuoteAreaMap({ isEs }: { isEs: boolean }) {
   }, []);
 
   React.useEffect(() => {
-    if (!mapsReady || !mapNode.current || !window.google?.maps) return;
+    if (!mapsReady || !mapElement || !window.google?.maps) return;
     const g = window.google.maps;
     const safeLat = typeof latitude === "number" && Number.isFinite(latitude) ? latitude : (typeof latitude === "string" && Number.isFinite(Number.parseFloat(latitude)) ? Number.parseFloat(latitude) : AUSTIN_CENTER.lat);
     const safeLng = typeof longitude === "number" && Number.isFinite(longitude) ? longitude : (typeof longitude === "string" && Number.isFinite(Number.parseFloat(longitude)) ? Number.parseFloat(longitude) : AUSTIN_CENTER.lng);
 
-    const map = new g.Map(mapNode.current, {
+    const map = new g.Map(mapElement, {
       center: { lat: safeLat, lng: safeLng },
       zoom: 19,
       mapTypeId: "hybrid",
@@ -172,7 +173,7 @@ export function QuoteAreaMap({ isEs }: { isEs: boolean }) {
       mapRef.current = null;
       polygonRef.current = null;
     };
-  }, [mapsReady, latitude, longitude, setMeasurement]);
+  }, [mapsReady, mapElement, latitude, longitude, setMeasurement]);
 
   const startDrawing = () => {
     isDrawingModeRef.current = true;
@@ -308,7 +309,10 @@ export function QuoteAreaMap({ isEs }: { isEs: boolean }) {
           {isEs ? "Borrar área" : "Clear area"}
         </Button>
       </div>
-      <div ref={mapNode} className="h-[420px] overflow-hidden rounded-2xl border border-gold-500/25 bg-ink-950" />
+      <div
+        ref={setMapElement}
+        className="h-[420px] overflow-hidden rounded-2xl border border-gold-500/25 bg-ink-950"
+      />
       <div className="rounded-2xl border border-gold-500/25 bg-gold-500/5 p-4">
         <p className="text-xs uppercase tracking-[0.18em] text-gold-200">{isEs ? "Área seleccionada" : "Selected area"}</p>
         <p className="mt-2 text-2xl font-semibold text-white">{formatNumber(areaSqFt)} sq ft</p>
