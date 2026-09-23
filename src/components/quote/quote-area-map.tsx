@@ -88,9 +88,32 @@ export function QuoteAreaMap({ isEs }: { isEs: boolean }) {
     }
 
     let listener: any = null;
-    if (g.drawing?.DrawingManager && g.drawing?.OverlayType && g.geometry?.spherical && g.ControlPosition) {
+    let timerId: any = null;
+    let cancelled = false;
+
+    const initDrawingManager = async () => {
+      if (cancelled) return;
+
+      if (!g.drawing?.DrawingManager && typeof g.importLibrary === "function") {
+        try {
+          await g.importLibrary("drawing");
+        } catch {
+          // ignore
+        }
+      }
+
+      if (!g.drawing?.DrawingManager || !g.drawing?.OverlayType || !g.geometry?.spherical || !g.ControlPosition) {
+        if (!cancelled) {
+          timerId = setTimeout(initDrawingManager, 100);
+        }
+        return;
+      }
+
+      if (cancelled) return;
+
+      const currentSaved = useQuoteStore.getState().measurement?.polygon;
       const manager = new g.drawing.DrawingManager({
-        drawingMode: saved && saved.length >= 3 ? null : g.drawing.OverlayType.POLYGON,
+        drawingMode: currentSaved && currentSaved.length >= 3 ? null : g.drawing.OverlayType.POLYGON,
         drawingControl: true,
         drawingControlOptions: {
           position: g.ControlPosition.TOP_CENTER,
@@ -114,9 +137,13 @@ export function QuoteAreaMap({ isEs }: { isEs: boolean }) {
         bind(event.overlay);
         manager.setDrawingMode(null);
       });
-    }
+    };
+
+    void initDrawingManager();
 
     return () => {
+      cancelled = true;
+      if (timerId) clearTimeout(timerId);
       if (listener) g.event.removeListener(listener);
       polygonRef.current?.setMap(null);
       managerRef.current?.setMap(null);
@@ -126,9 +153,17 @@ export function QuoteAreaMap({ isEs }: { isEs: boolean }) {
     };
   }, [mapsReady, latitude, longitude, setMeasurement]);
 
-  const startDrawing = () => {
+  const startDrawing = async () => {
     const g = window.google?.maps;
-    if (!managerRef.current || !g?.drawing?.OverlayType) return;
+    if (!g) return;
+    if (!managerRef.current && typeof g.importLibrary === "function") {
+      try {
+        await g.importLibrary("drawing");
+      } catch {
+        // ignore
+      }
+    }
+    if (!managerRef.current || !g.drawing?.OverlayType) return;
     polygonRef.current?.setMap(null);
     polygonRef.current = null;
     setDrawn(false);
