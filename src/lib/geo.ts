@@ -80,15 +80,17 @@ export function isWithinCoverageRadius(
 
 /** Area esferica del poligono en m2 (equivalente a spherical.computeArea). */
 export function polygonAreaSquareMeters(polygon: LatLng[]): number {
-  if (!polygon || polygon.length < 3) return 0;
-  const points = [...polygon, polygon[0]];
+  if (!Array.isArray(polygon) || polygon.length < 3) return 0;
+  const valid = polygon.filter((p) => Number.isFinite(Number(p?.lat)) && Number.isFinite(Number(p?.lng)));
+  if (valid.length < 3) return 0;
+  const points = [...valid, valid[0]];
   let total = 0;
   for (let i = 0; i < points.length - 1; i += 1) {
     const lower = points[i];
     const middle = points[i + 1];
     total +=
-      toRadians(middle.lng - lower.lng) *
-      (2 + Math.sin(toRadians(lower.lat)) + Math.sin(toRadians(middle.lat)));
+      toRadians(Number(middle.lng) - Number(lower.lng)) *
+      (2 + Math.sin(toRadians(Number(lower.lat))) + Math.sin(toRadians(Number(middle.lat))));
   }
   return Math.abs((total * EARTH_RADIUS_METERS * EARTH_RADIUS_METERS) / 2);
 }
@@ -100,14 +102,16 @@ export function polygonAreaSquareFeet(polygon: LatLng[]): number {
 
 /** Perimetro del poligono en pies. */
 export function polygonPerimeterFeet(polygon: LatLng[]): number {
-  if (!polygon || polygon.length < 2) return 0;
-  const points = [...polygon, polygon[0]];
+  if (!Array.isArray(polygon) || polygon.length < 2) return 0;
+  const valid = polygon.filter((p) => Number.isFinite(Number(p?.lat)) && Number.isFinite(Number(p?.lng)));
+  if (valid.length < 2) return 0;
+  const points = [...valid, valid[0]];
   let meters = 0;
   for (let i = 0; i < points.length - 1; i += 1) {
-    const dLat = toRadians(points[i + 1].lat - points[i].lat);
-    const dLng = toRadians(points[i + 1].lng - points[i].lng);
-    const lat1 = toRadians(points[i].lat);
-    const lat2 = toRadians(points[i + 1].lat);
+    const dLat = toRadians(Number(points[i + 1].lat) - Number(points[i].lat));
+    const dLng = toRadians(Number(points[i + 1].lng) - Number(points[i].lng));
+    const lat1 = toRadians(Number(points[i].lat));
+    const lat2 = toRadians(Number(points[i + 1].lat));
     const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
     meters += 2 * EARTH_RADIUS_METERS * Math.asin(Math.min(1, Math.sqrt(a)));
   }
@@ -117,34 +121,40 @@ export function polygonPerimeterFeet(polygon: LatLng[]): number {
 export type Bounds = { north: number; south: number; east: number; west: number };
 
 export function getBounds(polygon: LatLng[]): Bounds | null {
-  if (!polygon || polygon.length === 0) return null;
-  return polygon.reduce<Bounds>(
+  if (!Array.isArray(polygon) || polygon.length === 0) return null;
+  const valid = polygon.filter((p) => Number.isFinite(Number(p?.lat)) && Number.isFinite(Number(p?.lng)));
+  if (valid.length === 0) return null;
+  return valid.reduce<Bounds>(
     (acc, point) => ({
-      north: Math.max(acc.north, point.lat),
-      south: Math.min(acc.south, point.lat),
-      east: Math.max(acc.east, point.lng),
-      west: Math.min(acc.west, point.lng),
+      north: Math.max(acc.north, Number(point.lat)),
+      south: Math.min(acc.south, Number(point.lat)),
+      east: Math.max(acc.east, Number(point.lng)),
+      west: Math.min(acc.west, Number(point.lng)),
     }),
     { north: -90, south: 90, east: -180, west: 180 },
   );
 }
 
 export function getCentroid(polygon: LatLng[]): LatLng | null {
-  if (!polygon || polygon.length === 0) return null;
-  const sum = polygon.reduce(
-    (acc, point) => ({ lat: acc.lat + point.lat, lng: acc.lng + point.lng }),
+  if (!Array.isArray(polygon) || polygon.length === 0) return null;
+  const valid = polygon.filter((p) => Number.isFinite(Number(p?.lat)) && Number.isFinite(Number(p?.lng)));
+  if (valid.length === 0) return null;
+  const sum = valid.reduce(
+    (acc, point) => ({ lat: acc.lat + Number(point.lat), lng: acc.lng + Number(point.lng) }),
     { lat: 0, lng: 0 },
   );
-  return { lat: sum.lat / polygon.length, lng: sum.lng / polygon.length };
+  return { lat: sum.lat / valid.length, lng: sum.lng / valid.length };
 }
 
 /** Codifica coordenadas al formato encoded polyline de Google Maps. */
 export function encodePolyline(path: LatLng[]): string {
+  if (!Array.isArray(path)) return "";
   let lastLat = 0;
   let lastLng = 0;
   let result = "";
 
   const encodeValue = (value: number) => {
+    if (!Number.isFinite(value)) return "";
     let v = value < 0 ? ~(value << 1) : value << 1;
     let out = "";
     while (v >= 0x20) {
@@ -156,8 +166,12 @@ export function encodePolyline(path: LatLng[]): string {
   };
 
   for (const point of path) {
-    const lat = Math.round(point.lat * 1e5);
-    const lng = Math.round(point.lng * 1e5);
+    const pLat = Number(point?.lat);
+    const pLng = Number(point?.lng);
+    if (!Number.isFinite(pLat) || !Number.isFinite(pLng)) continue;
+
+    const lat = Math.round(pLat * 1e5);
+    const lng = Math.round(pLng * 1e5);
     result += encodeValue(lat - lastLat);
     result += encodeValue(lng - lastLng);
     lastLat = lat;

@@ -42,8 +42,11 @@ export function QuoteAreaMap({ isEs }: { isEs: boolean }) {
   React.useEffect(() => {
     if (!mapsReady || !mapNode.current || !window.google?.maps) return;
     const g = window.google.maps;
+    const safeLat = typeof latitude === "number" && Number.isFinite(latitude) ? latitude : (typeof latitude === "string" && Number.isFinite(Number.parseFloat(latitude)) ? Number.parseFloat(latitude) : AUSTIN_CENTER.lat);
+    const safeLng = typeof longitude === "number" && Number.isFinite(longitude) ? longitude : (typeof longitude === "string" && Number.isFinite(Number.parseFloat(longitude)) ? Number.parseFloat(longitude) : AUSTIN_CENTER.lng);
+
     const map = new g.Map(mapNode.current, {
-      center: { lat: latitude ?? AUSTIN_CENTER.lat, lng: longitude ?? AUSTIN_CENTER.lng },
+      center: { lat: safeLat, lng: safeLng },
       zoom: 19,
       mapTypeId: "hybrid",
       streetViewControl: false,
