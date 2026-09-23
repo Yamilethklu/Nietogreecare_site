@@ -11,6 +11,7 @@ declare global {
   interface Window {
     google?: any;
     initNgcMaps?: () => void;
+    gm_authFailure?: () => void;
   }
 }
 
@@ -34,6 +35,7 @@ export function loadGoogleMaps(): Promise<boolean> {
   if (loaderPromise) return loaderPromise;
 
   loaderPromise = new Promise<boolean>((resolve) => {
+    window.gm_authFailure = () => resolve(false);
     const existing = document.querySelector<HTMLScriptElement>("script[data-ngc-maps]");
     if (existing) {
       existing.addEventListener("load", () => resolve(Boolean(window.google?.maps)), {

@@ -4,6 +4,7 @@ import * as React from "react";
 import { MapPin } from "lucide-react";
 
 import { FieldHint, Input, Label } from "@/components/ui/input";
+import { loadGoogleMaps } from "@/lib/google-maps";
 import { useQuoteStore } from "@/store/quote-store";
 
 type AddressAutocompleteProps = {
@@ -33,7 +34,59 @@ export function Step1Address({ error, isEs }: AddressAutocompleteProps) {
   const [suggestions, setSuggestions] = React.useState<AddressSuggestion[]>([]);
   const [isSearching, setIsSearching] = React.useState(false);
   const [isOpen, setIsOpen] = React.useState(false);
+  const [placesReady, setPlacesReady] = React.useState(false);
+  const inputRef = React.useRef<HTMLInputElement>(null);
   const selectedAddressRef = React.useRef<string | null>(null);
+
+  React.useEffect(() => {
+    let disposed = false;
+    let listener: { remove?: () => void } | null = null;
+
+    void loadGoogleMaps()
+      .then((available) => {
+        if (disposed || !available || !inputRef.current || !window.google?.maps?.places) return;
+        try {
+          const autocomplete = new window.google.maps.places.Autocomplete(inputRef.current, {
+            fields: ["address_components", "formatted_address", "geometry", "place_id"],
+            types: ["address"],
+            componentRestrictions: { country: "us" },
+          });
+          listener = autocomplete.addListener("place_changed", () => {
+            try {
+              const place = autocomplete.getPlace();
+              const location = place.geometry?.location;
+              if (!location) return;
+              const components = place.address_components ?? [];
+              const component = (type: string) => components.find((item: { types?: string[] }) => item.types?.includes(type))?.long_name ?? "";
+              selectedAddressRef.current = place.formatted_address ?? inputRef.current?.value ?? null;
+              setAddress({
+                address: place.formatted_address ?? inputRef.current?.value ?? "",
+                formattedAddress: place.formatted_address ?? "",
+                city: component("locality") || component("sublocality"),
+                zipCode: component("postal_code"),
+                state: component("administrative_area_level_1") || "TX",
+                placeId: place.place_id ?? null,
+                latitude: location.lat(),
+                longitude: location.lng(),
+              });
+              setSuggestions([]);
+              setIsOpen(false);
+            } catch {
+              setPlacesReady(false);
+            }
+          });
+          setPlacesReady(true);
+        } catch {
+          setPlacesReady(false);
+        }
+      })
+      .catch(() => setPlacesReady(false));
+
+    return () => {
+      disposed = true;
+      listener?.remove?.();
+    };
+  }, [setAddress]);
 
   const updateManualAddress = (address: string) => {
     setAddress({
@@ -106,6 +159,7 @@ export function Step1Address({ error, isEs }: AddressAutocompleteProps) {
       <div className="relative mt-2">
         <Input
           id="quote-address"
+          ref={inputRef}
           value={address}
           onChange={(event) => updateManualAddress(event.target.value)}
           onFocus={() => setIsOpen(true)}
@@ -114,7 +168,7 @@ export function Step1Address({ error, isEs }: AddressAutocompleteProps) {
           autoComplete="street-address"
           aria-invalid={Boolean(error)}
           aria-autocomplete="list"
-          aria-expanded={isOpen && suggestions.length > 0}
+          aria-expanded={isOpen && (suggestions.length > 0 || isSearching)}
           aria-controls="quote-address-suggestions"
           className="pr-11"
         />
