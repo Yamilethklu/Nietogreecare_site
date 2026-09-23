@@ -9,10 +9,10 @@ import { buildMeasurement, useQuoteStore } from "@/store/quote-store";
 import type { PolygonPoint } from "@/lib/types";
 
 const AREA_OPTIONS = [
-  { key: "small", label: "Pequeño", range: "Hasta 2,500 pies cuadrados", areaSqFt: 1250 },
-  { key: "medium", label: "Mediano", range: "2,500 - 5,000 pies cuadrados", areaSqFt: 3750 },
-  { key: "large", label: "Grande", range: "5,000 - 10,000 pies cuadrados", areaSqFt: 7500 },
-  { key: "extra-large", label: "XL", range: "10,000+ pies cuadrados", areaSqFt: 12500 },
+  { key: "small", labelEs: "Pequeño", labelEn: "Small", rangeEs: "Hasta 2,500 pies cuadrados", rangeEn: "Up to 2,500 sq ft", areaSqFt: 1250 },
+  { key: "medium", labelEs: "Mediano", labelEn: "Medium", rangeEs: "2,500 - 5,000 pies cuadrados", rangeEn: "2,500 - 5,000 sq ft", areaSqFt: 3750 },
+  { key: "large", labelEs: "Grande", labelEn: "Large", rangeEs: "5,000 - 10,000 pies cuadrados", rangeEn: "5,000 - 10,000 sq ft", areaSqFt: 7500 },
+  { key: "extra-large", labelEs: "XL", labelEn: "XL", rangeEs: "10,000+ pies cuadrados", rangeEn: "10,000+ sq ft", areaSqFt: 12500 },
 ] as const;
 
 export function QuoteAreaMap({ isEs }: { isEs: boolean }) {
@@ -30,7 +30,11 @@ export function QuoteAreaMap({ isEs }: { isEs: boolean }) {
   const polygonRef = React.useRef<any>(null);
 
   React.useEffect(() => {
-    void loadGoogleMaps().then(setMapsReady).catch(() => setMapsReady(false));
+    let active = true;
+    void loadGoogleMaps().then((ready) => {
+      if (active) setMapsReady(ready);
+    });
+    return () => { active = false; };
   }, []);
 
   React.useEffect(() => {
@@ -50,6 +54,7 @@ export function QuoteAreaMap({ isEs }: { isEs: boolean }) {
       const points = path.getArray().map((point: any) => ({ lat: point.lat(), lng: point.lng() })) as PolygonPoint[];
       if (points.length < 3 || !g.geometry?.spherical) return;
       const area = Math.round(g.geometry.spherical.computeArea(path) * 10.7639);
+      if (!Number.isFinite(area) || area < 0) return;
       setAreaSqFt(area);
       setDrawn(true);
       setMeasurement(buildMeasurement(points, area, useQuoteStore.getState().measurement?.depthInches ?? 2, map.getZoom()));
@@ -69,7 +74,8 @@ export function QuoteAreaMap({ isEs }: { isEs: boolean }) {
       bind(new g.Polygon({ paths: saved, map, editable: true, draggable: true, strokeColor: "#f5c96b", fillColor: "#f5c96b", fillOpacity: 0.25 }));
     }
 
-    if (g.drawing && g.geometry?.spherical) {
+    let listener: any = null;
+    if (g.drawing?.DrawingManager && g.drawing?.OverlayType && g.geometry?.spherical) {
       const manager = new g.drawing.DrawingManager({
         drawingMode: null,
         drawingControl: false,
@@ -77,31 +83,33 @@ export function QuoteAreaMap({ isEs }: { isEs: boolean }) {
       });
       manager.setMap(map);
       managerRef.current = manager;
-      const listener = g.event.addListener(manager, "overlaycomplete", (event: any) => {
+      listener = g.event.addListener(manager, "overlaycomplete", (event: any) => {
         if (event.type !== g.drawing.OverlayType.POLYGON) return;
         polygonRef.current?.setMap(null);
         bind(event.overlay);
         manager.setDrawingMode(null);
       });
-      return () => {
-        g.event.removeListener(listener);
-        polygonRef.current?.setMap(null);
-        manager.setMap(null);
-        mapRef.current = null;
-        managerRef.current = null;
-      };
     }
-    return () => { mapRef.current = null; };
+
+    return () => {
+      if (listener) g.event.removeListener(listener);
+      polygonRef.current?.setMap(null);
+      managerRef.current?.setMap(null);
+      mapRef.current = null;
+      managerRef.current = null;
+      polygonRef.current = null;
+    };
   }, [mapsReady, latitude, longitude, setMeasurement]);
 
   const startDrawing = () => {
-    if (!managerRef.current || !window.google?.maps) return;
+    const g = window.google?.maps;
+    if (!managerRef.current || !g?.drawing?.OverlayType) return;
     polygonRef.current?.setMap(null);
     polygonRef.current = null;
     setDrawn(false);
     setAreaSqFt(0);
     clearMeasurement();
-    managerRef.current.setDrawingMode(window.google.maps.drawing.OverlayType.POLYGON);
+    managerRef.current.setDrawingMode(g.drawing.OverlayType.POLYGON);
     mapRef.current?.setZoom(19);
   };
 
@@ -126,7 +134,7 @@ export function QuoteAreaMap({ isEs }: { isEs: boolean }) {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap gap-2">
-        <Button type="button" variant="gold" onClick={startDrawing}>
+        <Button type="button" variant="gold" onClick={startDrawing} disabled={!mapsReady}>
           <Pencil className="size-4" />
           {isEs ? "Dibujar área" : "Draw area"}
         </Button>
@@ -139,15 +147,13 @@ export function QuoteAreaMap({ isEs }: { isEs: boolean }) {
       <div className="rounded-2xl border border-gold-500/25 bg-gold-500/5 p-4">
         <p className="text-xs uppercase tracking-[0.18em] text-gold-200">{isEs ? "Área seleccionada" : "Selected area"}</p>
         <p className="mt-2 text-2xl font-semibold text-white">{formatNumber(areaSqFt)} sq ft</p>
-        <p className="mt-1 text-sm text-ink-300">
-          {drawn ? (isEs ? "Área guardada automáticamente." : "Area saved automatically.") : (isEs ? "Dibuje el área del trabajo en el mapa." : "Draw the work area on the map.")}
-        </p>
+        <p className="mt-1 text-sm text-ink-300">{drawn ? (isEs ? "Área guardada automáticamente." : "Area saved automatically.") : (isEs ? "Dibuje el área del trabajo en el mapa." : "Draw the work area on the map.")}</p>
       </div>
       <div className="grid gap-3 sm:grid-cols-2">
         {AREA_OPTIONS.map((area) => (
           <button key={area.key} type="button" onClick={() => chooseArea(area)} className="rounded-2xl border border-white/10 bg-ink-900/50 p-4 text-left hover:border-gold-400/50">
-            <span className="flex items-center justify-between text-lg font-semibold text-white">{isEs ? area.label : area.key === "extra-large" ? "XL" : area.key}<Check className="size-4 text-gold-300" /></span>
-            <span className="mt-1 block text-sm text-ink-300">{isEs ? area.range : area.key === "small" ? "Up to 2,500 sq ft" : area.key === "medium" ? "2,500 - 5,000 sq ft" : area.key === "large" ? "5,000 - 10,000 sq ft" : "10,000+ sq ft"}</span>
+            <span className="flex items-center justify-between text-lg font-semibold text-white">{isEs ? area.labelEs : area.labelEn}<Check className="size-4 text-gold-300" /></span>
+            <span className="mt-1 block text-sm text-ink-300">{isEs ? area.rangeEs : area.rangeEn}</span>
           </button>
         ))}
       </div>
