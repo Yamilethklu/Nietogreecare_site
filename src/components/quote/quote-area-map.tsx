@@ -77,6 +77,16 @@ export function QuoteAreaMap({ isEs }: { isEs: boolean }) {
     const bind = (polygon: any) => {
       try {
         polygonRef.current = polygon;
+        polygon.setEditable?.(true);
+        polygon.setDraggable?.(true);
+        polygon.setOptions?.({
+          strokeColor: "#16a34a",
+          strokeWeight: 2.5,
+          fillColor: "#22c55e",
+          fillOpacity: 0.45,
+          clickable: true,
+          zIndex: 10,
+        });
         save(polygon);
         const path = polygon.getPath?.();
         if (path) {
@@ -102,9 +112,9 @@ export function QuoteAreaMap({ isEs }: { isEs: boolean }) {
             strokeColor: "#16a34a",
             fillColor: "#22c55e",
             fillOpacity: 0.45,
-            strokeWeight: 2,
+            strokeWeight: 2.5,
             clickable: true,
-            zIndex: 1,
+            zIndex: 10,
           })
         );
       } catch (err) {
@@ -143,25 +153,53 @@ export function QuoteAreaMap({ isEs }: { isEs: boolean }) {
           drawingControl: true,
           drawingControlOptions: {
             position: g.ControlPosition.TOP_CENTER,
-            drawingModes: [g.drawing.OverlayType.POLYGON],
+            drawingModes: [
+              g.drawing.OverlayType.POLYGON,
+              g.drawing.OverlayType.RECTANGLE,
+            ],
           },
           polygonOptions: {
             fillColor: "#22c55e",
             fillOpacity: 0.45,
             strokeColor: "#16a34a",
-            strokeWeight: 2,
+            strokeWeight: 2.5,
             clickable: true,
             editable: true,
-            zIndex: 1,
+            draggable: true,
+            zIndex: 10,
           },
         });
         manager.setMap(map);
         managerRef.current = manager;
         listener = g.event.addListener(manager, "overlaycomplete", (event: any) => {
-          if (event.type !== g.drawing.OverlayType.POLYGON) return;
-          polygonRef.current?.setMap(null);
-          bind(event.overlay);
-          manager.setDrawingMode(null);
+          if (event.type === g.drawing.OverlayType.POLYGON) {
+            polygonRef.current?.setMap(null);
+            bind(event.overlay);
+            manager.setDrawingMode(null);
+          } else if (event.type === g.drawing.OverlayType.RECTANGLE) {
+            const bounds = event.overlay.getBounds();
+            const ne = bounds.getNorthEast();
+            const sw = bounds.getSouthWest();
+            const rectPolygon = new g.Polygon({
+              paths: [
+                { lat: ne.lat(), lng: ne.lng() },
+                { lat: ne.lat(), lng: sw.lng() },
+                { lat: sw.lat(), lng: sw.lng() },
+                { lat: sw.lat(), lng: ne.lng() },
+              ],
+              map,
+              editable: true,
+              draggable: true,
+              strokeColor: "#16a34a",
+              fillColor: "#22c55e",
+              fillOpacity: 0.45,
+              strokeWeight: 2.5,
+            });
+            event.overlay.setMap(null);
+            polygonRef.current?.setMap(null);
+            bind(rectPolygon);
+            manager.setDrawingMode(null);
+          }
         });
       } catch (err) {
         console.error("Error initializing DrawingManager:", err);
@@ -196,14 +234,19 @@ export function QuoteAreaMap({ isEs }: { isEs: boolean }) {
         // ignore
       }
     }
-    if (!managerRef.current || !g.drawing?.OverlayType) return;
     polygonRef.current?.setMap(null);
     polygonRef.current = null;
     setDrawn(false);
     setAreaSqFt(0);
     clearMeasurement();
-    managerRef.current.setDrawingMode(g.drawing.OverlayType.POLYGON);
-    mapRef.current?.setZoom(19);
+
+    if (managerRef.current && g.drawing?.OverlayType) {
+      managerRef.current.setMap(mapRef.current);
+      managerRef.current.setDrawingMode(g.drawing.OverlayType.POLYGON);
+    }
+    if (mapRef.current) {
+      mapRef.current.setZoom(19);
+    }
   };
 
   const clearArea = () => {
@@ -219,9 +262,98 @@ export function QuoteAreaMap({ isEs }: { isEs: boolean }) {
     polygonRef.current?.setMap(null);
     polygonRef.current = null;
     managerRef.current?.setDrawingMode(null);
-    setDrawn(false);
-    setAreaSqFt(area.areaSqFt);
-    setMeasurement(buildMeasurement([], area.areaSqFt));
+
+    const g = window.google?.maps;
+    const centerLat = latitude ?? AUSTIN_CENTER.lat;
+    const centerLng = longitude ?? AUSTIN_CENTER.lng;
+
+    if (g && mapRef.current && g.geometry?.spherical) {
+      const areaSqMeters = area.areaSqFt / 10.7639;
+      const halfSideMeters = Math.sqrt(areaSqMeters) / 2;
+
+      const p1 = g.geometry.spherical.computeOffset(
+        g.geometry.spherical.computeOffset({ lat: centerLat, lng: centerLng }, halfSideMeters, 0),
+        halfSideMeters,
+        90
+      );
+      const p2 = g.geometry.spherical.computeOffset(
+        g.geometry.spherical.computeOffset({ lat: centerLat, lng: centerLng }, halfSideMeters, 0),
+        halfSideMeters,
+        270
+      );
+      const p3 = g.geometry.spherical.computeOffset(
+        g.geometry.spherical.computeOffset({ lat: centerLat, lng: centerLng }, halfSideMeters, 180),
+        halfSideMeters,
+        270
+      );
+      const p4 = g.geometry.spherical.computeOffset(
+        g.geometry.spherical.computeOffset({ lat: centerLat, lng: centerLng }, halfSideMeters, 180),
+        halfSideMeters,
+        90
+      );
+
+      const points: PolygonPoint[] = [
+        { lat: p1.lat(), lng: p1.lng() },
+        { lat: p2.lat(), lng: p2.lng() },
+        { lat: p3.lat(), lng: p3.lng() },
+        { lat: p4.lat(), lng: p4.lng() },
+      ];
+
+      const polygon = new g.Polygon({
+        paths: points,
+        map: mapRef.current,
+        editable: true,
+        draggable: true,
+        strokeColor: "#16a34a",
+        fillColor: "#22c55e",
+        fillOpacity: 0.45,
+        strokeWeight: 2.5,
+        zIndex: 10,
+      });
+
+      polygonRef.current = polygon;
+      polygon.setEditable?.(true);
+      polygon.setDraggable?.(true);
+
+      const savePoly = () => {
+        try {
+          const path = polygon.getPath?.();
+          if (!path) return;
+          const rawArray = path.getArray ? path.getArray() : [];
+          const pts: PolygonPoint[] = [];
+          for (const pt of rawArray) {
+            const lat = typeof pt?.lat === "function" ? pt.lat() : Number(pt?.lat);
+            const lng = typeof pt?.lng === "function" ? pt.lng() : Number(pt?.lng);
+            if (Number.isFinite(lat) && Number.isFinite(lng)) {
+              pts.push({ lat, lng });
+            }
+          }
+          if (pts.length < 3) return;
+          const currentArea = Math.round(g.geometry.spherical.computeArea(path) * 10.7639);
+          setAreaSqFt(currentArea);
+          setDrawn(true);
+          setMeasurement(buildMeasurement(pts, currentArea, useQuoteStore.getState().measurement?.depthInches ?? 2, mapRef.current?.getZoom()));
+        } catch {
+          // ignore
+        }
+      };
+
+      savePoly();
+
+      const path = polygon.getPath?.();
+      if (path) {
+        ["set_at", "insert_at", "remove_at"].forEach((evt) => {
+          path.addListener?.(evt, savePoly);
+        });
+      }
+      polygon.addListener?.("dragend", savePoly);
+
+      mapRef.current.panTo({ lat: centerLat, lng: centerLng });
+    } else {
+      setDrawn(false);
+      setAreaSqFt(area.areaSqFt);
+      setMeasurement(buildMeasurement([], area.areaSqFt));
+    }
   };
 
   return (
