@@ -18,7 +18,7 @@ export const zipCodeSchema = z
   .regex(/^\d{5}$/, "El codigo postal debe tener 5 digitos.")
   .refine((value) => SERVICE_ZIP_SET.has(value), {
     message:
-      "Por el momento no damos servicio en ese codigo postal. Atendemos Austin, Hutto, Round Rock, Georgetown, Cedar Park y alrededores.",
+      "Por el momento no damos servicio en ese código postal. Atendemos Liberty Hill, Cedar Park, Leander, Georgetown, Hutto, Round Rock y Jarrell.",
   });
 
 export const phoneSchema = z
@@ -92,7 +92,11 @@ export const step7Schema = z.object({
   firstName: z.string().trim().min(1, "Ingrese su nombre."),
   lastName: z.string().trim().min(1, "Ingrese sus apellidos."),
   customerPhone: phoneSchema,
-  customerEmail: z.string().trim().email("Correo inválido.").optional().or(z.literal("")),
+  customerEmail: z.string().trim().email("Ingrese un correo válido."),
+  hasGateCode: z.boolean(),
+  gateCode: z.string(),
+}).refine((data) => !data.hasGateCode || data.gateCode.trim().length > 0, {
+  message: "Indique el código del candado o acceso.", path: ["gateCode"],
 });
 
 /** Payload completo enviado a POST /api/leads */
@@ -122,7 +126,7 @@ export const leadSubmissionSchema = z
     selectedServices: selectedServicesSchema,
     customerName: z.string().trim().min(2),
     customerPhone: phoneSchema,
-    customerEmail: z.string().trim().email().optional().or(z.literal("")),
+    customerEmail: z.string().trim().email(),
     details: z.string().trim().max(2000).default(""),
     additionalNotes: z.string().trim().max(2000).default(""),
     paymentMethod: z.enum(["cash", "transfer", "on_completion"]),

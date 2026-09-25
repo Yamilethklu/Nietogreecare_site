@@ -34,8 +34,8 @@ export function ReferralsSection() {
 
             <p className="mt-4 text-sm leading-relaxed text-slate-700 sm:text-base">
               {isEs
-                ? "Recomienda nuestros servicios a tus vecinos, amigos o familiares en Austin y alrededores. Por cada referido que agende su servicio, obtendrás $25 de crédito directo o un corte de césped GRATIS."
-                : "Refer your friends, family, or neighbors in the Austin area. For every referral that signs up for ongoing service, you get $25 off or a FREE lawn mow!"}
+                ? "Recomienda nuestros servicios a vecinos, amigos o familiares en nuestra zona de cobertura. Por cada referido que agende su servicio, obtendrás $25 de crédito o un corte de césped gratis."
+                : "Refer neighbors, friends, or family in our service area. For every referral that signs up for ongoing service, get $25 off or a free lawn mow."}
             </p>
 
             <div className="mt-8 grid gap-4 sm:grid-cols-3 text-left">

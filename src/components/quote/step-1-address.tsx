@@ -172,7 +172,7 @@ export function Step1Address({ error, isEs }: AddressAutocompleteProps) {
           onChange={(event) => updateManualAddress(event.target.value)}
           onFocus={() => setIsOpen(true)}
           onBlur={() => window.setTimeout(() => setIsOpen(false), 150)}
-          placeholder={isEs ? "Ej. 1200 Barton Springs Rd, Austin, TX" : "e.g. 1200 Barton Springs Rd, Austin, TX"}
+          placeholder={isEs ? "Ej. 1015 Boxwood Loop, Georgetown, TX" : "e.g. 1015 Boxwood Loop, Georgetown, TX"}
           autoComplete="street-address"
           aria-invalid={Boolean(error)}
           aria-autocomplete="list"

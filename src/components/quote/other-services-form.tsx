@@ -24,14 +24,36 @@ export function OtherServicesForm() {
   const [address, setAddress] = React.useState("");
   const [phone, setPhone] = React.useState("");
   const [comments, setComments] = React.useState("");
+  const [saving, setSaving] = React.useState(false);
+  const [saveError, setSaveError] = React.useState("");
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (saving) return;
+    setSaving(true);
+    setSaveError("");
     const selectedJob = OTHER_JOB_TYPES.find((j) => j.key === jobType);
     const jobName = selectedJob ? (isEs ? selectedJob.labelEs : selectedJob.labelEn) : jobType;
 
+    let referenceCode = "";
+    try {
+      const response = await fetch("/api/other-services", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ jobType, name, address, phone, comments }),
+      });
+      const result = await response.json();
+      if (!response.ok || !result.ok) throw new Error(result.error || "No se pudo registrar la solicitud.");
+      referenceCode = result.referenceCode;
+    } catch (error) {
+      setSaveError(error instanceof Error ? error.message : "No se pudo registrar la solicitud.");
+      setSaving(false);
+      return;
+    }
+
     const body = [
-      `Solicitud de Otros Servicios (${jobName})`,
+      `Solicitud de visita para estimado en persona (${jobName})`,
+      `Folio: ${referenceCode}`,
       `Nombre: ${name}`,
       `Dirección: ${address}`,
       `Teléfono: ${phone}`,
@@ -42,6 +64,7 @@ export function OtherServicesForm() {
 
     const smsUrl = buildOwnerSmsHref(address || "Austin, TX", body);
     window.location.href = smsUrl;
+    setSaving(false);
   };
 
   return (
@@ -49,12 +72,12 @@ export function OtherServicesForm() {
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-xl font-bold text-slate-900">
           <Wrench className="size-5 text-emerald-600" />
-          {isEs ? "Solicitar otros servicios de jardinería" : "Request other landscaping services"}
+          {isEs ? "Otros trabajos: solicita una visita" : "Other jobs: request an on-site estimate"}
         </CardTitle>
         <p className="text-xs text-slate-600">
           {isEs
-            ? "¿Necesitas poda de arbustos, mulch, limpieza o árboles? Solicita tu presupuesto directo por SMS."
-            : "Need bush trimming, mulch, cleanups, or tree work? Get a direct quote via SMS."}
+            ? "Para poda, mulch, limpieza, árboles y otros trabajos, deja tus datos. Te contactaremos para ir a darte el estimado en persona."
+            : "For trimming, mulch, cleanups, tree work and other jobs, leave your details. We will contact you to arrange an in-person estimate."}
         </p>
       </CardHeader>
       <CardContent>
@@ -129,9 +152,10 @@ export function OtherServicesForm() {
             />
           </div>
 
-          <Button type="submit" variant="gold" className="w-full font-bold">
+          {saveError && <p role="alert" className="text-sm text-red-600">{saveError}</p>}
+          <Button type="submit" disabled={saving} variant="gold" className="w-full font-bold">
             <MessageSquare className="mr-2 size-4" />
-            {isEs ? "SOLICITAR COTIZACIÓN POR SMS" : "REQUEST SMS QUOTE"}
+            {saving ? (isEs ? "Guardando..." : "Saving...") : (isEs ? "SOLICITAR VISITA POR SMS" : "REQUEST ON-SITE ESTIMATE BY SMS")}
           </Button>
         </form>
       </CardContent>

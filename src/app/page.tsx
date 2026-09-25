@@ -4,10 +4,11 @@ import { AboutSection } from "@/components/site/about-section";
 import { ContactSection } from "@/components/site/contact-section";
 import { FaqSection } from "@/components/site/faq-section";
 import { GalleryCarousel } from "@/components/site/gallery-carousel";
+import { QuoteFlow } from "@/components/quote/quote-flow";
+import { OtherServicesForm } from "@/components/quote/other-services-form";
 import { Hero } from "@/components/site/hero";
 import { PaymentsSection } from "@/components/site/payments-section";
 import { PricingSection } from "@/components/site/pricing-section";
-import { QuoteCta } from "@/components/site/quote-cta";
 import { ReferralsSection } from "@/components/site/referrals-section";
 import { ServicesSection } from "@/components/site/services-section";
 import { SiteFooter } from "@/components/site/site-footer";
@@ -46,6 +47,7 @@ export default async function HomePage() {
     buildQrDataUrl(BUSINESS.cashAppUrl),
     buildQrDataUrl(BUSINESS.venmoUrl),
   ]);
+  const grassPhoto = slides.find((slide) => /c[eé]sped|grass|lawn|yard/i.test(`${slide.title ?? ""} ${slide.description ?? ""}`) && !/\.(mp4|mov|webm)(?:$|[?#])/i.test(slide.url));
 
   const structuredData = {
     "@context": "https://schema.org",
@@ -78,12 +80,21 @@ export default async function HomePage() {
       />
       <SiteHeader />
       <main className="bg-white text-slate-900">
-        <Hero />
+        <Hero backgroundUrl={grassPhoto?.url ?? "/hero-bg.jpg"} />
+        <GalleryCarousel items={slides.length ? slides : [{ id: "lawn-photo", url: "/hero-bg.jpg", title: "Nieto Green Care LLC", description: null, location: null }]} />
         <ServicesSection />
         <PricingSection />
-        <GalleryCarousel items={slides} />
+        <section id="cotizador" className="scroll-mt-24 bg-slate-50 py-16">
+          <div className="container max-w-4xl">
+            <QuoteFlow embedded />
+          </div>
+        </section>
+        <section id="otros-trabajos" className="scroll-mt-24 bg-white py-16">
+          <div className="container max-w-4xl">
+            <OtherServicesForm />
+          </div>
+        </section>
         <ReferralsSection />
-        <QuoteCta />
         <FaqSection />
         <AboutSection />
         <PaymentsSection cashAppQrDataUrl={cashAppQrDataUrl} venmoQrDataUrl={venmoQrDataUrl} />

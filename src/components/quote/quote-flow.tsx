@@ -8,6 +8,8 @@ import {
   ArrowLeft,
   Check,
   CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
   MapPin,
   MessageSquare,
   Send,
@@ -21,7 +23,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, LuxuryCard } from "@/components/ui/card";
 import { Select } from "@/components/ui/controls";
-import { FieldError, Input, Label } from "@/components/ui/input";
+import { FieldError, Input, Label, Textarea } from "@/components/ui/input";
 import { buildOwnerSmsHref, TIME_WINDOWS, ZIP_CITY_MAP } from "@/lib/constants";
 import { GOOGLE_MAPS_API_KEY } from "@/lib/google-maps";
 import { todayISO } from "@/lib/utils";
@@ -36,7 +38,7 @@ import {
 } from "@/lib/validation";
 import { calculateLawnQuote, pickSubmissionFields, TOTAL_STEPS, useQuoteStore } from "@/store/quote-store";
 
-export function QuoteFlow() {
+export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
   const { isEs } = useLanguage();
   const { toast } = useToast();
   const store = useQuoteStore();
@@ -126,6 +128,7 @@ export function QuoteFlow() {
         `Cliente: ${store.firstName} ${store.lastName}`,
         `Tel: ${store.customerPhone}`,
         `Email: ${store.customerEmail}`,
+        ...(store.additionalNotes.trim() ? [`Notas: ${store.additionalNotes.trim()}`] : []),
       ].join("\n");
 
       const smsUrl = buildOwnerSmsHref(store.address, smsBody);
@@ -156,13 +159,13 @@ export function QuoteFlow() {
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
-        <Link
+        {!embedded && <Link
           href="/"
           className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-emerald-600 hover:text-emerald-700"
         >
           <ArrowLeft className="size-4" />
           {isEs ? "Volver al inicio" : "Back to Home"}
-        </Link>
+        </Link>}
         <Badge className="border-emerald-200 bg-emerald-50 text-emerald-700">
           {isEs ? `Paso ${store.step} de ${TOTAL_STEPS}` : `Step ${store.step} of ${TOTAL_STEPS}`}
         </Badge>
@@ -222,7 +225,7 @@ export function QuoteFlow() {
                     const zipCode = event.target.value.replace(/\D/g, "").slice(0, 5);
                     store.setAddress({ zipCode, city: ZIP_CITY_MAP[zipCode] ?? store.city ?? "" });
                   }}
-                  placeholder="78701"
+                  placeholder="78642"
                   className="mt-2 text-slate-900"
                 />
                 <FieldError>{errors.zipCode}</FieldError>
@@ -440,17 +443,7 @@ export function QuoteFlow() {
                 </span>
               </h2>
 
-              <div className="grid grid-cols-3 gap-2 sm:grid-cols-7" aria-label={isEs ? "Fechas preferidas" : "Preferred mowing dates"}>
-                {Array.from({ length: 14 }, (_, index) => {
-                  const date = new Date();
-                  date.setDate(date.getDate() + index);
-                  const iso = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
-                  if (date.getDay() === 0) return null;
-                  return <button key={iso} type="button" onClick={() => store.setSchedule(iso)} aria-pressed={store.requestedDate === iso} className={`rounded-xl border p-2 text-center text-xs ${store.requestedDate === iso ? "border-emerald-600 bg-emerald-50 text-emerald-800" : "border-slate-200 bg-white text-slate-900"}`}>
-                    <span className="block font-semibold">{date.toLocaleDateString(isEs ? "es-US" : "en-US", { weekday: "short", month: "short", day: "numeric" })}</span><span className="block text-emerald-700">${lawnQuote.price}/cut</span>
-                  </button>;
-                })}
-              </div>
+              <MowingCalendar selected={store.requestedDate} price={lawnQuote.price} isEs={isEs} onSelect={store.setSchedule} />
               <div>
                 <Label htmlFor="service-date">{isEs ? "Fecha preferida *" : "Preferred Date *"}</Label>
                 <Input
@@ -458,7 +451,10 @@ export function QuoteFlow() {
                   type="date"
                   min={todayISO()}
                   value={store.requestedDate ?? ""}
-                  onChange={(event) => store.setSchedule(event.target.value, store.requestedTimeWindow ?? "")}
+                  onChange={(event) => {
+                    const value = event.target.value;
+                    if (value && new Date(`${value}T12:00:00`).getDay() !== 0) store.setSchedule(value, store.requestedTimeWindow ?? "");
+                  }}
                   className="mt-2 text-lg font-bold"
                 />
                 <FieldError>{errors.requestedDate}</FieldError>
@@ -581,7 +577,7 @@ export function QuoteFlow() {
 
               <div className="grid gap-4 sm:grid-cols-2">
                 <div>
-                  <Label htmlFor="cust-email">{isEs ? "Correo Electrónico" : "Email"}</Label>
+                  <Label htmlFor="cust-email">{isEs ? "Correo electrónico *" : "Email *"}</Label>
                   <Input
                     id="cust-email"
                     type="email"
@@ -659,6 +655,27 @@ export function QuoteFlow() {
                   />
                   <span>Pets in backyard?</span>
                 </label>
+
+                <label className="flex items-center gap-3 text-sm text-slate-900 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={store.hasGateCode}
+                    onChange={(event) => store.setGate(event.target.checked)}
+                    className="size-4 accent-emerald-600"
+                  />
+                  <span>{isEs ? "¿La puerta o portón tiene candado con código?" : "Does a gate have a coded lock?"}</span>
+                </label>
+                {store.hasGateCode && (
+                  <div>
+                    <Label htmlFor="gate-code">{isEs ? "Código de acceso *" : "Gate access code *"}</Label>
+                    <Input id="gate-code" value={store.gateCode} onChange={(event) => store.setGate(true, event.target.value)} className="mt-2" autoComplete="off" />
+                    <FieldError>{errors.gateCode}</FieldError>
+                  </div>
+                )}
+              </div>
+              <div>
+                <Label htmlFor="special-notes">{isEs ? "Notas o indicaciones especiales" : "Special requests or notes"}</Label>
+                <Textarea id="special-notes" value={store.additionalNotes} onChange={(event) => store.setPersonal({ additionalNotes: event.target.value })} maxLength={2000} placeholder={isEs ? "Cuéntanos si hay algo especial sobre tu patio o el acceso." : "Tell us anything special about your lawn or access."} className="mt-2" />
               </div>
             </section>
           )}
@@ -691,6 +708,37 @@ export function QuoteFlow() {
           </div>
         </CardContent>
       </Card>
+    </div>
+  );
+}
+
+function MowingCalendar({ selected, price, isEs, onSelect }: { selected: string | null; price: number; isEs: boolean; onSelect: (date: string) => void }) {
+  const [monthOffset, setMonthOffset] = React.useState(0);
+  const now = new Date();
+  const month = new Date(now.getFullYear(), now.getMonth() + monthOffset, 1);
+  const firstDay = (month.getDay() + 6) % 7;
+  const days = new Date(month.getFullYear(), month.getMonth() + 1, 0).getDate();
+  const labels = isEs ? ["L", "M", "M", "J", "V", "S", "D"] : ["M", "T", "W", "T", "F", "S", "S"];
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-6" aria-label={isEs ? "Calendario de corte" : "Mowing calendar"}>
+      <div className="mb-5 flex items-center justify-between gap-3">
+        <button type="button" disabled={monthOffset === 0} onClick={() => setMonthOffset((offset) => offset - 1)} className="rounded-lg border border-slate-200 p-2 text-slate-700 disabled:opacity-30" aria-label={isEs ? "Mes anterior" : "Previous month"}><ChevronLeft className="size-5" /></button>
+        <strong className="text-sm capitalize text-slate-900">{month.toLocaleDateString(isEs ? "es-MX" : "en-US", { month: "long", year: "numeric" })}</strong>
+        <button type="button" disabled={monthOffset === 3} onClick={() => setMonthOffset((offset) => offset + 1)} className="rounded-lg border border-slate-200 p-2 text-slate-700 disabled:opacity-30" aria-label={isEs ? "Mes siguiente" : "Next month"}><ChevronRight className="size-5" /></button>
+      </div>
+      <div className="grid grid-cols-7 gap-1 text-center sm:gap-2">
+        {labels.map((label, index) => <span key={index} className="pb-1 text-xs font-bold text-slate-500">{label}</span>)}
+        {Array.from({ length: firstDay }, (_, index) => <span key={`empty-${index}`} />)}
+        {Array.from({ length: days }, (_, index) => {
+          const date = new Date(month.getFullYear(), month.getMonth(), index + 1);
+          const iso = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+          const disabled = iso < todayISO() || date.getDay() === 0;
+          return <button key={iso} type="button" disabled={disabled} onClick={() => onSelect(iso)} aria-pressed={selected === iso} aria-label={`${date.toLocaleDateString(isEs ? "es-MX" : "en-US", { dateStyle: "long" })}, $${price} ${isEs ? "por corte" : "per cut"}`} className={`min-h-14 rounded-lg border px-1 py-2 text-xs sm:min-h-16 ${selected === iso ? "border-emerald-600 bg-emerald-50 text-emerald-900" : "border-slate-100 text-slate-900 hover:border-emerald-300"} disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-300`}>
+            <span className="block font-semibold">{index + 1}</span>{!disabled && <span className="block text-[10px] font-bold text-emerald-700 sm:text-xs">${price}</span>}
+          </button>;
+        })}
+      </div>
+      <p className="mt-4 text-xs text-slate-500">{isEs ? "Elige tu fecha preferida; te contactaremos para confirmar disponibilidad." : "Choose your preferred date; we will contact you to confirm availability."}</p>
     </div>
   );
 }

@@ -23,8 +23,8 @@ export const BUSINESS = {
   city: "Austin",
   state: "TX",
   country: "USA",
-  serviceAreaLabel: "Austin, TX & surrounding areas",
-  serviceAreaLabelEs: "Austin, TX y areas circundantes",
+  serviceAreaLabel: "Liberty Hill, Cedar Park, Leander, Georgetown, Hutto, Round Rock & Jarrell",
+  serviceAreaLabelEs: "Liberty Hill, Cedar Park, Leander, Georgetown, Hutto, Round Rock y Jarrell",
   hoursEs: "Lunes a Sabado · 7:00 AM - 7:00 PM",
   hoursEn: "Monday to Saturday · 7:00 AM - 7:00 PM",
   cashAppTag: "$JaimeNietoMorales",
@@ -52,34 +52,19 @@ export const ADMIN_EMAILS = [
 ] as const;
 
 export const SERVICE_CITIES = [
-  "Austin",
+  "Liberty Hill",
+  "Cedar Park",
+  "Leander",
+  "Georgetown",
   "Hutto",
   "Round Rock",
-  "Georgetown",
-  "Cedar Park",
+  "Jarrell",
 ] as const;
 
-export const NEARBY_CITIES = [
-  "Pflugerville",
-  "Leander",
-  "Manor",
-  "Lakeway",
-  "Liberty Hill",
-  "Taylor",
-  "Buda",
-  "Kyle",
-] as const;
+export const NEARBY_CITIES: readonly string[] = [];
 
 /** ZIP codes atendidos (Austin + Hutto + Round Rock + Georgetown + Cedar Park y alrededores). */
 export const SERVICE_ZIP_CODES: string[] = [
-  // Austin
-  "78701", "78702", "78703", "78704", "78705", "78708", "78709", "78710",
-  "78711", "78712", "78713", "78714", "78715", "78716", "78717", "78718",
-  "78719", "78720", "78721", "78722", "78723", "78724", "78725", "78726",
-  "78727", "78728", "78729", "78730", "78731", "78732", "78733", "78734",
-  "78735", "78736", "78737", "78738", "78739", "78741", "78742", "78744",
-  "78745", "78746", "78747", "78748", "78749", "78750", "78751", "78752",
-  "78753", "78754", "78755", "78756", "78757", "78758", "78759",
   // Hutto
   "78634",
   // Round Rock
@@ -88,8 +73,8 @@ export const SERVICE_ZIP_CODES: string[] = [
   "78626", "78627", "78628", "78633",
   // Cedar Park
   "78613", "78630",
-  // Alrededores (Pflugerville, Leander, Manor, Liberty Hill)
-  "78660", "78691", "78641", "78645", "78646", "78653", "78642",
+  // Leander, Liberty Hill y Jarrell
+  "78641", "78645", "78646", "78642", "76537",
 ];
 
 /** Mapa ZIP -> ciudad principal, usado para mostrar la cobertura en el cotizador. */
@@ -112,6 +97,7 @@ export const ZIP_CITY_MAP: Record<string, string> = {
   "78645": "Leander",
   "78646": "Leander",
   "78642": "Liberty Hill",
+  "76537": "Jarrell",
   "78653": "Manor",
 };
 

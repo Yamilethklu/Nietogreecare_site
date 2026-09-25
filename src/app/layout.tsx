@@ -43,7 +43,7 @@ export const metadata: Metadata = {
     template: "%s | Nieto Green Care LLC",
   },
   description:
-    "Corte de césped y jardinería en Austin, Hutto, Round Rock, Georgetown y Cedar Park. Cotización instantánea de lawn mowing.",
+    "Corte de césped y jardinería en Liberty Hill, Cedar Park, Leander, Georgetown, Hutto, Round Rock y Jarrell. Cotización de yarda en línea.",
   keywords: [
     "landscaping Austin TX",
     "lawn care Austin",
@@ -67,7 +67,7 @@ export const metadata: Metadata = {
     siteName: BUSINESS.name,
     title: "Nieto Green Care LLC | Paisajismo de lujo en Austin, TX",
     description:
-      "Cotiza tu corte de césped en siete pasos. Austin, Hutto, Round Rock, Georgetown y Cedar Park.",
+      "Cotiza tu corte de césped en siete pasos. Liberty Hill, Cedar Park, Leander, Georgetown, Hutto, Round Rock y Jarrell.",
   },
   twitter: {
     card: "summary_large_image",

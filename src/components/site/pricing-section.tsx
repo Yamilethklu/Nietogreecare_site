@@ -48,8 +48,8 @@ export function PricingSection() {
           title={isEs ? "Tarifas claras basadas en tu terreno" : "Simple Rates Based On Your Yard"}
           subtitle={
             isEs
-              ? "Calculamos el precio exacto de tu lote sin tarifas ocultas ni contratos a largo plazo."
-              : "We calculate your exact price based on your property layout with zero hidden fees."
+              ? "Consulta la tarifa de corte de yarda en el cotizador. Para otros trabajos, programamos una visita para estimar en persona."
+              : "See your lawn mowing rate in the quote form. We arrange an in-person estimate for other jobs."
           }
         />
 
@@ -59,7 +59,7 @@ export function PricingSection() {
               key={tier.title}
               className={`relative flex flex-col justify-between p-6 sm:p-8 transition-all duration-300 hover:border-gold-400 ${
                 tier.featured
-                  ? "border-emerald-500/50 bg-gradient-to-b from-emerald-950/40 via-ink-900 to-slate-50 shadow-luxury"
+                  ? "border-emerald-500/50 bg-emerald-50 shadow-sm"
                   : "border-slate-200 bg-white"
               }`}
             >

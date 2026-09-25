@@ -7,7 +7,7 @@ import { buildSmsHref, BUSINESS, SERVICE_CITIES } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 
 const SATELLITE_EMBED_SRC =
-  "https://www.google.com/maps?q=30.451,-97.68&z=10&t=k&output=embed";
+  "https://www.google.com/maps?q=30.65,-97.73&z=9&t=k&output=embed";
 
 /** Cobertura pública sin SDK de mapas ni controles que puedan bloquear los CTAs. */
 export function CoverageMap({ className }: { className?: string }) {
@@ -35,7 +35,7 @@ export function CoverageMap({ className }: { className?: string }) {
           {isEs ? "Cobertura satelital" : "Satellite coverage"}
         </span>
         <p className="absolute inset-x-4 bottom-4 text-center text-xs font-medium leading-relaxed text-slate-900 drop-shadow">
-          Austin · Hutto · Round Rock · Georgetown · Cedar Park
+          {SERVICE_CITIES.join(" · ")}
         </p>
       </div>
 

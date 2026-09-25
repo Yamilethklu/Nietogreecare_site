@@ -33,7 +33,7 @@ const fadeUp = {
 /**
  * Hero claro con entrada inmediata al cotizador y mapa de cobertura.
  */
-export function Hero() {
+export function Hero({ backgroundUrl }: { backgroundUrl: string }) {
   const router = useRouter();
   const { t, isEs } = useLanguage();
 
@@ -100,12 +100,13 @@ export function Hero() {
       id="inicio"
       className="relative isolate overflow-hidden bg-white pb-16 pt-16 sm:pt-20 lg:pb-24"
     >
+      <div className="absolute inset-x-0 top-0 -z-10 h-[680px] bg-cover bg-center" style={{ backgroundImage: `linear-gradient(90deg, rgba(255,255,255,.94), rgba(255,255,255,.74) 54%, rgba(255,255,255,.3)), url(${JSON.stringify(backgroundUrl)})` }} aria-hidden="true" />
       <div className="container relative grid items-center gap-14 lg:grid-cols-[1.05fr_0.95fr]">
         <motion.div
           initial="hidden"
           animate="visible"
           variants={{ visible: { transition: { staggerChildren: 0.09 } } }}
-          className="relative flex flex-col gap-6 rounded-3xl border border-slate-200 bg-white p-5 shadow-[0_12px_48px_-24px_rgba(9,13,22,0.95)] backdrop-blur-md sm:p-7 lg:-ml-7"
+          className="relative flex flex-col gap-6 rounded-3xl border border-slate-200 bg-white/90 p-5 shadow-xl backdrop-blur-md sm:p-7 lg:-ml-7"
         >
           <motion.div variants={fadeUp} transition={{ duration: 0.5 }}>
             <Badge className="gap-2">
@@ -138,7 +139,7 @@ export function Hero() {
             variants={fadeUp}
             transition={{ duration: 0.6 }}
             onSubmit={handleHeroSubmit}
-            className="mt-1 flex flex-col gap-4 rounded-2xl border border-emerald-500/30 bg-white p-4 backdrop-blur-md"
+            className="mt-1 flex flex-col gap-4 rounded-2xl border border-emerald-200 bg-white p-4 shadow-sm"
           >
             <p className="text-xs font-semibold uppercase tracking-wider text-emerald-700">
               {isEs ? "Obtenga su cotización instantánea" : "Get your instant quote"}
@@ -154,7 +155,7 @@ export function Hero() {
                   id="hero-zip"
                   value={heroZip}
                   onChange={(e) => setHeroZip(e.target.value.replace(/\D/g, "").slice(0, 5))}
-                  placeholder="78701"
+                  placeholder="78642"
                   maxLength={5}
                   className="mt-2"
                 />
