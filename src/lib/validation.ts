@@ -56,7 +56,7 @@ export const measurementSchema = z.object({
 });
 
 export const step1Schema = z.object({
-  address: z.string().trim().min(5, "Ingrese la direccion del servicio."),
+  address: z.string().trim().min(5, "Ingrese la dirección del servicio."),
   formattedAddress: z.string().trim().default(""),
   zipCode: zipCodeSchema,
   city: z.string().trim().default(""),
@@ -67,31 +67,32 @@ export const step1Schema = z.object({
 });
 
 export const step2Schema = z.object({
-  measurement: measurementSchema.refine(
-    (measurement) => measurement.areaSqFt >= 50,
-    "Delimite el area del patio en el mapa satelital (minimo 50 pies cuadrados).",
-  ),
+  serviceFrequency: z.enum(["ongoing", "one_time"]),
+  propertyOccupancy: z.enum(["occupied", "vacant"]),
 });
 
 export const step3Schema = z.object({
-  hasGateCode: z.boolean().default(false),
-  gateCode: z.string().trim().max(80).default(""),
-  requestedDate: z
-    .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/, "Seleccione la fecha en la que requiere el trabajo."),
-  requestedTimeWindow: z.string().trim().default(""),
-  selectedServices: selectedServicesSchema,
-});
-
-export const step35Schema = z.object({
-  customerName: z.string().trim().min(2, "Ingrese su nombre."),
-  customerPhone: phoneSchema,
-  details: z.string().trim().max(2000).default(""),
-  additionalNotes: z.string().trim().max(2000).default(""),
+  mowFrequency: z.enum(["weekly", "bi_weekly"]),
 });
 
 export const step4Schema = z.object({
-  paymentMethod: z.enum(["cash", "transfer", "on_completion"]),
+  areaSelection: z.enum(["front_back", "front_only", "back_only"]),
+  isCornerLot: z.boolean().default(false),
+});
+
+export const step5Schema = z.object({
+  requestedDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Seleccione la fecha de servicio."),
+});
+
+export const step6Schema = z.object({});
+
+export const step7Schema = z.object({
+  firstName: z.string().trim().min(1, "Ingrese su nombre."),
+  lastName: z.string().trim().min(1, "Ingrese sus apellidos."),
+  customerPhone: phoneSchema,
+  customerEmail: z.string().trim().email("Correo inválido.").optional().or(z.literal("")),
 });
 
 /** Payload completo enviado a POST /api/leads */
@@ -106,10 +107,10 @@ export const leadSubmissionSchema = z
     placeId: z.string().nullable().default(null),
     latitude: z.number().nullable().default(null),
     longitude: z.number().nullable().default(null),
-    areaSqFt: z.number().min(50),
+    areaSqFt: z.number().min(0).default(0),
     areaSqYd: z.number().min(0).default(0),
     estimatedCubicYards: z.number().min(0).default(0),
-    depthInches: z.number().min(0.5).max(24).default(2),
+    depthInches: z.number().min(0).max(24).default(2),
     polygon: z.array(polygonPointSchema).default([]),
     polygonPath: z.string().nullable().default(null),
     snapshotUrl: z.string().nullable().default(null),

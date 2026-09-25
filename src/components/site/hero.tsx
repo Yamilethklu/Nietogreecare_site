@@ -1,10 +1,13 @@
 "use client";
 
+import * as React from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import {
   ArrowDown,
+  ArrowRight,
   Clock,
   Languages,
   MapPin,
@@ -17,10 +20,13 @@ import {
 import { useLanguage } from "@/components/providers/language-provider";
 import { CallButton } from "@/components/site/brand";
 import { CoverageMap } from "@/components/site/coverage-map";
+import { Step1Address } from "@/components/quote/step-1-address";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { buildSmsHref, BUSINESS, SERVICE_CITIES, SERVICE_ZIP_CODES } from "@/lib/constants";
+import { Input, Label } from "@/components/ui/input";
+import { buildSmsHref, BUSINESS, SERVICE_CITIES, SERVICE_ZIP_CODES, ZIP_CITY_MAP } from "@/lib/constants";
 import { usePublicAsset } from "@/lib/use-public-asset";
+import { useQuoteStore } from "@/store/quote-store";
 
 const fadeUp = {
   hidden: { opacity: 0, y: 18 },
@@ -33,8 +39,36 @@ const fadeUp = {
  * vista satelital real del area de cobertura.
  */
 export function Hero() {
+  const router = useRouter();
   const { t, isEs } = useLanguage();
   const heroBackground = usePublicAsset("/hero-bg.jpg");
+
+  const address = useQuoteStore((state) => state.address);
+  const zipCode = useQuoteStore((state) => state.zipCode);
+  const setAddress = useQuoteStore((state) => state.setAddress);
+  const setStep = useQuoteStore((state) => state.setStep);
+
+  const [heroZip, setHeroZip] = React.useState(zipCode ?? "");
+  const [heroError, setHeroError] = React.useState("");
+
+  React.useEffect(() => {
+    if (zipCode) setHeroZip(zipCode);
+  }, [zipCode]);
+
+  const handleHeroSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!address || address.trim().length < 4) {
+      setHeroError(isEs ? "Ingrese su dirección para cotizar." : "Please enter your address.");
+      return;
+    }
+    const cleanZip = heroZip.replace(/\D/g, "").slice(0, 5);
+    setAddress({
+      zipCode: cleanZip,
+      city: ZIP_CITY_MAP[cleanZip] ?? "",
+    });
+    setStep(1);
+    router.push("/quote");
+  };
 
   const trust = [
     { icon: ShieldCheck, label: t.hero.trustLicensed },
@@ -131,21 +165,48 @@ export function Hero() {
             {t.hero.subtitle}
           </motion.p>
 
-          <motion.div
+          {/* Formulario Directo en el Hero */}
+          <motion.form
             variants={fadeUp}
             transition={{ duration: 0.6 }}
-            className="flex flex-col gap-3 sm:flex-row sm:items-center"
+            onSubmit={handleHeroSubmit}
+            className="mt-1 flex flex-col gap-4 rounded-2xl border border-emerald-500/30 bg-emerald-950/60 p-4 backdrop-blur-md"
           >
-            <Button asChild variant="gold" size="lg">
-              <Link href="/quote">
-                {t.hero.ctaQuote}
-              </Link>
+            <p className="text-xs font-semibold uppercase tracking-wider text-emerald-300">
+              {isEs ? "Obtenga su cotización instantánea" : "Get your instant quote"}
+            </p>
+
+            <div className="grid gap-3 sm:grid-cols-[1.6fr_1fr]">
+              <div>
+                <Step1Address error={heroError} isEs={isEs} />
+              </div>
+              <div>
+                <Label htmlFor="hero-zip">{isEs ? "Zip Code *" : "Zip Code *"}</Label>
+                <Input
+                  id="hero-zip"
+                  value={heroZip}
+                  onChange={(e) => setHeroZip(e.target.value.replace(/\D/g, "").slice(0, 5))}
+                  placeholder="78701"
+                  maxLength={5}
+                  className="mt-2"
+                />
+              </div>
+            </div>
+
+            {heroError && (
+              <p className="text-xs text-rose-400 font-medium">{heroError}</p>
+            )}
+
+            <Button
+              type="submit"
+              variant="gold"
+              size="lg"
+              className="mt-1 w-full text-base font-bold tracking-wide shadow-lg hover:scale-[1.01] transition-transform"
+            >
+              FREE PRICE QUOTE
+              <ArrowRight className="ml-2 size-5" />
             </Button>
-            <CallButton label={t.hero.ctaCall} size="lg" />
-            <Button asChild variant="ghost" size="lg">
-              <Link href="/#servicios">{t.hero.ctaServices}</Link>
-            </Button>
-          </motion.div>
+          </motion.form>
 
           <motion.ul
             variants={fadeUp}

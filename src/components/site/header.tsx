@@ -16,7 +16,7 @@ import { cn } from "@/lib/utils";
  * que redirige directamente a la llamada telefonica oficial.
  */
 export function SiteHeader() {
-  const { t, locale, toggleLocale } = useLanguage();
+  const { t, locale, toggleLocale, isEs } = useLanguage();
   const [open, setOpen] = React.useState(false);
   const [scrolled, setScrolled] = React.useState(false);
 
@@ -35,11 +35,11 @@ export function SiteHeader() {
   }, [open]);
 
   const links = [
-    { href: "/#servicios", label: t.nav.services },
-    { href: "/#galeria", label: t.nav.gallery },
-    { href: "/#empresa", label: t.nav.about },
-    { href: "/payments", label: t.nav.payments },
-    { href: "/#contacto", label: t.nav.contact },
+    { href: "/#servicios", label: isEs ? "Services" : "Services" },
+    { href: "/#pricing", label: isEs ? "Pricing" : "Pricing" },
+    { href: "/#faq", label: isEs ? "Questions" : "Questions" },
+    { href: "/#referrals", label: isEs ? "Referrals" : "Referrals" },
+    { href: "/#contacto", label: isEs ? "Contact Us" : "Contact Us" },
   ];
 
   return (
@@ -87,7 +87,7 @@ export function SiteHeader() {
 
           <Button asChild variant="gold" size="default" className="hidden xl:inline-flex">
             <Link href="/quote">
-              {t.nav.quoteButton}
+              GET STARTED
             </Link>
           </Button>
 
@@ -127,7 +127,7 @@ export function SiteHeader() {
           <CallButton label={`${t.nav.call} ${BUSINESS.phoneDisplay}`} className="w-full" />
           <Button asChild variant="gold" className="w-full">
             <Link href="/quote" onClick={() => setOpen(false)}>
-              {t.nav.quoteButton}
+              GET STARTED
             </Link>
           </Button>
           <Button asChild variant="ghost" className="w-full">

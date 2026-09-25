@@ -23,8 +23,13 @@ import { buildReferenceCode } from "@/lib/utils";
  * el recorte del area y los pasos completados, incluso si el cliente cierra el navegador.
  */
 
-export const TOTAL_STEPS = 5;
-export const DRAFT_STORAGE_KEY = "ngc-quote-draft-v1";
+export const TOTAL_STEPS = 7;
+export const DRAFT_STORAGE_KEY = "ngc-quote-draft-v2";
+
+export type ServiceFrequency = "ongoing" | "one_time";
+export type PropertyOccupancy = "occupied" | "vacant";
+export type MowFrequency = "weekly" | "bi_weekly";
+export type AreaSelection = "front_back" | "front_only" | "back_only";
 
 export type QuoteStateFields = {
   step: number;
@@ -37,15 +42,40 @@ export type QuoteStateFields = {
   placeId: string | null;
   latitude: number | null;
   longitude: number | null;
-  measurement: QuoteMeasurement | null;
-  hasGateCode: boolean;
-  gateCode: string;
+
+  // Paso 2: Frecuencia y Ocupacion
+  serviceFrequency: ServiceFrequency;
+  propertyOccupancy: PropertyOccupancy;
+
+  // Paso 3: Frecuencia de Corte
+  mowFrequency: MowFrequency;
+
+  // Paso 4: Area a Cortar & Lote de esquina
+  areaSelection: AreaSelection;
+  isCornerLot: boolean;
+
+  // Paso 5: Calendario de Corte
   requestedDate: string | null;
   requestedTimeWindow: string;
-  selectedServices: string[];
+
+  // Paso 7: Account & Yard Details
+  firstName: string;
+  lastName: string;
   customerName: string;
   customerPhone: string;
   customerEmail: string;
+  isCellphone: boolean;
+  isGrassOver6: boolean;
+  isGrassOver12: boolean;
+  hasCommunityGate: boolean;
+  hasBackyardGate: boolean;
+  hasPetsInBackyard: boolean;
+
+  // Compatibilidad y campos generales
+  measurement: QuoteMeasurement | null;
+  hasGateCode: boolean;
+  gateCode: string;
+  selectedServices: string[];
   details: string;
   additionalNotes: string;
   paymentMethod: PaymentMethod;
@@ -60,6 +90,8 @@ export type QuoteStore = QuoteStateFields & {
   goBack: () => void;
   completeStep: (step: number) => void;
   setAddress: (payload: Partial<QuoteStateFields>) => void;
+  setLawnOptions: (payload: Partial<QuoteStateFields>) => void;
+  setAccountDetails: (payload: Partial<QuoteStateFields>) => void;
   setMeasurement: (measurement: QuoteMeasurement, depthInches?: number) => void;
   updateDepth: (depthInches: number) => void;
   clearMeasurement: () => void;
@@ -86,15 +118,32 @@ const initialFields: QuoteStateFields = {
   placeId: null,
   latitude: null,
   longitude: null,
-  measurement: null,
-  hasGateCode: false,
-  gateCode: "",
+
+  serviceFrequency: "ongoing",
+  propertyOccupancy: "occupied",
+  mowFrequency: "bi_weekly",
+  areaSelection: "front_back",
+  isCornerLot: false,
+
   requestedDate: null,
-  requestedTimeWindow: "",
-  selectedServices: [],
+  requestedTimeWindow: "08:00 - 18:00",
+
+  firstName: "",
+  lastName: "",
   customerName: "",
   customerPhone: "",
   customerEmail: "",
+  isCellphone: true,
+  isGrassOver6: false,
+  isGrassOver12: false,
+  hasCommunityGate: false,
+  hasBackyardGate: false,
+  hasPetsInBackyard: false,
+
+  measurement: null,
+  hasGateCode: false,
+  gateCode: "",
+  selectedServices: ["weekly_biweekly_lawn_service"],
   details: "",
   additionalNotes: "",
   paymentMethod: "on_completion",
@@ -102,6 +151,39 @@ const initialFields: QuoteStateFields = {
   updatedAt: "",
   submitted: false,
 };
+
+export function calculateLawnQuote(fields: {
+  serviceFrequency: ServiceFrequency;
+  mowFrequency: MowFrequency;
+  areaSelection: AreaSelection;
+  isCornerLot: boolean;
+}) {
+  let basePrice = 42;
+  if (fields.mowFrequency === "weekly") {
+    basePrice = fields.areaSelection === "front_back" ? 38 : 30;
+  } else {
+    basePrice = fields.areaSelection === "front_back" ? 42 : 34;
+  }
+
+  if (fields.isCornerLot) {
+    basePrice += 5;
+  }
+
+  if (fields.serviceFrequency === "one_time") {
+    basePrice += 20;
+  }
+
+  const frequencyText = fields.mowFrequency === "weekly" ? "weekly" : "bi-weekly";
+  const rateText = `$${basePrice} ${frequencyText} + tax`;
+  const perCutText = `$${basePrice}/corte`;
+
+  return {
+    price: basePrice,
+    frequencyText,
+    rateText,
+    perCutText,
+  };
+}
 
 /** Recalcula la medicion completa (area, yardas, perimetro, bounds, polyline). */
 export function buildMeasurement(
@@ -171,7 +253,20 @@ export const useQuoteStore = create<QuoteStore>()(
         set({ completedSteps: [...completedSteps, step], updatedAt: new Date().toISOString() });
       },
 
-      setAddress: (payload) => set({ ...payload, updatedAt: new Date().toISOString() }),
+      setAddress: (payload) => set((state) => ({ ...state, ...payload, updatedAt: new Date().toISOString() })),
+
+      setLawnOptions: (payload) => set((state) => ({ ...state, ...payload, updatedAt: new Date().toISOString() })),
+
+      setAccountDetails: (payload) =>
+        set((state) => {
+          const updated = { ...state, ...payload };
+          const fullName = `${updated.firstName ?? ""} ${updated.lastName ?? ""}`.trim();
+          return {
+            ...updated,
+            customerName: fullName || updated.customerName,
+            updatedAt: new Date().toISOString(),
+          };
+        }),
 
       setMeasurement: (measurement, depthInches) => {
         if (depthInches === undefined) {
@@ -287,33 +382,52 @@ export const useQuoteStore = create<QuoteStore>()(
 
 /** Campos que se envian a la API al confirmar la solicitud. */
 export function pickSubmissionFields(state: QuoteStore) {
+  const lawnQuote = calculateLawnQuote(state);
+  const fullName = `${state.firstName} ${state.lastName}`.trim() || state.customerName;
+
+  const surveyDetails = [
+    `Servicio: ${lawnQuote.rateText}`,
+    `Frecuencia: ${state.serviceFrequency === "ongoing" ? "Ongoing" : "One-time"}`,
+    `Ocupación: ${state.propertyOccupancy === "occupied" ? "Occupied" : "Vacant"}`,
+    `Corte: ${state.mowFrequency === "weekly" ? "Weekly" : "Bi-Weekly"}`,
+    `Área: ${state.areaSelection === "front_back" ? "Front & Back" : state.areaSelection === "front_only" ? "Front Only" : "Back Only"}`,
+    `Lote de esquina: ${state.isCornerLot ? "Sí" : "No"}`,
+    `Es Celular: ${state.isCellphone ? "Sí" : "No"}`,
+    `Gras > 6": ${state.isGrassOver6 ? "Sí" : "No"}`,
+    `Gras > 12": ${state.isGrassOver12 ? "Sí" : "No"}`,
+    `Portón comunidad: ${state.hasCommunityGate ? "Sí" : "No"}`,
+    `Portón patio trasero: ${state.hasBackyardGate ? "Sí" : "No"}`,
+    `Mascotas patio trasero: ${state.hasPetsInBackyard ? "Sí" : "No"}`,
+  ].join(" | ");
+
   return {
     referenceCode: state.referenceCode,
     address: state.address,
-    formattedAddress: state.formattedAddress,
+    formattedAddress: state.formattedAddress || state.address,
     zipCode: state.zipCode,
     city: state.city,
-    state: state.state,
+    state: state.state || "TX",
     placeId: state.placeId,
     latitude: state.latitude,
     longitude: state.longitude,
-    areaSqFt: state.measurement?.areaSqFt ?? 0,
-    areaSqYd: state.measurement?.areaSqYd ?? 0,
-    estimatedCubicYards: state.measurement?.estimatedCubicYards ?? 0,
-    depthInches: state.measurement?.depthInches ?? DEFAULT_DEPTH_INCHES,
-    polygon: state.measurement?.polygon ?? [],
-    polygonPath: state.measurement?.polygonPath ?? null,
-    mapBounds: state.measurement?.bounds ?? null,
-    hasGateCode: state.hasGateCode,
-    gateCode: state.gateCode,
-    requestedDate: state.requestedDate,
-    requestedTimeWindow: state.requestedTimeWindow,
-    selectedServices: state.selectedServices,
-    customerName: state.customerName,
+    areaSqFt: 0,
+    areaSqYd: 0,
+    estimatedCubicYards: 0,
+    depthInches: 2,
+    polygon: [],
+    polygonPath: null,
+    snapshotUrl: null,
+    mapBounds: null,
+    hasGateCode: state.hasBackyardGate || state.hasCommunityGate,
+    gateCode: state.hasCommunityGate ? "Community Gate" : "",
+    requestedDate: state.requestedDate || new Date().toISOString().split("T")[0],
+    requestedTimeWindow: state.requestedTimeWindow || "08:00 - 18:00",
+    selectedServices: state.selectedServices.length ? state.selectedServices : ["weekly_biweekly_lawn_service"],
+    customerName: fullName,
     customerPhone: state.customerPhone,
     customerEmail: state.customerEmail,
-    details: state.details,
-    additionalNotes: state.additionalNotes,
-    paymentMethod: state.paymentMethod,
+    details: surveyDetails,
+    additionalNotes: state.additionalNotes || "",
+    paymentMethod: state.paymentMethod || "on_completion",
   };
 }

@@ -36,8 +36,8 @@ export const BUSINESS = {
 } as const;
 
 /** Abre el cliente SMS nativo con el texto de cotización solicitado. */
-export function buildOwnerSmsHref(address: string): string {
-  const body = `Hola Nieto Green Care LLC, solicito información sobre la cotización en ${address} para los servicios seleccionados.`;
+export function buildOwnerSmsHref(address: string, customBody?: string): string {
+  const body = customBody || `Hola Nieto Green Care LLC, solicito información sobre la cotización en ${address} para los servicios seleccionados.`;
   return `sms:${BUSINESS.ownerSmsNumber}?body=${encodeURIComponent(body)}`;
 }
 

@@ -2,11 +2,14 @@ import type { Metadata } from "next";
 
 import { AboutSection } from "@/components/site/about-section";
 import { ContactSection } from "@/components/site/contact-section";
+import { FaqSection } from "@/components/site/faq-section";
 import { FloatingContact } from "@/components/site/floating-contact";
 import { GalleryCarousel } from "@/components/site/gallery-carousel";
 import { Hero } from "@/components/site/hero";
 import { PaymentsSection } from "@/components/site/payments-section";
+import { PricingSection } from "@/components/site/pricing-section";
 import { QuoteCta } from "@/components/site/quote-cta";
+import { ReferralsSection } from "@/components/site/referrals-section";
 import { ServicesSection } from "@/components/site/services-section";
 import { SiteFooter } from "@/components/site/site-footer";
 import { SiteHeader } from "@/components/site/header";
@@ -31,8 +34,8 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 /**
- * Pagina principal: hero, catalogo de servicios, galeria (carrusel),
- * invitacion al cotizador, empresa, metodos de pago y contacto.
+ * Pagina principal: hero, catalogo de servicios, precios transparentes, galeria,
+ * referidos, preguntas frecuentes, pagos y contacto.
  */
 export default async function HomePage() {
   const cookieStore = await cookies();
@@ -78,12 +81,13 @@ export default async function HomePage() {
       <main>
         <Hero />
         <ServicesSection />
+        <PricingSection />
         <GalleryCarousel items={slides} />
+        <ReferralsSection />
         <QuoteCta />
+        <FaqSection />
         <AboutSection />
-
         <PaymentsSection cashAppQrDataUrl={cashAppQrDataUrl} venmoQrDataUrl={venmoQrDataUrl} />
-
         <ContactSection />
       </main>
       <SiteFooter />
