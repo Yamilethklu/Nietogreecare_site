@@ -22,7 +22,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, LuxuryCard } from "@/components/ui/card";
 import { Select } from "@/components/ui/controls";
 import { FieldError, Input, Label } from "@/components/ui/input";
-import { buildOwnerSmsHref, GOOGLE_MAPS_API_KEY, TIME_WINDOWS, ZIP_CITY_MAP } from "@/lib/constants";
+import { buildOwnerSmsHref, TIME_WINDOWS, ZIP_CITY_MAP } from "@/lib/constants";
+import { GOOGLE_MAPS_API_KEY } from "@/lib/google-maps";
 import { todayISO } from "@/lib/utils";
 import {
   formatZodErrors,
@@ -129,7 +130,7 @@ export function QuoteFlow() {
   };
 
   if (!hydrated) {
-    return <div className="py-24 text-center text-ink-300">Cargando cotizador…</div>;
+    return <div className="py-24 text-center text-slate-500">Cargando cotizador…</div>;
   }
 
   if (store.submitted) {
@@ -148,23 +149,23 @@ export function QuoteFlow() {
       <div className="flex flex-wrap items-center justify-between gap-4">
         <Link
           href="/"
-          className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-gold-400 hover:text-gold-300"
+          className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-emerald-600 hover:text-emerald-700"
         >
           <ArrowLeft className="size-4" />
           {isEs ? "Volver al inicio" : "Back to Home"}
         </Link>
-        <Badge className="border-gold-500/30 bg-gold-500/10 text-gold-300">
+        <Badge className="border-emerald-200 bg-emerald-50 text-emerald-700">
           {isEs ? `Paso ${store.step} de ${TOTAL_STEPS}` : `Step ${store.step} of ${TOTAL_STEPS}`}
         </Badge>
       </div>
 
-      <Card className="border-gold-500/20 bg-ink-950/90 shadow-luxury">
+      <Card className="border-slate-200 bg-white shadow-sm">
         <CardHeader>
           <div className="flex items-center justify-between">
-            <CardTitle className="text-2xl font-bold text-white">
+            <CardTitle className="text-2xl font-bold text-slate-900">
               {isEs ? "Cotización Instantánea de Yarda" : "Instant Lawn Quote"}
             </CardTitle>
-            <span className="text-sm font-bold text-emerald-400 bg-emerald-950/60 border border-emerald-500/30 px-3 py-1 rounded-full">
+            <span className="text-sm font-bold text-emerald-700 bg-emerald-50 border border-emerald-100 px-3 py-1 rounded-full">
               {lawnQuote.perCutText}
             </span>
           </div>
@@ -180,10 +181,10 @@ export function QuoteFlow() {
                 disabled={s > store.step}
                 className={`h-2 rounded-full transition-all ${
                   s === store.step
-                    ? "bg-gold-400"
+                    ? "bg-emerald-600"
                     : s < store.step
                       ? "bg-emerald-500 cursor-pointer"
-                      : "bg-white/10"
+                      : "bg-slate-200"
                 }`}
                 title={`Paso ${s}`}
               />
@@ -194,7 +195,7 @@ export function QuoteFlow() {
         <CardContent className="space-y-8">
           {store.step === 1 && (
             <section className="space-y-5">
-              <h2 className="text-2xl font-bold text-white">
+              <h2 className="text-2xl font-bold text-slate-900">
                 {isEs ? "1. Dirección y Código Postal" : "1. Address & ZIP Code"}
               </h2>
               <div>
@@ -203,7 +204,7 @@ export function QuoteFlow() {
                 <FieldError>{errors.address}</FieldError>
               </div>
               <div>
-                <Label htmlFor="quote-zip">{isEs ? "Código postal *" : "ZIP Code *"}</Label>
+                <Label htmlFor="quote-zip" className="text-slate-900">{isEs ? "Código postal *" : "ZIP Code *"}</Label>
                 <Input
                   id="quote-zip"
                   value={store.zipCode ?? ""}
@@ -213,7 +214,7 @@ export function QuoteFlow() {
                     store.setAddress({ zipCode, city: ZIP_CITY_MAP[zipCode] ?? store.city ?? "" });
                   }}
                   placeholder="78701"
-                  className="mt-2"
+                  className="mt-2 text-slate-900"
                 />
                 <FieldError>{errors.zipCode}</FieldError>
               </div>
@@ -419,6 +420,7 @@ export function QuoteFlow() {
                 </div>
               </div>
             </section>
+          )}
 
           {store.step === 5 && (
             <section className="space-y-6">
