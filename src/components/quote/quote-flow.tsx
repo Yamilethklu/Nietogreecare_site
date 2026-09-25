@@ -10,7 +10,6 @@ import {
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
-  MapPin,
   MessageSquare,
   Send,
   ShieldCheck,
@@ -19,13 +18,13 @@ import {
 import { useLanguage } from "@/components/providers/language-provider";
 import { useToast } from "@/components/providers/toast-provider";
 import { Step1Address, Step1AddressHint } from "@/components/quote/step-1-address";
+import { PropertySatellite } from "@/components/quote/property-satellite";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, LuxuryCard } from "@/components/ui/card";
 import { Select } from "@/components/ui/controls";
 import { FieldError, Input, Label, Textarea } from "@/components/ui/input";
 import { buildOwnerSmsHref, TIME_WINDOWS, ZIP_CITY_MAP } from "@/lib/constants";
-import { GOOGLE_MAPS_API_KEY } from "@/lib/google-maps";
 import { todayISO } from "@/lib/utils";
 import {
   formatZodErrors,
@@ -148,13 +147,6 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
     return <Confirmation isEs={isEs} address={store.address} onReset={store.reset} />;
   }
 
-  const staticMapUrl =
-    store.latitude && store.longitude && GOOGLE_MAPS_API_KEY
-      ? `https://maps.googleapis.com/maps/api/staticmap?center=${store.latitude},${store.longitude}&zoom=19&size=600x320&scale=2&maptype=satellite&markers=color:0x10B981|${store.latitude},${store.longitude}&key=${GOOGLE_MAPS_API_KEY}`
-      : GOOGLE_MAPS_API_KEY
-        ? `https://maps.googleapis.com/maps/api/staticmap?center=${encodeURIComponent(store.address || "Austin, TX")}&zoom=19&size=600x320&scale=2&maptype=satellite&key=${GOOGLE_MAPS_API_KEY}`
-        : null;
-
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
@@ -170,13 +162,13 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
         </Badge>
       </div>
 
-      <Card className="border-slate-200 bg-white shadow-sm">
+      <Card className="border-lime-300 bg-white/95 shadow-xl shadow-emerald-900/10">
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle className="text-2xl font-bold text-slate-900">
               {isEs ? "Solicitud de corte de yarda" : "Lawn Mowing Request"}
             </CardTitle>
-            <span className="text-sm font-bold text-green-700 bg-green-50 border border-green-100 px-3 py-1 rounded-full">{isEs ? "Sin precio en línea" : "No online price"}</span>
+            <span className="rounded-full border border-lime-300 bg-lime-100 px-3 py-1 text-sm font-bold text-emerald-900">{isEs ? "Estimado personal" : "Personal estimate"}</span>
           </div>
 
           <div className="mt-4 grid grid-cols-7 gap-1">
@@ -190,9 +182,9 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
                 disabled={s > store.step}
                 className={`h-2 rounded-full transition-all ${
                   s === store.step
-                    ? "bg-green-500"
+                    ? "bg-lime-500"
                     : s < store.step
-                      ? "bg-green-500 cursor-pointer"
+                      ? "bg-lime-500 cursor-pointer"
                       : "bg-slate-200"
                 }`}
                 title={`Paso ${s}`}
@@ -226,6 +218,11 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
                   className="mt-2 text-slate-900"
                 />
                 <FieldError>{errors.zipCode}</FieldError>
+              </div>
+              <div className="space-y-3">
+                <p className="text-sm font-bold text-emerald-950">{isEs ? "Ubicación del trabajo" : "Job location"}</p>
+                <PropertySatellite address={store.address} latitude={store.latitude} longitude={store.longitude} isEs={isEs} />
+                <p className="text-xs text-slate-600">{isEs ? "El punto verde indica la dirección seleccionada. Confirma que sea la propiedad correcta." : "The green marker shows the selected address. Check that this is the right property."}</p>
               </div>
             </section>
           )}
@@ -395,7 +392,7 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
                 </div>
               </div>
 
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5 space-y-3">
+              <div className="rounded-2xl border border-lime-200 bg-lime-50 p-5 space-y-3">
                 <Label className="text-sm font-semibold text-slate-900">
                   {isEs ? "¿Es su propiedad un lote de esquina? (Is your property a corner lot?)" : "Is your property a corner lot?"}
                 </Label>
@@ -475,35 +472,25 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
 
           {store.step === 6 && (
             <section className="space-y-6">
-              <div className="flex items-center justify-between border-b border-slate-200 pb-4">
+              <div className="grid items-start gap-5 border-b border-lime-200 pb-6 sm:grid-cols-[1fr_1.05fr]">
                 <div>
-                  <h2 className="text-2xl font-bold text-slate-900">My Custom Lawn Mowing Plan</h2>
-                  <p className="text-xs text-emerald-400 font-semibold mt-1">
-                    {isEs ? "Revisa los detalles antes de enviar la solicitud" : "Review your details before sending your request"}
+                  <h2 className="text-3xl font-extrabold leading-tight text-emerald-950 sm:text-4xl">My Custom<br />Lawn Mowing<br />Plan</h2>
+                  <p className="mt-4 rounded-xl bg-lime-100 p-3 text-sm font-semibold text-emerald-950">
+                    {isEs ? "El dueño te contactará para darte el estimado personalmente." : "The owner will contact you with your estimate personally."}
                   </p>
                 </div>
-                <div className="text-right">
-                  <p className="text-sm font-bold text-green-700">{isEs ? "Precio por confirmar con el dueño" : "Owner will confirm the price"}</p>
-                </div>
+                <PropertySatellite address={store.address} latitude={store.latitude} longitude={store.longitude} isEs={isEs} compact />
               </div>
 
-              <div className="relative overflow-hidden rounded-2xl border border-emerald-200/30 bg-slate-50 aspect-video max-h-72">
-                {staticMapUrl ? (
-                  <img
-                    src={staticMapUrl}
-                    alt="Satellite property"
-                    className="size-full object-cover"
-                  />
-                ) : (
-                  <div className="flex size-full flex-col items-center justify-center p-6 text-center bg-emerald-50">
-                    <MapPin className="size-8 text-green-600 mb-2" />
-                    <p className="text-sm font-bold text-slate-900">{store.address || "Austin, TX"}</p>
-                    <p className="text-xs text-slate-600 mt-1">{isEs ? "Ubicación Confirmada" : "Property Location Verified"}</p>
-                  </div>
-                )}
-                <div className="absolute bottom-3 left-3 bg-white/90 backdrop-blur border border-slate-200 px-3 py-1 rounded-lg text-xs font-bold text-slate-900">
-                  📍 {store.address}
-                </div>
+              <div className="grid gap-4 border-b border-lime-200 pb-6 text-sm sm:grid-cols-3">
+                <div><p className="text-xs font-extrabold uppercase tracking-wider text-emerald-950">Address</p><p className="mt-1 text-slate-800">{store.address}</p></div>
+                <div><p className="text-xs font-extrabold uppercase tracking-wider text-emerald-950">{isEs ? "Fecha preferida" : "Preferred date"}</p><p className="mt-1 text-slate-800">{store.requestedDate ? new Date(`${store.requestedDate}T12:00:00`).toLocaleDateString(isEs ? "es-MX" : "en-US", { dateStyle: "long" }) : "—"}</p></div>
+                <div><p className="text-xs font-extrabold uppercase tracking-wider text-emerald-950">{isEs ? "Servicio" : "Service"}</p><p className="mt-1 text-slate-800">{store.serviceFrequency === "ongoing" ? (isEs ? "Continuo" : "Ongoing") : (isEs ? "Una vez" : "One-time")}</p></div>
+              </div>
+              <div className="grid gap-4 border-b border-lime-200 pb-6 text-sm sm:grid-cols-3">
+                <div><p className="text-xs font-extrabold uppercase tracking-wider text-emerald-950">{isEs ? "Frecuencia de corte" : "Mow frequency"}</p><p className="mt-1 text-slate-800">{store.mowFrequency === "weekly" ? "Weekly" : "Bi-Weekly"}</p></div>
+                <div><p className="text-xs font-extrabold uppercase tracking-wider text-emerald-950">{isEs ? "Área de corte" : "Mow area"}</p><p className="mt-1 text-slate-800">{store.areaSelection === "front_back" ? "Front & Back" : store.areaSelection === "front_only" ? "Front Only" : "Back Only"}</p></div>
+                <div><p className="text-xs font-extrabold uppercase tracking-wider text-emerald-950">{isEs ? "Lote de esquina" : "Corner lot"}</p><p className="mt-1 text-slate-800">{store.isCornerLot ? (isEs ? "Sí" : "Yes") : "No"}</p></div>
               </div>
 
               <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5 space-y-3">
