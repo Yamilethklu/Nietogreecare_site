@@ -30,7 +30,7 @@ export function SiteLogo({ className, size = "md", showTagline = false }: SiteLo
       <span className="flex flex-col leading-none">
         <span
           className={cn(
-            "font-serif font-semibold uppercase tracking-[0.2em] text-white",
+            "font-serif font-semibold uppercase tracking-[0.2em] text-slate-900",
             sizes.name,
           )}
         >
@@ -38,7 +38,7 @@ export function SiteLogo({ className, size = "md", showTagline = false }: SiteLo
         </span>
         <span
           className={cn(
-            "mt-1 flex items-center gap-2 font-sans uppercase tracking-[0.3em] text-gold-300/90",
+            "mt-1 flex items-center gap-2 font-sans uppercase tracking-[0.3em] text-emerald-700",
             sizes.tag,
           )}
         >

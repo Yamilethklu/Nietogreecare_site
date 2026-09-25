@@ -3,7 +3,6 @@ import { cookies } from "next/headers";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 
-import { FloatingContact } from "@/components/site/floating-contact";
 import { PaymentsSection } from "@/components/site/payments-section";
 import { SiteHeader } from "@/components/site/header";
 import { SiteFooter } from "@/components/site/site-footer";
@@ -51,7 +50,6 @@ export default async function PaymentsPage() {
         />
       </main>
       <SiteFooter />
-      <FloatingContact />
     </>
   );
 }

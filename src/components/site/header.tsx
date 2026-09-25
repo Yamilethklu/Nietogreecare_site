@@ -44,7 +44,8 @@ export function SiteHeader() {
 
   return (
     <header
-      className="sticky top-0 z-50 w-full border-b border-slate-200 bg-white shadow-sm"    >
+      className="sticky top-0 z-50 w-full border-b border-slate-200 bg-white shadow-sm"
+    >
       <div className="container flex h-20 items-center justify-between gap-4">
         <Link href="/" aria-label={BUSINESS.name} className="focus-ring rounded-xl">
           <SiteLogo size="md" />

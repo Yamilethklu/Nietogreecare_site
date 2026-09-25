@@ -3,7 +3,6 @@ import type { Metadata } from "next";
 import { AboutSection } from "@/components/site/about-section";
 import { ContactSection } from "@/components/site/contact-section";
 import { FaqSection } from "@/components/site/faq-section";
-import { FloatingContact } from "@/components/site/floating-contact";
 import { GalleryCarousel } from "@/components/site/gallery-carousel";
 import { Hero } from "@/components/site/hero";
 import { PaymentsSection } from "@/components/site/payments-section";
@@ -91,7 +90,6 @@ export default async function HomePage() {
         <ContactSection />
       </main>
       <SiteFooter />
-      <FloatingContact />
     </>
   );
 }

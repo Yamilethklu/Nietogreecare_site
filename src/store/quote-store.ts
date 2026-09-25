@@ -152,38 +152,8 @@ const initialFields: QuoteStateFields = {
   submitted: false,
 };
 
-export function calculateLawnQuote(fields: {
-  serviceFrequency: ServiceFrequency;
-  mowFrequency: MowFrequency;
-  areaSelection: AreaSelection;
-  isCornerLot: boolean;
-}) {
-  let basePrice = 42;
-  if (fields.mowFrequency === "weekly") {
-    basePrice = fields.areaSelection === "front_back" ? 38 : 30;
-  } else {
-    basePrice = fields.areaSelection === "front_back" ? 42 : 34;
-  }
-
-  if (fields.isCornerLot) {
-    basePrice += 5;
-  }
-
-  if (fields.serviceFrequency === "one_time") {
-    basePrice += 20;
-  }
-
-  const frequencyText = fields.mowFrequency === "weekly" ? "weekly" : "bi-weekly";
-  const rateText = fields.serviceFrequency === "one_time" ? `$${basePrice} one-time + tax` : `$${basePrice} ${frequencyText} + tax`;
-  const perCutText = `$${basePrice}/cut`;
-
-  return {
-    price: basePrice,
-    frequencyText,
-    rateText,
-    perCutText,
-  };
-}
+export { calculateLawnQuote } from "@/lib/lawn-pricing";
+import { calculateLawnQuote } from "@/lib/lawn-pricing";
 
 /** Recalcula la medicion completa (area, yardas, perimetro, bounds, polyline). */
 export function buildMeasurement(
@@ -429,5 +399,12 @@ export function pickSubmissionFields(state: QuoteStore) {
     details: surveyDetails,
     additionalNotes: state.additionalNotes || "",
     paymentMethod: state.paymentMethod || "on_completion",
+    quoteOptions: {
+      serviceFrequency: state.serviceFrequency,
+      mowFrequency: state.mowFrequency,
+      areaSelection: state.areaSelection,
+      isCornerLot: state.isCornerLot,
+      propertyOccupancy: state.propertyOccupancy,
+    },
   };
 }

@@ -163,7 +163,7 @@ export function Step1Address({ error, isEs }: AddressAutocompleteProps) {
 
   return (
     <div className="relative">
-      <Label htmlFor="quote-address">{isEs ? "Dirección completa" : "Full address"}</Label>
+      <Label htmlFor="quote-address">{isEs ? "Dirección *" : "Address *"}</Label>
       <div className="relative mt-2">
         <Input
           id="quote-address"
@@ -188,10 +188,10 @@ export function Step1Address({ error, isEs }: AddressAutocompleteProps) {
         <div
           id="quote-address-suggestions"
           role="listbox"
-          className="absolute z-[9999] mt-2 max-h-64 w-full overflow-y-auto rounded-xl border border-gold-500/45 bg-slate-900 p-1 shadow-luxury backdrop-blur"
+          className="absolute z-[9999] mt-2 max-h-64 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white p-1 shadow-lg"
         >
           {isSearching ? (
-            <p className="px-3 py-2 text-xs text-ink-400">
+            <p className="px-3 py-2 text-xs text-slate-500">
               {isEs ? "Buscando direcciones…" : "Searching addresses…"}
             </p>
           ) : (
@@ -202,10 +202,10 @@ export function Step1Address({ error, isEs }: AddressAutocompleteProps) {
                 role="option"
                 onMouseDown={(event) => event.preventDefault()}
                 onClick={() => selectSuggestion(suggestion)}
-                className="w-full rounded-lg px-3 py-2.5 text-left transition hover:bg-white/10 focus-visible:bg-white/10 focus-visible:outline-none"
+                className="w-full rounded-lg px-3 py-2.5 text-left transition hover:bg-emerald-50 focus-visible:bg-emerald-50 focus-visible:outline-none"
               >
-                <span className="block text-sm font-medium text-white">{suggestion.address}</span>
-                <span className="mt-0.5 block text-xs text-ink-400">{suggestion.label}</span>
+                <span className="block text-sm font-medium text-slate-900">{suggestion.address}</span>
+                <span className="mt-0.5 block text-xs text-slate-500">{suggestion.label}</span>
               </button>
             ))
           )}

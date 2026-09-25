@@ -96,7 +96,7 @@ export function AboutSection() {
               {stats.map((stat) => (
                 <div
                   key={stat.label}
-                  className="rounded-2xl border border-gold-500/20 bg-gradient-to-br from-ink-900 to-forest-950/60 p-4"
+                  className="rounded-2xl border border-emerald-200 bg-slate-50 p-4"
                 >
                   <p className="font-display text-2xl font-semibold text-gold-200">{stat.value}</p>
                   <p className="mt-1 text-[11px] uppercase tracking-[0.14em] text-slate-500">

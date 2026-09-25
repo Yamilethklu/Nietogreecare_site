@@ -15,7 +15,7 @@ const buttonVariants = cva(
     variants: {
       variant: {
         default:
-          "bg-gradient-to-r from-forest-600 to-forest-700 text-white shadow-[0_10px_30px_-12px_rgba(22,101,52,0.8)] hover:from-forest-500 hover:to-forest-600 hover:shadow-[0_14px_36px_-12px_rgba(22,101,52,0.95)]",
+          "bg-emerald-600 text-white shadow-sm hover:bg-emerald-700",
         gold:
           "bg-emerald-600 text-white shadow-sm hover:bg-emerald-700",
         wood:

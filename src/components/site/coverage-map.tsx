@@ -29,7 +29,7 @@ export function CoverageMap({ className }: { className?: string }) {
           referrerPolicy="no-referrer-when-downgrade"
           className="pointer-events-none absolute inset-0 size-full border-0 saturate-[0.82] contrast-125"
         />
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/85 via-transparent to-black/20" />
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-white/80 via-transparent to-white/10" />
         <span className="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full border border-amber-400/50 bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-amber-400 backdrop-blur-sm">
           <Satellite className="size-3.5" />
           {isEs ? "Cobertura satelital" : "Satellite coverage"}
@@ -62,7 +62,7 @@ export function CoverageMap({ className }: { className?: string }) {
         </a>
         <a
           href={buildSmsHref()}
-          className="inline-flex items-center justify-center gap-2 rounded-full bg-emerald-600 px-4 py-3 text-sm font-semibold text-slate-900 transition hover:bg-emerald-500"
+          className="inline-flex items-center justify-center gap-2 rounded-full bg-emerald-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700"
         >
           <MessageSquare className="size-4" />
           {isEs ? "Enviar mensaje" : "Send a message"}

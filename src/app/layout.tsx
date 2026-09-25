@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 
 import { LanguageProvider } from "@/components/providers/language-provider";
 import { ToastProvider } from "@/components/providers/toast-provider";
+import { FloatingContact } from "@/components/site/floating-contact";
 import { BUSINESS } from "@/lib/constants";
 import { LOCALE_COOKIE, type Locale } from "@/lib/i18n/config";
 import { normalizeLocale } from "@/lib/i18n";
@@ -42,7 +43,7 @@ export const metadata: Metadata = {
     template: "%s | Nieto Green Care LLC",
   },
   description:
-    "Paisajismo de lujo, corte de cesped, sod, fertilizacion y mantenimiento premium en Austin, Hutto, Round Rock, Georgetown y Cedar Park. Cotizacion interactiva con medicion satelital.",
+    "Corte de césped y jardinería en Austin, Hutto, Round Rock, Georgetown y Cedar Park. Cotización instantánea de lawn mowing.",
   keywords: [
     "landscaping Austin TX",
     "lawn care Austin",
@@ -66,7 +67,7 @@ export const metadata: Metadata = {
     siteName: BUSINESS.name,
     title: "Nieto Green Care LLC | Paisajismo de lujo en Austin, TX",
     description:
-      "Cotiza tu servicio de paisajismo en 5 pasos con medicion satelital. Austin, Hutto, Round Rock, Georgetown y Cedar Park.",
+      "Cotiza tu corte de césped en siete pasos. Austin, Hutto, Round Rock, Georgetown y Cedar Park.",
   },
   twitter: {
     card: "summary_large_image",
@@ -78,7 +79,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#090D16",
+  themeColor: "#ffffff",
   width: "device-width",
   initialScale: 1,
 };
@@ -89,9 +90,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 
   return (
     <html lang={locale} className={cn(playfair.variable, cinzel.variable, jakarta.variable)}>
-      <body className="min-h-dvh bg-ink-950 text-ink-50 antialiased">
+      <body className="min-h-dvh bg-white text-slate-900 antialiased">
         <LanguageProvider initialLocale={locale}>
-          <ToastProvider>{children}</ToastProvider>
+          <ToastProvider>{children}<FloatingContact /></ToastProvider>
         </LanguageProvider>
       </body>
     </html>

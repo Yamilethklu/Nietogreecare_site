@@ -1,8 +1,6 @@
 "use client";
 
 import * as React from "react";
-import Image from "next/image";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import {
@@ -25,7 +23,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
 import { buildSmsHref, BUSINESS, SERVICE_CITIES, SERVICE_ZIP_CODES, ZIP_CITY_MAP } from "@/lib/constants";
-import { usePublicAsset } from "@/lib/use-public-asset";
 import { useQuoteStore } from "@/store/quote-store";
 
 const fadeUp = {
@@ -34,14 +31,11 @@ const fadeUp = {
 };
 
 /**
- * Hero principal: fondo fotografico de cesped (hero-bg.jpg) con overlay oscuro
- * calibrado, mensaje de marca integrado dentro del contenedor sobre la imagen y
- * vista satelital real del area de cobertura.
+ * Hero claro con entrada inmediata al cotizador y mapa de cobertura.
  */
 export function Hero() {
   const router = useRouter();
   const { t, isEs } = useLanguage();
-  const heroBackground = usePublicAsset("/hero-bg.jpg");
 
   const address = useQuoteStore((state) => state.address);
   const zipCode = useQuoteStore((state) => state.zipCode);

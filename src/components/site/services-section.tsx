@@ -59,7 +59,7 @@ export function ServicesSection() {
                 className={cn(
                   "group relative flex min-h-[190px] flex-col gap-3 overflow-hidden p-4 transition-all duration-500 sm:p-5",
                   "hover:-translate-y-1 hover:border-gold-500/40 hover:shadow-gold",
-                  service.featured && "border-gold-500/25 bg-ink-900/85",
+                  service.featured && "border-emerald-200 bg-white",
                 )}
               >
                 <span

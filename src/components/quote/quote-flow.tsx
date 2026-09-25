@@ -440,11 +440,12 @@ export function QuoteFlow() {
                 </span>
               </h2>
 
-              <div className="grid grid-cols-3 gap-2 sm:grid-cols-7" aria-label="Available mowing dates">
+              <div className="grid grid-cols-3 gap-2 sm:grid-cols-7" aria-label={isEs ? "Fechas preferidas" : "Preferred mowing dates"}>
                 {Array.from({ length: 14 }, (_, index) => {
                   const date = new Date();
                   date.setDate(date.getDate() + index);
                   const iso = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+                  if (date.getDay() === 0) return null;
                   return <button key={iso} type="button" onClick={() => store.setSchedule(iso)} aria-pressed={store.requestedDate === iso} className={`rounded-xl border p-2 text-center text-xs ${store.requestedDate === iso ? "border-emerald-600 bg-emerald-50 text-emerald-800" : "border-slate-200 bg-white text-slate-900"}`}>
                     <span className="block font-semibold">{date.toLocaleDateString(isEs ? "es-US" : "en-US", { weekday: "short", month: "short", day: "numeric" })}</span><span className="block text-emerald-700">${lawnQuote.price}/cut</span>
                   </button>;

@@ -92,7 +92,7 @@ export function FaqSection() {
                 key={faq.question}
                 className={`overflow-hidden border transition-all duration-300 ${
                   isOpen
-                    ? "border-emerald-200/40 bg-ink-900/90 shadow-lg"
+                    ? "border-emerald-200 bg-white shadow-sm"
                     : "border-slate-200 bg-white/60 hover:border-slate-200"
                 }`}
               >

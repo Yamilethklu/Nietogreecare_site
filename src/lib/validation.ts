@@ -126,6 +126,13 @@ export const leadSubmissionSchema = z
     details: z.string().trim().max(2000).default(""),
     additionalNotes: z.string().trim().max(2000).default(""),
     paymentMethod: z.enum(["cash", "transfer", "on_completion"]),
+    quoteOptions: z.object({
+      serviceFrequency: z.enum(["ongoing", "one_time"]),
+      mowFrequency: z.enum(["weekly", "bi_weekly"]),
+      areaSelection: z.enum(["front_back", "front_only", "back_only"]),
+      isCornerLot: z.boolean(),
+      propertyOccupancy: z.enum(["occupied", "vacant"]),
+    }),
   })
   .refine((data) => !data.hasGateCode || data.gateCode.length > 0, {
     message: "Indique la contrasena del porton.",
