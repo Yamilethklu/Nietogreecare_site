@@ -54,8 +54,8 @@ export function FaqSection() {
         ? "¿Cómo se calcula la tarifa de mi propiedad?"
         : "How is my property pricing calculated?",
       answer: isEs
-        ? "El precio se basa en la selección de áreas (Front/Back), si la propiedad es lote de esquina, ocupación y la frecuencia elegida. Verás la tarifa fija exacta en nuestro cotizador instantáneo."
-        : "Pricing is calculated based on area selections (Front, Back, or Both), corner lot status, property occupancy, and service frequency.",
+        ? "El dueño revisa tu solicitud y se comunica contigo para darte el precio personalmente antes de comenzar. No mostramos precios automáticos en el sitio."
+        : "The owner reviews your request and contacts you personally with the price before work begins. The site does not show automatic prices.",
     },
     {
       question: isEs

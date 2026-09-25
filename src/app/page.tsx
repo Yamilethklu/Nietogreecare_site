@@ -1,11 +1,7 @@
 import type { Metadata } from "next";
 
-import { ContactSection } from "@/components/site/contact-section";
 import { GalleryCarousel } from "@/components/site/gallery-carousel";
-import { QuoteFlow } from "@/components/quote/quote-flow";
-import { OtherServicesForm } from "@/components/quote/other-services-form";
 import { Hero } from "@/components/site/hero";
-import { ServicesSection } from "@/components/site/services-section";
 import { SiteHeader } from "@/components/site/header";
 import { BUSINESS, SERVICE_CITIES, SERVICE_ZIP_CODES } from "@/lib/constants";
 import { fetchCarouselSlides } from "@/lib/gallery";
@@ -27,7 +23,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 /**
- * Portada, galería, servicios y solicitudes de visita.
+ * Portada y galería. Los demás contenidos se abren desde el menú.
  */
 export default async function HomePage() {
   const cookieStore = await cookies();
@@ -69,18 +65,6 @@ export default async function HomePage() {
       <main className="bg-white text-slate-900">
         <Hero backgroundUrl={grassPhoto?.url ?? "/hero-bg.jpg"} />
         <GalleryCarousel items={slides.length ? slides : [{ id: "lawn-photo", url: "/hero-bg.jpg", title: "Nieto Green Care LLC", description: null, location: null }]} />
-        <ServicesSection />
-        <section id="cotizador" className="scroll-mt-24 bg-slate-50 py-16">
-          <div className="container max-w-4xl">
-            <QuoteFlow embedded />
-          </div>
-        </section>
-        <section id="otros-trabajos" className="scroll-mt-24 bg-white py-16">
-          <div className="container max-w-4xl">
-            <OtherServicesForm />
-          </div>
-        </section>
-        <ContactSection />
         <div className="container border-t border-slate-200 py-8 text-center text-sm text-slate-600">
           <span className="mr-3">{BUSINESS.name} · {BUSINESS.phoneDisplay}</span>
           <a href={BUSINESS.venmoUrl} target="_blank" rel="noopener noreferrer" className="mx-2 font-semibold text-green-600 hover:underline">Venmo</a>

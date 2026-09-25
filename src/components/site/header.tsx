@@ -35,11 +35,11 @@ export function SiteHeader() {
   }, [open]);
 
   const links = [
-    { href: "/#servicios", label: isEs ? "Services" : "Services" },
-    { href: "/#galeria", label: isEs ? "Galería" : "Gallery" },
-    { href: "/#cotizador", label: isEs ? "Cotización" : "Quote" },
-    { href: "/#otros-trabajos", label: isEs ? "Otros trabajos" : "Other Jobs" },
-    { href: "/#contacto", label: isEs ? "Contact Us" : "Contact Us" },
+    { href: "/services", label: isEs ? "SERVICIOS" : "SERVICES" },
+    { href: "/pricing", label: isEs ? "PRECIOS" : "PRICING" },
+    { href: "/questions", label: isEs ? "PREGUNTAS" : "QUESTIONS" },
+    { href: "/referrals", label: isEs ? "REFERIDOS" : "REFERRALS" },
+    { href: "/contact", label: isEs ? "CONTÁCTANOS" : "CONTACT US" },
   ];
 
   return (
@@ -82,7 +82,7 @@ export function SiteHeader() {
 
           <Button asChild variant="gold" size="default" className="hidden lg:inline-flex">
             <Link href="/quote">
-              {isEs ? "SOLICITAR VISITA" : "REQUEST A VISIT"}
+              {isEs ? "EMPIEZA" : "GET STARTED"}
             </Link>
           </Button>
 
@@ -122,7 +122,7 @@ export function SiteHeader() {
           <CallButton label={`${t.nav.call} ${BUSINESS.phoneDisplay}`} className="w-full" />
           <Button asChild variant="gold" className="w-full">
             <Link href="/quote" onClick={() => setOpen(false)}>
-              {isEs ? "SOLICITAR VISITA" : "REQUEST A VISIT"}
+              {isEs ? "EMPIEZA" : "GET STARTED"}
             </Link>
           </Button>
           <Button asChild variant="ghost" className="w-full">
