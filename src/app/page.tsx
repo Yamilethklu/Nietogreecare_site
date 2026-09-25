@@ -62,7 +62,7 @@ export default async function HomePage() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
       />
       <SiteHeader />
-      <main className="bg-white text-slate-900">
+      <main className="bg-emerald-50 text-slate-900">
         <Hero backgroundUrl={grassPhoto?.url ?? "/hero-bg.jpg"} />
         <GalleryCarousel items={slides.length ? slides : [{ id: "lawn-photo", url: "/hero-bg.jpg", title: "Nieto Green Care LLC", description: null, location: null }]} />
         <div className="container border-t border-slate-200 py-8 text-center text-sm text-slate-600">

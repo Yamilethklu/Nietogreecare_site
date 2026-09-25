@@ -98,15 +98,15 @@ export function Hero({ backgroundUrl }: { backgroundUrl: string }) {
   return (
     <section
       id="inicio"
-      className="relative isolate overflow-hidden bg-white pb-16 pt-16 sm:pt-20 lg:pb-24"
+      className="relative isolate overflow-hidden bg-gradient-to-b from-emerald-100 to-lime-50 pb-16 pt-16 sm:pt-20 lg:pb-24"
     >
-      <div className="absolute inset-x-0 top-0 -z-10 h-[680px] bg-cover bg-center" style={{ backgroundImage: `linear-gradient(90deg, rgba(255,255,255,.94), rgba(255,255,255,.74) 54%, rgba(255,255,255,.3)), url(${JSON.stringify(backgroundUrl)})` }} aria-hidden="true" />
+      <div className="absolute inset-x-0 top-0 -z-10 h-[780px] bg-cover bg-center" style={{ backgroundImage: `linear-gradient(90deg, rgba(236,253,245,.93), rgba(220,252,231,.70) 54%, rgba(20,83,45,.10)), url(${JSON.stringify(backgroundUrl)})` }} aria-hidden="true" />
       <div className="container relative grid items-center gap-14 lg:grid-cols-[1.05fr_0.95fr]">
         <motion.div
           initial="hidden"
           animate="visible"
           variants={{ visible: { transition: { staggerChildren: 0.09 } } }}
-          className="relative flex flex-col gap-6 rounded-3xl border border-slate-200 bg-white/90 p-5 shadow-xl backdrop-blur-md sm:p-7 lg:-ml-7"
+          className="relative flex flex-col gap-6 rounded-3xl border border-lime-300 bg-white/85 p-5 shadow-xl shadow-emerald-950/15 backdrop-blur-md sm:p-7 lg:-ml-7"
         >
           <motion.div variants={fadeUp} transition={{ duration: 0.5 }}>
             <Badge className="gap-2">
