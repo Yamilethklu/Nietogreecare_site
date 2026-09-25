@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { PublicPage } from "@/components/site/public-page";
+import { PhotoShowcase } from "@/components/site/photo-showcase";
 import { BUSINESS } from "@/lib/constants";
 
 export const metadata = { title: "Estimados | Nieto Green Care LLC" };
@@ -16,5 +17,6 @@ export default function PricingPage() {
         <a href={BUSINESS.telHref} className="rounded-full border border-slate-300 px-7 py-3 font-bold text-slate-900 hover:bg-slate-50">Llamar ahora</a>
       </div>
     </section>
+    <PhotoShowcase heading="Cuidado de jardines que puedes ver" />
   </PublicPage>;
 }
