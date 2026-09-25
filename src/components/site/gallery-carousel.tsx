@@ -51,7 +51,7 @@ export function GalleryCarousel({ items }: { items: GalleryCarouselItem[] }) {
     setIndex((current) => (current + direction + slides.length) % Math.max(1, slides.length));
 
   return (
-    <section id="galeria" className="ngc-section scroll-mt-24">
+    <section id="galeria" className="ngc-section scroll-mt-24 bg-gradient-to-b from-emerald-50 to-lime-100/70">
       <div className="container flex flex-col gap-10">
         <SectionHeading
           eyebrow={t.gallery.eyebrow}
@@ -74,8 +74,8 @@ export function GalleryCarousel({ items }: { items: GalleryCarouselItem[] }) {
             onFocusCapture={() => setPaused(true)}
             onBlurCapture={() => setPaused(false)}
           >
-            <div className="relative overflow-hidden rounded-3xl border border-gold-500/25 bg-white shadow-luxury">
-              <div className="relative aspect-[16/10] sm:aspect-[16/8]">
+            <div className="relative overflow-hidden rounded-3xl border border-emerald-200 bg-emerald-950 shadow-xl shadow-emerald-950/20">
+              <div className="relative aspect-[4/3] sm:aspect-[16/9]">
                 {slides.map((slide, slideIndex) => (
                   <div
                     key={slide.id}
@@ -90,7 +90,7 @@ export function GalleryCarousel({ items }: { items: GalleryCarouselItem[] }) {
                         controls
                         playsInline
                         preload="metadata"
-                        className="absolute inset-0 size-full bg-white object-contain"
+                        className="absolute inset-0 size-full bg-emerald-950 object-contain"
                         aria-label={slide.title ?? `${isEs ? "Video" : "Video"} ${slideIndex + 1}`}
                       >
                         <source src={slide.url} />
@@ -102,27 +102,27 @@ export function GalleryCarousel({ items }: { items: GalleryCarouselItem[] }) {
                         alt={slide.title ?? `${t.gallery.slide} ${slideIndex + 1}`}
                         fill
                         sizes="(max-width: 1024px) 100vw, 1100px"
-                        className="bg-white object-contain"
+                        className="object-cover"
                         priority={slideIndex === 0}
                       />
                     )}
-                    <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-white via-white/35 to-transparent" />
+                    {!isVideoUrl(slide.url) && <div className="pointer-events-none absolute inset-x-0 bottom-0 h-44 bg-gradient-to-t from-emerald-950/85 to-transparent" />}
 
                     {(slide.title || slide.description || slide.location) && (
                       <div className="absolute inset-x-0 bottom-0 flex flex-col gap-1 p-5 sm:p-7">
                         {slide.location ? (
-                          <span className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.2em] text-gold-300">
+                          <span className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.2em] text-lime-300">
                             <MapPin className="size-3.5" />
                             {slide.location}
                           </span>
                         ) : null}
                         {slide.title ? (
-                          <h3 className="font-display text-xl font-semibold text-slate-900 sm:text-2xl">
+                          <h3 className="font-display text-xl font-semibold text-white sm:text-2xl">
                             {slide.title}
                           </h3>
                         ) : null}
                         {slide.description ? (
-                          <p className="max-w-2xl text-sm text-slate-700/80">{slide.description}</p>
+                          <p className="max-w-2xl text-sm text-white/90">{slide.description}</p>
                         ) : null}
                       </div>
                     )}
@@ -136,7 +136,7 @@ export function GalleryCarousel({ items }: { items: GalleryCarouselItem[] }) {
                     type="button"
                     onClick={() => go(-1)}
                     aria-label={isEs ? "Imagen anterior" : "Previous image"}
-                    className="absolute left-3 top-1/2 grid size-11 -translate-y-1/2 place-items-center rounded-full border border-white/15 bg-white text-slate-900 transition-colors hover:border-gold-500/50 hover:text-gold-200"
+                    className="absolute left-3 top-1/2 grid size-11 -translate-y-1/2 place-items-center rounded-full border border-white/40 bg-emerald-950/75 text-white transition-colors hover:bg-emerald-700"
                   >
                     <ChevronLeft className="size-5" />
                   </button>
@@ -144,7 +144,7 @@ export function GalleryCarousel({ items }: { items: GalleryCarouselItem[] }) {
                     type="button"
                     onClick={() => go(1)}
                     aria-label={isEs ? "Imagen siguiente" : "Next image"}
-                    className="absolute right-3 top-1/2 grid size-11 -translate-y-1/2 place-items-center rounded-full border border-white/15 bg-white text-slate-900 transition-colors hover:border-gold-500/50 hover:text-gold-200"
+                    className="absolute right-3 top-1/2 grid size-11 -translate-y-1/2 place-items-center rounded-full border border-white/40 bg-emerald-950/75 text-white transition-colors hover:bg-emerald-700"
                   >
                     <ChevronRight className="size-5" />
                   </button>
@@ -164,8 +164,8 @@ export function GalleryCarousel({ items }: { items: GalleryCarouselItem[] }) {
                     className={cn(
                       "h-2 rounded-full transition-all duration-300",
                       slideIndex === index
-                        ? "w-8 bg-gradient-to-r from-forest-500 to-gold-500"
-                        : "w-2 bg-white/20 hover:bg-white/40",
+                        ? "w-8 bg-green-600"
+                        : "w-2 bg-emerald-300 hover:bg-emerald-500",
                     )}
                   />
                 ))}
