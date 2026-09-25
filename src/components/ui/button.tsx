@@ -17,12 +17,12 @@ const buttonVariants = cva(
         default:
           "bg-gradient-to-r from-forest-600 to-forest-700 text-white shadow-[0_10px_30px_-12px_rgba(22,101,52,0.8)] hover:from-forest-500 hover:to-forest-600 hover:shadow-[0_14px_36px_-12px_rgba(22,101,52,0.95)]",
         gold:
-          "bg-gradient-to-r from-gold-400 via-gold-500 to-gold-600 text-ink-950 shadow-[0_10px_30px_-14px_rgba(201,162,39,0.9)] hover:brightness-110",
+          "bg-emerald-600 text-white shadow-sm hover:bg-emerald-700",
         wood:
           "bg-gradient-to-r from-wood-600 to-wood-700 text-gold-100 shadow-[0_10px_30px_-14px_rgba(120,53,15,0.9)] hover:brightness-110",
         outline:
-          "border border-gold-500/40 bg-transparent text-gold-200 hover:bg-gold-500/10 hover:text-gold-100",
-        ghost: "text-ink-200 hover:bg-white/5 hover:text-white",
+          "border border-slate-300 bg-white text-slate-900 hover:bg-emerald-50 hover:text-emerald-700",
+        ghost: "text-slate-700 hover:bg-emerald-50 hover:text-emerald-700",
         dark:
           "border border-white/10 bg-ink-900/80 text-white hover:border-gold-500/40 hover:bg-ink-800",
         destructive:

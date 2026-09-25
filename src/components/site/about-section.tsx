@@ -39,12 +39,12 @@ export function AboutSection() {
 
         <div className="grid gap-6 lg:grid-cols-[1.05fr_0.95fr]">
           <LuxuryCard className="flex flex-col gap-5 p-7 sm:p-9">
-            <h3 className="flex items-center gap-2 font-display text-xl font-semibold text-white">
+            <h3 className="flex items-center gap-2 font-display text-xl font-semibold text-slate-900">
               <Sparkles className="size-5 text-gold-300" />
               {t.about.storyTitle}
             </h3>
-            <p className="text-sm leading-relaxed text-ink-200/80">{t.about.story1}</p>
-            <p className="text-sm leading-relaxed text-ink-200/80">{t.about.story2}</p>
+            <p className="text-sm leading-relaxed text-slate-700/80">{t.about.story1}</p>
+            <p className="text-sm leading-relaxed text-slate-700/80">{t.about.story2}</p>
 
             <div className="ngc-gold-line" />
 
@@ -54,7 +54,7 @@ export function AboutSection() {
             </h4>
             <ul className="flex flex-col gap-2">
               {standards.map((item) => (
-                <li key={item} className="flex items-start gap-2 text-sm text-ink-200/80">
+                <li key={item} className="flex items-start gap-2 text-sm text-slate-700/80">
                   <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-emerald-300" />
                   {item}
                 </li>
@@ -68,11 +68,11 @@ export function AboutSection() {
 
           <div className="flex flex-col gap-6">
             <Card className="flex flex-col gap-4 p-7">
-              <h3 className="flex items-center gap-2 font-display text-xl font-semibold text-white">
+              <h3 className="flex items-center gap-2 font-display text-xl font-semibold text-slate-900">
                 <MapPin className="size-5 text-gold-300" />
                 {t.about.coverageTitle}
               </h3>
-              <p className="text-sm leading-relaxed text-ink-200/80">{t.about.coverageText}</p>
+              <p className="text-sm leading-relaxed text-slate-700/80">{t.about.coverageText}</p>
               <div className="flex flex-wrap gap-2">
                 {SERVICE_CITIES.map((city) => (
                   <Badge key={city} variant="forest">
@@ -85,7 +85,7 @@ export function AboutSection() {
                   </Badge>
                 ))}
               </div>
-              <p className="text-xs text-ink-400">
+              <p className="text-xs text-slate-500">
                 {isEs
                   ? "Verificamos su codigo postal dentro del cotizador antes de agendar."
                   : "We verify your ZIP code inside the quote wizard before scheduling."}
@@ -99,7 +99,7 @@ export function AboutSection() {
                   className="rounded-2xl border border-gold-500/20 bg-gradient-to-br from-ink-900 to-forest-950/60 p-4"
                 >
                   <p className="font-display text-2xl font-semibold text-gold-200">{stat.value}</p>
-                  <p className="mt-1 text-[11px] uppercase tracking-[0.14em] text-ink-400">
+                  <p className="mt-1 text-[11px] uppercase tracking-[0.14em] text-slate-500">
                     {stat.label}
                   </p>
                 </div>
@@ -110,13 +110,13 @@ export function AboutSection() {
               {values.map((value) => (
                 <div
                   key={value.title}
-                  className="rounded-2xl border border-white/10 bg-white/[0.03] p-4"
+                  className="rounded-2xl border border-slate-200 bg-white/[0.03] p-4"
                 >
                   <value.icon className="size-5 text-gold-300" />
-                  <p className="mt-2 font-display text-base font-semibold text-white">
+                  <p className="mt-2 font-display text-base font-semibold text-slate-900">
                     {value.title}
                   </p>
-                  <p className="mt-1 text-xs leading-relaxed text-ink-200/70">{value.text}</p>
+                  <p className="mt-1 text-xs leading-relaxed text-slate-700/70">{value.text}</p>
                 </div>
               ))}
             </div>

@@ -41,7 +41,7 @@ export function PricingSection() {
   ];
 
   return (
-    <section id="pricing" className="ngc-section scroll-mt-24 bg-ink-950/60 relative">
+    <section id="pricing" className="ngc-section scroll-mt-24 bg-white/60 relative">
       <div className="container flex flex-col gap-10">
         <SectionHeading
           eyebrow={isEs ? "Precios Transparentes" : "Transparent Pricing"}
@@ -59,8 +59,8 @@ export function PricingSection() {
               key={tier.title}
               className={`relative flex flex-col justify-between p-6 sm:p-8 transition-all duration-300 hover:border-gold-400 ${
                 tier.featured
-                  ? "border-emerald-500/50 bg-gradient-to-b from-emerald-950/40 via-ink-900 to-ink-950 shadow-luxury"
-                  : "border-white/10 bg-ink-900/60"
+                  ? "border-emerald-500/50 bg-gradient-to-b from-emerald-950/40 via-ink-900 to-slate-50 shadow-luxury"
+                  : "border-slate-200 bg-white"
               }`}
             >
               {tier.featured && (
@@ -71,15 +71,15 @@ export function PricingSection() {
               )}
 
               <div>
-                <h3 className="text-xl font-bold text-white">{tier.title}</h3>
-                <p className="mt-2 text-xs text-ink-300">{tier.desc}</p>
+                <h3 className="text-xl font-bold text-slate-900">{tier.title}</h3>
+                <p className="mt-2 text-xs text-slate-600">{tier.desc}</p>
 
                 <div className="mt-5 flex items-baseline gap-1">
                   <span className="text-4xl font-extrabold text-gold-300">{tier.price}</span>
-                  <span className="text-sm font-medium text-ink-300">{tier.period}</span>
+                  <span className="text-sm font-medium text-slate-600">{tier.period}</span>
                 </div>
 
-                <ul className="mt-6 space-y-3 border-t border-white/10 pt-6 text-xs text-ink-200">
+                <ul className="mt-6 space-y-3 border-t border-slate-200 pt-6 text-xs text-slate-700">
                   {tier.features.map((feat) => (
                     <li key={feat} className="flex items-center gap-2.5">
                       <span className="grid size-5 place-items-center rounded-full bg-emerald-500/20 text-emerald-400">
@@ -91,7 +91,7 @@ export function PricingSection() {
                 </ul>
               </div>
 
-              <div className="mt-8 border-t border-white/10 pt-6">
+              <div className="mt-8 border-t border-slate-200 pt-6">
                 <Button asChild variant={tier.featured ? "gold" : "outline"} className="w-full">
                   <Link href="/quote">GET MY PRICE</Link>
                 </Button>
@@ -100,7 +100,7 @@ export function PricingSection() {
           ))}
         </div>
 
-        <div className="mx-auto flex max-w-2xl items-center justify-center gap-3 rounded-2xl border border-white/10 bg-black/40 p-4 text-center text-xs text-ink-300">
+        <div className="mx-auto flex max-w-2xl items-center justify-center gap-3 rounded-2xl border border-slate-200 bg-white p-4 text-center text-xs text-slate-600">
           <Shield className="size-5 text-emerald-400 shrink-0" />
           <span>
             {isEs

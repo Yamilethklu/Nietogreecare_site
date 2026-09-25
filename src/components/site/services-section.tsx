@@ -67,15 +67,15 @@ export function ServicesSection() {
                   className="pointer-events-none absolute -right-12 -top-12 size-28 rounded-full bg-forest-600/20 blur-3xl transition-opacity duration-500 group-hover:bg-gold-500/20"
                 />
 
-                <span className="relative grid size-10 place-items-center rounded-lg border border-gold-500/30 bg-gradient-to-br from-forest-700 to-ink-950 shadow-inset">
+                <span className="relative grid size-10 place-items-center rounded-lg border border-gold-500/30 bg-gradient-to-br from-forest-700 to-slate-50 shadow-inset">
                   <Icon className="size-5 text-gold-200" />
                 </span>
 
                 <div className="relative flex flex-1 flex-col gap-2">
-                  <h3 className="font-display text-base font-semibold leading-snug text-white sm:text-lg">
+                  <h3 className="font-display text-base font-semibold leading-snug text-slate-900 sm:text-lg">
                     {isEs ? service.nameEs : service.nameEn}
                   </h3>
-                  <p className="text-xs leading-relaxed text-ink-200/80 sm:text-sm">
+                  <p className="text-xs leading-relaxed text-slate-700/80 sm:text-sm">
                     {isEs ? service.descriptionEs : service.descriptionEn}
                   </p>
                 </div>

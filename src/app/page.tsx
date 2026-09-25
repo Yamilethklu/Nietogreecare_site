@@ -78,7 +78,7 @@ export default async function HomePage() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
       />
       <SiteHeader />
-      <main>
+      <main className="bg-white text-slate-900">
         <Hero />
         <ServicesSection />
         <PricingSection />

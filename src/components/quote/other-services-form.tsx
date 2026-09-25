@@ -45,13 +45,13 @@ export function OtherServicesForm() {
   };
 
   return (
-    <Card className="border-gold-500/20 bg-ink-950/90 shadow-luxury">
+    <Card className="border-emerald-200/20 bg-white shadow-luxury">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-xl font-bold text-white">
-          <Wrench className="size-5 text-gold-400" />
+        <CardTitle className="flex items-center gap-2 text-xl font-bold text-slate-900">
+          <Wrench className="size-5 text-emerald-600" />
           {isEs ? "Solicitar otros servicios de jardinería" : "Request other landscaping services"}
         </CardTitle>
-        <p className="text-xs text-ink-300">
+        <p className="text-xs text-slate-600">
           {isEs
             ? "¿Necesitas poda de arbustos, mulch, limpieza o árboles? Solicita tu presupuesto directo por SMS."
             : "Need bush trimming, mulch, cleanups, or tree work? Get a direct quote via SMS."}
@@ -69,8 +69,8 @@ export function OtherServicesForm() {
                   onClick={() => setJobType(type.key)}
                   className={`rounded-xl border p-3 text-left text-xs font-semibold transition ${
                     jobType === type.key
-                      ? "border-gold-400 bg-gold-500/10 text-gold-200"
-                      : "border-white/10 bg-black/40 text-ink-300 hover:border-white/20"
+                      ? "border-emerald-500 bg-emerald-50 text-emerald-700"
+                      : "border-slate-200 bg-slate-50 text-slate-600 hover:border-slate-200"
                   }`}
                 >
                   {isEs ? type.labelEs : type.labelEn}

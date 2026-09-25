@@ -61,10 +61,10 @@ export function GalleryCarousel({ items }: { items: GalleryCarouselItem[] }) {
 
         {slides.length === 0 ? (
           <Card className="mx-auto flex max-w-2xl flex-col items-center gap-3 p-10 text-center">
-            <span className="grid size-14 place-items-center rounded-2xl border border-gold-500/30 bg-gradient-to-br from-forest-700 to-ink-950">
+            <span className="grid size-14 place-items-center rounded-2xl border border-gold-500/30 bg-gradient-to-br from-forest-700 to-slate-50">
               <ImageIcon className="size-7 text-gold-200" />
             </span>
-            <p className="text-sm leading-relaxed text-ink-200/80">{t.gallery.empty}</p>
+            <p className="text-sm leading-relaxed text-slate-700/80">{t.gallery.empty}</p>
           </Card>
         ) : (
           <div
@@ -74,7 +74,7 @@ export function GalleryCarousel({ items }: { items: GalleryCarouselItem[] }) {
             onFocusCapture={() => setPaused(true)}
             onBlurCapture={() => setPaused(false)}
           >
-            <div className="relative overflow-hidden rounded-3xl border border-gold-500/25 bg-ink-900/70 shadow-luxury">
+            <div className="relative overflow-hidden rounded-3xl border border-gold-500/25 bg-white shadow-luxury">
               <div className="relative aspect-[16/10] sm:aspect-[16/8]">
                 {slides.map((slide, slideIndex) => (
                   <div
@@ -90,7 +90,7 @@ export function GalleryCarousel({ items }: { items: GalleryCarouselItem[] }) {
                         controls
                         playsInline
                         preload="metadata"
-                        className="absolute inset-0 size-full bg-black object-contain"
+                        className="absolute inset-0 size-full bg-white object-contain"
                         aria-label={slide.title ?? `${isEs ? "Video" : "Video"} ${slideIndex + 1}`}
                       >
                         <source src={slide.url} />
@@ -102,11 +102,11 @@ export function GalleryCarousel({ items }: { items: GalleryCarouselItem[] }) {
                         alt={slide.title ?? `${t.gallery.slide} ${slideIndex + 1}`}
                         fill
                         sizes="(max-width: 1024px) 100vw, 1100px"
-                        className="bg-black object-contain"
+                        className="bg-white object-contain"
                         priority={slideIndex === 0}
                       />
                     )}
-                    <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-ink-950 via-ink-950/35 to-transparent" />
+                    <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-white via-white/35 to-transparent" />
 
                     {(slide.title || slide.description || slide.location) && (
                       <div className="absolute inset-x-0 bottom-0 flex flex-col gap-1 p-5 sm:p-7">
@@ -117,12 +117,12 @@ export function GalleryCarousel({ items }: { items: GalleryCarouselItem[] }) {
                           </span>
                         ) : null}
                         {slide.title ? (
-                          <h3 className="font-display text-xl font-semibold text-white sm:text-2xl">
+                          <h3 className="font-display text-xl font-semibold text-slate-900 sm:text-2xl">
                             {slide.title}
                           </h3>
                         ) : null}
                         {slide.description ? (
-                          <p className="max-w-2xl text-sm text-ink-200/80">{slide.description}</p>
+                          <p className="max-w-2xl text-sm text-slate-700/80">{slide.description}</p>
                         ) : null}
                       </div>
                     )}
@@ -136,7 +136,7 @@ export function GalleryCarousel({ items }: { items: GalleryCarouselItem[] }) {
                     type="button"
                     onClick={() => go(-1)}
                     aria-label={isEs ? "Imagen anterior" : "Previous image"}
-                    className="absolute left-3 top-1/2 grid size-11 -translate-y-1/2 place-items-center rounded-full border border-white/15 bg-ink-950/80 text-white transition-colors hover:border-gold-500/50 hover:text-gold-200"
+                    className="absolute left-3 top-1/2 grid size-11 -translate-y-1/2 place-items-center rounded-full border border-white/15 bg-white text-slate-900 transition-colors hover:border-gold-500/50 hover:text-gold-200"
                   >
                     <ChevronLeft className="size-5" />
                   </button>
@@ -144,7 +144,7 @@ export function GalleryCarousel({ items }: { items: GalleryCarouselItem[] }) {
                     type="button"
                     onClick={() => go(1)}
                     aria-label={isEs ? "Imagen siguiente" : "Next image"}
-                    className="absolute right-3 top-1/2 grid size-11 -translate-y-1/2 place-items-center rounded-full border border-white/15 bg-ink-950/80 text-white transition-colors hover:border-gold-500/50 hover:text-gold-200"
+                    className="absolute right-3 top-1/2 grid size-11 -translate-y-1/2 place-items-center rounded-full border border-white/15 bg-white text-slate-900 transition-colors hover:border-gold-500/50 hover:text-gold-200"
                   >
                     <ChevronRight className="size-5" />
                   </button>

@@ -35,9 +35,9 @@ export function ContactSection() {
         />
 
         {/* Formulario simplificado: Enter Your Zip to Call or Text Us */}
-        <Card className="mx-auto w-full max-w-2xl border-emerald-500/30 bg-emerald-950/40 p-6 sm:p-8 backdrop-blur shadow-luxury">
+        <Card className="mx-auto w-full max-w-2xl border-emerald-500/30 bg-emerald-50 p-6 sm:p-8 backdrop-blur shadow-luxury">
           <div className="flex flex-col gap-5">
-            <h3 className="text-xl font-bold text-white text-center">
+            <h3 className="text-xl font-bold text-slate-900 text-center">
               Enter Your Zip to Call or Text Us
             </h3>
 
@@ -60,7 +60,7 @@ export function ContactSection() {
               </Button>
             </div>
 
-            <div className="flex flex-wrap items-center justify-center gap-3 border-t border-white/10 pt-4">
+            <div className="flex flex-wrap items-center justify-center gap-3 border-t border-slate-200 pt-4">
               <Button asChild variant="outline" size="default">
                 <a href={BUSINESS.telHref}>
                   <Phone className="mr-2 size-4 text-emerald-400" />
@@ -79,49 +79,49 @@ export function ContactSection() {
 
         <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
           <Card className="flex flex-col gap-2 p-6">
-            <Phone className="size-5 text-gold-300" />
-            <p className="text-[11px] uppercase tracking-[0.16em] text-ink-400">{t.contact.phone}</p>
+            <Phone className="size-5 text-emerald-700" />
+            <p className="text-[11px] uppercase tracking-[0.16em] text-slate-500">{t.contact.phone}</p>
             <a
               href={BUSINESS.telHref}
-              className="font-display text-lg font-semibold text-white transition-colors hover:text-gold-200"
+              className="font-display text-lg font-semibold text-slate-900 transition-colors hover:text-emerald-700"
             >
               {BUSINESS.phoneDisplay}
             </a>
           </Card>
 
           <Card className="flex flex-col gap-2 p-6">
-            <Mail className="size-5 text-gold-300" />
-            <p className="text-[11px] uppercase tracking-[0.16em] text-ink-400">
+            <Mail className="size-5 text-emerald-700" />
+            <p className="text-[11px] uppercase tracking-[0.16em] text-slate-500">
               {t.contact.email}
             </p>
             <a
               href={`mailto:${BUSINESS.email}`}
-              className="break-all text-sm font-medium text-white transition-colors hover:text-gold-200"
+              className="break-all text-sm font-medium text-slate-900 transition-colors hover:text-emerald-700"
             >
               {BUSINESS.email}
             </a>
           </Card>
 
           <Card className="flex flex-col gap-2 p-6">
-            <MapPin className="size-5 text-gold-300" />
-            <p className="text-[11px] uppercase tracking-[0.16em] text-ink-400">
+            <MapPin className="size-5 text-emerald-700" />
+            <p className="text-[11px] uppercase tracking-[0.16em] text-slate-500">
               {t.contact.coverage}
             </p>
-            <p className="text-sm font-medium text-white">
+            <p className="text-sm font-medium text-slate-900">
               {isEs ? BUSINESS.serviceAreaLabelEs : BUSINESS.serviceAreaLabel}
             </p>
-            <p className="text-xs text-ink-400">
+            <p className="text-xs text-slate-500">
               {[...SERVICE_CITIES, ...NEARBY_CITIES].slice(0, 6).join(" · ")}
             </p>
           </Card>
 
           <Card className="flex flex-col gap-2 p-6">
-            <Clock className="size-5 text-gold-300" />
-            <p className="text-[11px] uppercase tracking-[0.16em] text-ink-400">{t.contact.hours}</p>
-            <p className="text-sm font-medium text-white">
+            <Clock className="size-5 text-emerald-700" />
+            <p className="text-[11px] uppercase tracking-[0.16em] text-slate-500">{t.contact.hours}</p>
+            <p className="text-sm font-medium text-slate-900">
               {isEs ? BUSINESS.hoursEs : BUSINESS.hoursEn}
             </p>
-            <p className="text-xs text-ink-400">
+            <p className="text-xs text-slate-500">
               {isEs ? "Domingos: cerrado" : "Sundays: closed"}
             </p>
           </Card>

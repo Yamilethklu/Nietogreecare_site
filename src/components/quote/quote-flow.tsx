@@ -45,19 +45,29 @@ export function QuoteFlow() {
   const [sending, setSending] = React.useState(false);
 
   React.useEffect(() => {
+    const applyUrlAddress = () => {
+      const query = new URLSearchParams(window.location.search);
+      const address = query.get("address");
+      const zipCode = query.get("zip");
+      if (address && zipCode && /^\d{5}$/.test(zipCode)) {
+        useQuoteStore.getState().setAddress({ address, formattedAddress: address, zipCode, city: ZIP_CITY_MAP[zipCode] ?? "" });
+        useQuoteStore.getState().setStep(1);
+      }
+      setHydrated(true);
+    };
     try {
       if (useQuoteStore.persist?.rehydrate) {
         const res = useQuoteStore.persist.rehydrate();
         if (res && typeof (res as Promise<void>).then === "function") {
-          void (res as Promise<void>).then(() => setHydrated(true)).catch(() => setHydrated(true));
+          void (res as Promise<void>).then(applyUrlAddress).catch(applyUrlAddress);
         } else {
-          setHydrated(true);
+          applyUrlAddress();
         }
       } else {
-        setHydrated(true);
+        applyUrlAddress();
       }
     } catch {
-      setHydrated(true);
+      applyUrlAddress();
     }
   }, []);
 
@@ -119,9 +129,8 @@ export function QuoteFlow() {
       ].join("\n");
 
       const smsUrl = buildOwnerSmsHref(store.address, smsBody);
-      window.location.href = smsUrl;
-
       store.markSubmitted();
+      window.location.href = smsUrl;
     } catch (error) {
       toast({ title: error instanceof Error ? error.message : "Error al enviar", variant: "error" });
     } finally {
@@ -223,12 +232,12 @@ export function QuoteFlow() {
 
           {store.step === 2 && (
             <section className="space-y-6">
-              <h2 className="text-2xl font-bold text-white">
+              <h2 className="text-2xl font-bold text-slate-900">
                 {isEs ? "2. Frecuencia de Servicio y Ocupación" : "2. Service Frequency & Occupancy"}
               </h2>
 
               <div>
-                <Label className="text-sm font-semibold text-ink-200">
+                <Label className="text-sm font-semibold text-slate-700">
                   {isEs ? "¿Tipo de servicio?" : "Service Type"}
                 </Label>
                 <div className="mt-3 grid gap-3 sm:grid-cols-2">
@@ -237,8 +246,8 @@ export function QuoteFlow() {
                     onClick={() => store.setLawnOptions({ serviceFrequency: "ongoing" })}
                     className={`rounded-2xl border p-4 text-left transition ${
                       store.serviceFrequency === "ongoing"
-                        ? "border-emerald-400 bg-emerald-950/40 text-white shadow-lg"
-                        : "border-white/10 bg-black/40 text-ink-300 hover:border-white/20"
+                        ? "border-emerald-600 bg-emerald-50 text-slate-900 shadow-lg"
+                        : "border-slate-200 bg-slate-50 text-slate-600 hover:border-slate-200"
                     }`}
                   >
                     <div className="flex items-center justify-between">
@@ -252,8 +261,8 @@ export function QuoteFlow() {
                     onClick={() => store.setLawnOptions({ serviceFrequency: "one_time" })}
                     className={`rounded-2xl border p-4 text-left transition ${
                       store.serviceFrequency === "one_time"
-                        ? "border-emerald-400 bg-emerald-950/40 text-white shadow-lg"
-                        : "border-white/10 bg-black/40 text-ink-300 hover:border-white/20"
+                        ? "border-emerald-600 bg-emerald-50 text-slate-900 shadow-lg"
+                        : "border-slate-200 bg-slate-50 text-slate-600 hover:border-slate-200"
                     }`}
                   >
                     <div className="flex items-center justify-between">
@@ -265,7 +274,7 @@ export function QuoteFlow() {
               </div>
 
               <div>
-                <Label className="text-sm font-semibold text-ink-200">
+                <Label className="text-sm font-semibold text-slate-700">
                   {isEs ? "Estado de la propiedad" : "Property Status"}
                 </Label>
                 <div className="mt-3 grid gap-3 sm:grid-cols-2">
@@ -274,13 +283,13 @@ export function QuoteFlow() {
                     onClick={() => store.setLawnOptions({ propertyOccupancy: "occupied" })}
                     className={`rounded-2xl border p-4 text-left transition ${
                       store.propertyOccupancy === "occupied"
-                        ? "border-gold-400 bg-gold-500/10 text-white shadow-lg"
-                        : "border-white/10 bg-black/40 text-ink-300 hover:border-white/20"
+                        ? "border-emerald-500 bg-emerald-50 text-slate-900 shadow-lg"
+                        : "border-slate-200 bg-slate-50 text-slate-600 hover:border-slate-200"
                     }`}
                   >
                     <div className="flex items-center justify-between">
                       <span className="font-bold text-base">{isEs ? "Ocupada (Occupied)" : "Occupied"}</span>
-                      {store.propertyOccupancy === "occupied" && <Check className="size-5 text-gold-300" />}
+                      {store.propertyOccupancy === "occupied" && <Check className="size-5 text-emerald-700" />}
                     </div>
                   </button>
 
@@ -289,13 +298,13 @@ export function QuoteFlow() {
                     onClick={() => store.setLawnOptions({ propertyOccupancy: "vacant" })}
                     className={`rounded-2xl border p-4 text-left transition ${
                       store.propertyOccupancy === "vacant"
-                        ? "border-gold-400 bg-gold-500/10 text-white shadow-lg"
-                        : "border-white/10 bg-black/40 text-ink-300 hover:border-white/20"
+                        ? "border-emerald-500 bg-emerald-50 text-slate-900 shadow-lg"
+                        : "border-slate-200 bg-slate-50 text-slate-600 hover:border-slate-200"
                     }`}
                   >
                     <div className="flex items-center justify-between">
                       <span className="font-bold text-base">{isEs ? "Desocupada (Vacant)" : "Vacant"}</span>
-                      {store.propertyOccupancy === "vacant" && <Check className="size-5 text-gold-300" />}
+                      {store.propertyOccupancy === "vacant" && <Check className="size-5 text-emerald-700" />}
                     </div>
                   </button>
                 </div>
@@ -304,7 +313,7 @@ export function QuoteFlow() {
           )}
           {store.step === 3 && (
             <section className="space-y-5">
-              <h2 className="text-2xl font-bold text-white">
+              <h2 className="text-2xl font-bold text-slate-900">
                 {isEs ? "3. Frecuencia de Corte" : "3. Mowing Frequency"}
               </h2>
 
@@ -314,21 +323,21 @@ export function QuoteFlow() {
                   onClick={() => store.setLawnOptions({ mowFrequency: "weekly" })}
                   className={`rounded-2xl border p-5 text-left transition ${
                     store.mowFrequency === "weekly"
-                      ? "border-emerald-400 bg-emerald-950/40 text-white shadow-luxury"
-                      : "border-white/10 bg-black/40 text-ink-300 hover:border-white/20"
+                      ? "border-emerald-600 bg-emerald-50 text-slate-900 shadow-luxury"
+                      : "border-slate-200 bg-slate-50 text-slate-600 hover:border-slate-200"
                   }`}
                 >
                   <div className="flex items-center justify-between">
-                    <span className="text-xl font-bold text-white">
+                    <span className="text-xl font-bold text-slate-900">
                       {isEs ? "Semanal (Weekly)" : "Weekly"}
                     </span>
                     {store.mowFrequency === "weekly" && <Check className="size-6 text-emerald-400" />}
                   </div>
-                  <p className="mt-2 text-xs text-ink-200">
+                  <p className="mt-2 text-xs text-slate-700">
                     {isEs ? "Recomendado para primavera/verano." : "Recommended for peak growing season."}
                   </p>
-                  <p className="mt-4 font-bold text-gold-300 text-lg">
-                    {store.areaSelection === "front_back" ? "$38 / corte" : "$30 / corte"}
+                  <p className="mt-4 font-bold text-emerald-700 text-lg">
+                    {store.areaSelection === "front_back" ? `$${38 + (store.isCornerLot ? 5 : 0) + (store.serviceFrequency === "one_time" ? 20 : 0)} / cut` : `$${30 + (store.isCornerLot ? 5 : 0) + (store.serviceFrequency === "one_time" ? 20 : 0)} / cut`}
                   </p>
                 </button>
 
@@ -337,21 +346,21 @@ export function QuoteFlow() {
                   onClick={() => store.setLawnOptions({ mowFrequency: "bi_weekly" })}
                   className={`rounded-2xl border p-5 text-left transition ${
                     store.mowFrequency === "bi_weekly"
-                      ? "border-emerald-400 bg-emerald-950/40 text-white shadow-luxury"
-                      : "border-white/10 bg-black/40 text-ink-300 hover:border-white/20"
+                      ? "border-emerald-600 bg-emerald-50 text-slate-900 shadow-luxury"
+                      : "border-slate-200 bg-slate-50 text-slate-600 hover:border-slate-200"
                   }`}
                 >
                   <div className="flex items-center justify-between">
-                    <span className="text-xl font-bold text-white">
+                    <span className="text-xl font-bold text-slate-900">
                       {isEs ? "Quincenal (Bi-Weekly)" : "Bi-Weekly"}
                     </span>
                     {store.mowFrequency === "bi_weekly" && <Check className="size-6 text-emerald-400" />}
                   </div>
-                  <p className="mt-2 text-xs text-ink-200">
+                  <p className="mt-2 text-xs text-slate-700">
                     {isEs ? "Corte cada dos semanas." : "Serviced every two weeks."}
                   </p>
-                  <p className="mt-4 font-bold text-gold-300 text-lg">
-                    {store.areaSelection === "front_back" ? "$42 / corte" : "$34 / corte"}
+                  <p className="mt-4 font-bold text-emerald-700 text-lg">
+                    {store.areaSelection === "front_back" ? `$${42 + (store.isCornerLot ? 5 : 0) + (store.serviceFrequency === "one_time" ? 20 : 0)} / cut` : `$${34 + (store.isCornerLot ? 5 : 0) + (store.serviceFrequency === "one_time" ? 20 : 0)} / cut`}
                   </p>
                 </button>
               </div>
@@ -360,12 +369,12 @@ export function QuoteFlow() {
 
           {store.step === 4 && (
             <section className="space-y-6">
-              <h2 className="text-2xl font-bold text-white">
+              <h2 className="text-2xl font-bold text-slate-900">
                 {isEs ? "4. Áreas de Corte y Lote de Esquina" : "4. Mowing Areas & Corner Lot"}
               </h2>
 
               <div>
-                <Label className="text-sm font-semibold text-ink-200">
+                <Label className="text-sm font-semibold text-slate-700">
                   {isEs ? "¿Qué áreas desea cortar?" : "Lawn Areas to Mow"}
                 </Label>
                 <div className="mt-3 grid gap-3 sm:grid-cols-3">
@@ -380,8 +389,8 @@ export function QuoteFlow() {
                       onClick={() => store.setLawnOptions({ areaSelection: area.key as any })}
                       className={`rounded-2xl border p-4 text-center transition ${
                         store.areaSelection === area.key
-                          ? "border-gold-400 bg-gold-500/10 text-white font-bold"
-                          : "border-white/10 bg-black/40 text-ink-300 hover:border-white/20"
+                          ? "border-emerald-500 bg-emerald-50 text-slate-900 font-bold"
+                          : "border-slate-200 bg-slate-50 text-slate-600 hover:border-slate-200"
                       }`}
                     >
                       {isEs ? area.labelEs : area.labelEn}
@@ -390,8 +399,8 @@ export function QuoteFlow() {
                 </div>
               </div>
 
-              <div className="rounded-2xl border border-white/10 bg-black/40 p-5 space-y-3">
-                <Label className="text-sm font-semibold text-white">
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5 space-y-3">
+                <Label className="text-sm font-semibold text-slate-900">
                   {isEs ? "¿Es su propiedad un lote de esquina? (Is your property a corner lot?)" : "Is your property a corner lot?"}
                 </Label>
                 <div className="flex gap-4">
@@ -400,8 +409,8 @@ export function QuoteFlow() {
                     onClick={() => store.setLawnOptions({ isCornerLot: true })}
                     className={`flex-1 rounded-xl border p-3 font-bold transition ${
                       store.isCornerLot
-                        ? "border-emerald-400 bg-emerald-950/60 text-emerald-300"
-                        : "border-white/10 bg-black/30 text-ink-300"
+                        ? "border-emerald-600 bg-white text-emerald-700"
+                        : "border-slate-200 bg-slate-50 text-slate-600"
                     }`}
                   >
                     {isEs ? "Sí (Yes)" : "Yes"}
@@ -411,8 +420,8 @@ export function QuoteFlow() {
                     onClick={() => store.setLawnOptions({ isCornerLot: false })}
                     className={`flex-1 rounded-xl border p-3 font-bold transition ${
                       !store.isCornerLot
-                        ? "border-emerald-400 bg-emerald-950/60 text-emerald-300"
-                        : "border-white/10 bg-black/30 text-ink-300"
+                        ? "border-emerald-600 bg-white text-emerald-700"
+                        : "border-slate-200 bg-slate-50 text-slate-600"
                     }`}
                   >
                     {isEs ? "No (No)" : "No"}
@@ -431,13 +440,23 @@ export function QuoteFlow() {
                 </span>
               </h2>
 
+              <div className="grid grid-cols-3 gap-2 sm:grid-cols-7" aria-label="Available mowing dates">
+                {Array.from({ length: 14 }, (_, index) => {
+                  const date = new Date();
+                  date.setDate(date.getDate() + index);
+                  const iso = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+                  return <button key={iso} type="button" onClick={() => store.setSchedule(iso)} aria-pressed={store.requestedDate === iso} className={`rounded-xl border p-2 text-center text-xs ${store.requestedDate === iso ? "border-emerald-600 bg-emerald-50 text-emerald-800" : "border-slate-200 bg-white text-slate-900"}`}>
+                    <span className="block font-semibold">{date.toLocaleDateString(isEs ? "es-US" : "en-US", { weekday: "short", month: "short", day: "numeric" })}</span><span className="block text-emerald-700">${lawnQuote.price}/cut</span>
+                  </button>;
+                })}
+              </div>
               <div>
                 <Label htmlFor="service-date">{isEs ? "Fecha preferida *" : "Preferred Date *"}</Label>
                 <Input
                   id="service-date"
                   type="date"
                   min={todayISO()}
-                  value={store.requestedDate ?? todayISO()}
+                  value={store.requestedDate ?? ""}
                   onChange={(event) => store.setSchedule(event.target.value, store.requestedTimeWindow ?? "")}
                   className="mt-2 text-lg font-bold"
                 />
@@ -460,31 +479,31 @@ export function QuoteFlow() {
                 </Select>
               </div>
 
-              <div className="rounded-2xl border border-emerald-500/30 bg-emerald-950/30 p-4 text-center">
-                <p className="text-xs uppercase tracking-wider text-emerald-300 font-bold">
+              <div className="rounded-2xl border border-emerald-500/30 bg-emerald-50 p-4 text-center">
+                <p className="text-xs uppercase tracking-wider text-emerald-700 font-bold">
                   {isEs ? "Tarifa Fija de Corte en Días de Servicio" : "Fixed Rate On Mowing Days"}
                 </p>
-                <p className="mt-1 text-3xl font-extrabold text-gold-300">{lawnQuote.rateText}</p>
+                <p className="mt-1 text-3xl font-extrabold text-emerald-700">{lawnQuote.rateText}</p>
               </div>
             </section>
           )}
 
           {store.step === 6 && (
             <section className="space-y-6">
-              <div className="flex items-center justify-between border-b border-white/10 pb-4">
+              <div className="flex items-center justify-between border-b border-slate-200 pb-4">
                 <div>
-                  <h2 className="text-2xl font-bold text-white">My Custom Lawn Mowing Plan</h2>
+                  <h2 className="text-2xl font-bold text-slate-900">My Custom Lawn Mowing Plan</h2>
                   <p className="text-xs text-emerald-400 font-semibold mt-1">
                     {isEs ? "Visualización inmediata del precio final · Sin revisión manual" : "Immediate final price display · No manual review"}
                   </p>
                 </div>
                 <div className="text-right">
-                  <p className="text-3xl font-extrabold text-gold-300">{lawnQuote.rateText}</p>
-                  <p className="text-[11px] text-ink-300">{isEs ? "Tarifa por corte" : "Rate per cut"}</p>
+                  <p className="text-3xl font-extrabold text-emerald-700">{lawnQuote.rateText}</p>
+                  <p className="text-[11px] text-slate-600">{isEs ? "Tarifa por corte" : "Rate per cut"}</p>
                 </div>
               </div>
 
-              <div className="relative overflow-hidden rounded-2xl border border-gold-500/30 bg-black aspect-video max-h-72">
+              <div className="relative overflow-hidden rounded-2xl border border-emerald-200/30 bg-slate-50 aspect-video max-h-72">
                 {staticMapUrl ? (
                   <img
                     src={staticMapUrl}
@@ -492,22 +511,22 @@ export function QuoteFlow() {
                     className="size-full object-cover"
                   />
                 ) : (
-                  <div className="flex size-full flex-col items-center justify-center p-6 text-center bg-gradient-to-br from-emerald-950/80 to-black">
-                    <MapPin className="size-8 text-gold-400 mb-2" />
-                    <p className="text-sm font-bold text-white">{store.address || "Austin, TX"}</p>
-                    <p className="text-xs text-ink-300 mt-1">{isEs ? "Ubicación Confirmada" : "Property Location Verified"}</p>
+                  <div className="flex size-full flex-col items-center justify-center p-6 text-center bg-emerald-50">
+                    <MapPin className="size-8 text-emerald-600 mb-2" />
+                    <p className="text-sm font-bold text-slate-900">{store.address || "Austin, TX"}</p>
+                    <p className="text-xs text-slate-600 mt-1">{isEs ? "Ubicación Confirmada" : "Property Location Verified"}</p>
                   </div>
                 )}
-                <div className="absolute bottom-3 left-3 bg-black/80 backdrop-blur border border-white/20 px-3 py-1 rounded-lg text-xs font-bold text-white">
+                <div className="absolute bottom-3 left-3 bg-white/90 backdrop-blur border border-slate-200 px-3 py-1 rounded-lg text-xs font-bold text-slate-900">
                   📍 {store.address}
                 </div>
               </div>
 
-              <div className="rounded-2xl border border-white/10 bg-black/40 p-5 space-y-3">
-                <h3 className="text-sm font-bold text-gold-300 uppercase tracking-wider">
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5 space-y-3">
+                <h3 className="text-sm font-bold text-emerald-700 uppercase tracking-wider">
                   {isEs ? "Servicios Incluidos:" : "Services Included:"}
                 </h3>
-                <div className="grid gap-2 sm:grid-cols-2 text-xs font-semibold text-white">
+                <div className="grid gap-2 sm:grid-cols-2 text-xs font-semibold text-slate-900">
                   <div className="flex items-center gap-2">
                     <CheckCircle2 className="size-4 text-emerald-400 shrink-0" />
                     <span>Mow Lawn</span>
@@ -531,7 +550,7 @@ export function QuoteFlow() {
 
           {store.step === 7 && (
             <section className="space-y-6">
-              <h2 className="text-2xl font-bold text-white">
+              <h2 className="text-2xl font-bold text-slate-900">
                 {isEs ? "7. Datos de Cuenta y Detalles del Patio" : "7. Account & Yard Details"}
               </h2>
 
@@ -585,12 +604,12 @@ export function QuoteFlow() {
                 </div>
               </div>
 
-              <div className="space-y-3 rounded-2xl border border-white/10 bg-black/40 p-5">
-                <h3 className="text-sm font-bold text-white mb-2">
+              <div className="space-y-3 rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                <h3 className="text-sm font-bold text-slate-900 mb-2">
                   {isEs ? "Detalles del Patio / Acceso:" : "Yard & Access Details:"}
                 </h3>
 
-                <label className="flex items-center gap-3 text-xs text-ink-200 cursor-pointer">
+                <label className="flex items-center gap-3 text-xs text-slate-700 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={store.isCellphone ?? true}
@@ -600,7 +619,7 @@ export function QuoteFlow() {
                   <span>Is this a Cellphone?</span>
                 </label>
 
-                <label className="flex items-center gap-3 text-xs text-ink-200 cursor-pointer">
+                <label className="flex items-center gap-3 text-xs text-slate-700 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={store.isGrassOver6 ?? false}
@@ -610,7 +629,7 @@ export function QuoteFlow() {
                   <span>Grass height &gt; 6&quot;?</span>
                 </label>
 
-                <label className="flex items-center gap-3 text-xs text-ink-200 cursor-pointer">
+                <label className="flex items-center gap-3 text-xs text-slate-700 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={store.hasCommunityGate ?? false}
@@ -620,7 +639,7 @@ export function QuoteFlow() {
                   <span>Community gate?</span>
                 </label>
 
-                <label className="flex items-center gap-3 text-xs text-ink-200 cursor-pointer">
+                <label className="flex items-center gap-3 text-xs text-slate-700 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={store.hasBackyardGate ?? false}
@@ -630,7 +649,7 @@ export function QuoteFlow() {
                   <span>Backyard gate?</span>
                 </label>
 
-                <label className="flex items-center gap-3 text-xs text-ink-200 cursor-pointer">
+                <label className="flex items-center gap-3 text-xs text-slate-700 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={store.hasPetsInBackyard ?? false}

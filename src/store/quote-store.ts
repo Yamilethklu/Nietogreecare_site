@@ -174,8 +174,8 @@ export function calculateLawnQuote(fields: {
   }
 
   const frequencyText = fields.mowFrequency === "weekly" ? "weekly" : "bi-weekly";
-  const rateText = `$${basePrice} ${frequencyText} + tax`;
-  const perCutText = `$${basePrice}/corte`;
+  const rateText = fields.serviceFrequency === "one_time" ? `$${basePrice} one-time + tax` : `$${basePrice} ${frequencyText} + tax`;
+  const perCutText = `$${basePrice}/cut`;
 
   return {
     price: basePrice,

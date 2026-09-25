@@ -92,8 +92,8 @@ export function FaqSection() {
                 key={faq.question}
                 className={`overflow-hidden border transition-all duration-300 ${
                   isOpen
-                    ? "border-gold-500/40 bg-ink-900/90 shadow-lg"
-                    : "border-white/10 bg-ink-950/60 hover:border-white/20"
+                    ? "border-emerald-200/40 bg-ink-900/90 shadow-lg"
+                    : "border-slate-200 bg-white/60 hover:border-slate-200"
                 }`}
               >
                 <button
@@ -102,19 +102,19 @@ export function FaqSection() {
                   className="flex w-full items-center justify-between p-5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-400"
                   aria-expanded={isOpen}
                 >
-                  <span className="flex items-center gap-3 pr-4 font-semibold text-white sm:text-lg">
-                    <HelpCircle className="size-5 text-gold-400 shrink-0" />
+                  <span className="flex items-center gap-3 pr-4 font-semibold text-slate-900 sm:text-lg">
+                    <HelpCircle className="size-5 text-emerald-600 shrink-0" />
                     {faq.question}
                   </span>
                   <ChevronDown
-                    className={`size-5 text-gold-400 shrink-0 transition-transform duration-300 ${
+                    className={`size-5 text-emerald-600 shrink-0 transition-transform duration-300 ${
                       isOpen ? "rotate-180" : ""
                     }`}
                   />
                 </button>
 
                 {isOpen && (
-                  <div className="border-t border-white/10 px-5 py-4 text-sm leading-relaxed text-ink-200 bg-black/20">
+                  <div className="border-t border-slate-200 px-5 py-4 text-sm leading-relaxed text-slate-700 bg-slate-50/20">
                     {faq.answer}
                   </div>
                 )}
