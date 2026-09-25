@@ -1,24 +1,17 @@
 import type { Metadata } from "next";
 
-import { AboutSection } from "@/components/site/about-section";
 import { ContactSection } from "@/components/site/contact-section";
-import { FaqSection } from "@/components/site/faq-section";
 import { GalleryCarousel } from "@/components/site/gallery-carousel";
 import { QuoteFlow } from "@/components/quote/quote-flow";
 import { OtherServicesForm } from "@/components/quote/other-services-form";
 import { Hero } from "@/components/site/hero";
-import { PaymentsSection } from "@/components/site/payments-section";
-import { PricingSection } from "@/components/site/pricing-section";
-import { ReferralsSection } from "@/components/site/referrals-section";
 import { ServicesSection } from "@/components/site/services-section";
-import { SiteFooter } from "@/components/site/site-footer";
 import { SiteHeader } from "@/components/site/header";
 import { BUSINESS, SERVICE_CITIES, SERVICE_ZIP_CODES } from "@/lib/constants";
 import { fetchCarouselSlides } from "@/lib/gallery";
 import { getDictionary } from "@/lib/i18n";
 import { LOCALE_COOKIE } from "@/lib/i18n/config";
 import { normalizeLocale } from "@/lib/i18n";
-import { buildQrDataUrl } from "@/lib/qr";
 import { cookies } from "next/headers";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -34,19 +27,14 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 /**
- * Pagina principal: hero, catalogo de servicios, precios transparentes, galeria,
- * referidos, preguntas frecuentes, pagos y contacto.
+ * Portada, galería, servicios y solicitudes de visita.
  */
 export default async function HomePage() {
   const cookieStore = await cookies();
   const locale = normalizeLocale(cookieStore.get(LOCALE_COOKIE)?.value);
   const t = getDictionary(locale);
 
-  const [slides, cashAppQrDataUrl, venmoQrDataUrl] = await Promise.all([
-    fetchCarouselSlides(),
-    buildQrDataUrl(BUSINESS.cashAppUrl),
-    buildQrDataUrl(BUSINESS.venmoUrl),
-  ]);
+  const slides = await fetchCarouselSlides();
   const grassPhoto = slides.find((slide) => /c[eé]sped|grass|lawn|yard/i.test(`${slide.title ?? ""} ${slide.description ?? ""}`) && !/\.(mp4|mov|webm)(?:$|[?#])/i.test(slide.url));
 
   const structuredData = {
@@ -66,7 +54,6 @@ export default async function HomePage() {
       postalCode: SERVICE_ZIP_CODES.slice(0, 1)[0],
     },
     openingHours: "Mo-Sa 07:00-19:00",
-    priceRange: "$$",
     paymentAccepted: ["Cash", "Cash App", "Venmo", "Zelle"],
     url: process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000",
   };
@@ -83,7 +70,6 @@ export default async function HomePage() {
         <Hero backgroundUrl={grassPhoto?.url ?? "/hero-bg.jpg"} />
         <GalleryCarousel items={slides.length ? slides : [{ id: "lawn-photo", url: "/hero-bg.jpg", title: "Nieto Green Care LLC", description: null, location: null }]} />
         <ServicesSection />
-        <PricingSection />
         <section id="cotizador" className="scroll-mt-24 bg-slate-50 py-16">
           <div className="container max-w-4xl">
             <QuoteFlow embedded />
@@ -94,13 +80,13 @@ export default async function HomePage() {
             <OtherServicesForm />
           </div>
         </section>
-        <ReferralsSection />
-        <FaqSection />
-        <AboutSection />
-        <PaymentsSection cashAppQrDataUrl={cashAppQrDataUrl} venmoQrDataUrl={venmoQrDataUrl} />
         <ContactSection />
+        <div className="container border-t border-slate-200 py-8 text-center text-sm text-slate-600">
+          <span className="mr-3">{BUSINESS.name} · {BUSINESS.phoneDisplay}</span>
+          <a href={BUSINESS.venmoUrl} target="_blank" rel="noopener noreferrer" className="mx-2 font-semibold text-green-600 hover:underline">Venmo</a>
+          <a href={BUSINESS.cashAppUrl} target="_blank" rel="noopener noreferrer" className="mx-2 font-semibold text-green-600 hover:underline">Cash App</a>
+        </div>
       </main>
-      <SiteFooter />
     </>
   );
 }

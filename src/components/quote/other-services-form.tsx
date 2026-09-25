@@ -71,7 +71,7 @@ export function OtherServicesForm() {
     <Card className="border-emerald-200/20 bg-white shadow-luxury">
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-xl font-bold text-slate-900">
-          <Wrench className="size-5 text-emerald-600" />
+          <Wrench className="size-5 text-green-600" />
           {isEs ? "Otros trabajos: solicita una visita" : "Other jobs: request an on-site estimate"}
         </CardTitle>
         <p className="text-xs text-slate-600">
@@ -92,7 +92,7 @@ export function OtherServicesForm() {
                   onClick={() => setJobType(type.key)}
                   className={`rounded-xl border p-3 text-left text-xs font-semibold transition ${
                     jobType === type.key
-                      ? "border-emerald-500 bg-emerald-50 text-emerald-700"
+                      ? "border-green-400 bg-emerald-50 text-green-700"
                       : "border-slate-200 bg-slate-50 text-slate-600 hover:border-slate-200"
                   }`}
                 >

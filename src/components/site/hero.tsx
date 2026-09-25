@@ -121,7 +121,7 @@ export function Hero({ backgroundUrl }: { backgroundUrl: string }) {
             className="font-display text-4xl font-semibold leading-[1.08] text-slate-900 sm:text-5xl lg:text-6xl"
           >
             {BUSINESS.name}
-            <span className="mt-3 block text-emerald-600 text-3xl sm:text-4xl lg:text-[2.9rem]">
+            <span className="mt-3 block text-green-600 text-3xl sm:text-4xl lg:text-[2.9rem]">
               {t.hero.slogan}
             </span>
           </motion.h1>
@@ -141,7 +141,7 @@ export function Hero({ backgroundUrl }: { backgroundUrl: string }) {
             onSubmit={handleHeroSubmit}
             className="mt-1 flex flex-col gap-4 rounded-2xl border border-emerald-200 bg-white p-4 shadow-sm"
           >
-            <p className="text-xs font-semibold uppercase tracking-wider text-emerald-700">
+            <p className="text-xs font-semibold uppercase tracking-wider text-green-700">
               {isEs ? "Obtenga su cotización instantánea" : "Get your instant quote"}
             </p>
 
@@ -172,7 +172,7 @@ export function Hero({ backgroundUrl }: { backgroundUrl: string }) {
               size="lg"
               className="mt-1 w-full text-base font-bold tracking-wide shadow-lg hover:scale-[1.01] transition-transform"
             >
-              FREE PRICE QUOTE
+              {isEs ? "SOLICITAR ESTIMADO GRATIS" : "REQUEST A FREE ESTIMATE"}
               <ArrowRight className="ml-2 size-5" />
             </Button>
           </motion.form>
@@ -184,7 +184,7 @@ export function Hero({ backgroundUrl }: { backgroundUrl: string }) {
           >
             {trust.map((item) => (
               <li key={item.label} className="flex items-center gap-2 text-sm text-slate-900">
-                <item.icon className="size-4 text-emerald-600" />
+                <item.icon className="size-4 text-green-600" />
                 {item.label}
               </li>
             ))}
@@ -205,11 +205,11 @@ export function Hero({ backgroundUrl }: { backgroundUrl: string }) {
                 key={metric.label}
                 className="rounded-2xl border border-slate-200 bg-white p-4 backdrop-blur-md"
               >
-                <metric.icon className="size-4 text-emerald-600" />
+                <metric.icon className="size-4 text-green-600" />
                 <p className="mt-2 text-[11px] uppercase tracking-[0.14em] text-slate-900">
                   {metric.label}
                 </p>
-                <p className="mt-1 text-sm font-semibold text-emerald-600">{metric.value}</p>
+                <p className="mt-1 text-sm font-semibold text-green-600">{metric.value}</p>
               </li>
             ))}
           </ul>
@@ -219,7 +219,7 @@ export function Hero({ backgroundUrl }: { backgroundUrl: string }) {
               <a
                 key={city}
                 href={buildSmsHref()}
-                className="rounded-full border border-amber-300/55 bg-white px-3 py-1 text-xs font-semibold text-slate-900 transition hover:border-amber-300 hover:text-emerald-600"
+                className="rounded-full border border-amber-300/55 bg-white px-3 py-1 text-xs font-semibold text-slate-900 transition hover:border-amber-300 hover:text-green-600"
               >
                 {city}
               </a>
@@ -227,11 +227,11 @@ export function Hero({ backgroundUrl }: { backgroundUrl: string }) {
           </div>
 
           <div className="mt-5 flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-900 backdrop-blur-md">
-            <Phone className="size-4 text-emerald-600" />
-            <a href={BUSINESS.telHref} className="text-emerald-600 hover:text-amber-200">
+            <Phone className="size-4 text-green-600" />
+            <a href={BUSINESS.telHref} className="text-green-600 hover:text-amber-200">
               {BUSINESS.phoneDisplay}
             </a>
-            <span className="text-emerald-600">·</span>
+            <span className="text-green-600">·</span>
             <span>{isEs ? BUSINESS.hoursEs : BUSINESS.hoursEn}</span>
           </div>
         </motion.div>

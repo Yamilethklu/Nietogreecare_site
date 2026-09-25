@@ -15,14 +15,14 @@ const buttonVariants = cva(
     variants: {
       variant: {
         default:
-          "bg-emerald-600 text-white shadow-sm hover:bg-emerald-700",
+          "bg-green-500 text-slate-950 shadow-sm hover:bg-green-400",
         gold:
-          "bg-emerald-600 text-white shadow-sm hover:bg-emerald-700",
+          "bg-green-500 text-slate-950 shadow-sm hover:bg-green-400",
         wood:
           "bg-gradient-to-r from-wood-600 to-wood-700 text-gold-100 shadow-[0_10px_30px_-14px_rgba(120,53,15,0.9)] hover:brightness-110",
         outline:
-          "border border-slate-300 bg-white text-slate-900 hover:bg-emerald-50 hover:text-emerald-700",
-        ghost: "text-slate-700 hover:bg-emerald-50 hover:text-emerald-700",
+          "border border-slate-300 bg-white text-slate-900 hover:bg-emerald-50 hover:text-green-700",
+        ghost: "text-slate-700 hover:bg-emerald-50 hover:text-green-700",
         dark:
           "border border-white/10 bg-ink-900/80 text-white hover:border-gold-500/40 hover:bg-ink-800",
         destructive:

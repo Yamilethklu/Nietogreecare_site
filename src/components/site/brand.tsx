@@ -38,7 +38,7 @@ export function SiteLogo({ className, size = "md", showTagline = false }: SiteLo
         </span>
         <span
           className={cn(
-            "mt-1 flex items-center gap-2 font-sans uppercase tracking-[0.3em] text-emerald-700",
+            "mt-1 flex items-center gap-2 font-sans uppercase tracking-[0.3em] text-green-700",
             sizes.tag,
           )}
         >

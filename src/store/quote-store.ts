@@ -352,11 +352,10 @@ export const useQuoteStore = create<QuoteStore>()(
 
 /** Campos que se envian a la API al confirmar la solicitud. */
 export function pickSubmissionFields(state: QuoteStore) {
-  const lawnQuote = calculateLawnQuote(state);
   const fullName = `${state.firstName} ${state.lastName}`.trim() || state.customerName;
 
   const surveyDetails = [
-    `Servicio: ${lawnQuote.rateText}`,
+    "Servicio: corte de yarda; precio por confirmar directamente con el dueño",
     `Frecuencia: ${state.serviceFrequency === "ongoing" ? "Ongoing" : "One-time"}`,
     `Ocupación: ${state.propertyOccupancy === "occupied" ? "Occupied" : "Vacant"}`,
     `Corte: ${state.mowFrequency === "weekly" ? "Weekly" : "Bi-Weekly"}`,

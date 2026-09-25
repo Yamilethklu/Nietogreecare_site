@@ -62,7 +62,7 @@ export function CoverageMap({ className }: { className?: string }) {
         </a>
         <a
           href={buildSmsHref()}
-          className="inline-flex items-center justify-center gap-2 rounded-full bg-emerald-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700"
+          className="inline-flex items-center justify-center gap-2 rounded-full bg-green-500 px-4 py-3 text-sm font-semibold text-slate-950 transition hover:bg-green-400"
         >
           <MessageSquare className="size-4" />
           {isEs ? "Enviar mensaje" : "Send a message"}

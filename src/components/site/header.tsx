@@ -36,9 +36,9 @@ export function SiteHeader() {
 
   const links = [
     { href: "/#servicios", label: isEs ? "Services" : "Services" },
-    { href: "/#pricing", label: isEs ? "Pricing" : "Pricing" },
-    { href: "/#faq", label: isEs ? "Questions" : "Questions" },
-    { href: "/#referrals", label: isEs ? "Referrals" : "Referrals" },
+    { href: "/#galeria", label: isEs ? "Galería" : "Gallery" },
+    { href: "/#cotizador", label: isEs ? "Cotización" : "Quote" },
+    { href: "/#otros-trabajos", label: isEs ? "Otros trabajos" : "Other Jobs" },
     { href: "/#contacto", label: isEs ? "Contact Us" : "Contact Us" },
   ];
 
@@ -56,7 +56,7 @@ export function SiteHeader() {
             <Link
               key={link.href}
               href={link.href}
-              className="rounded-full px-3.5 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-emerald-50 hover:text-emerald-700"
+              className="rounded-full px-3.5 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-emerald-50 hover:text-green-700"
             >
               {link.label}
             </Link>
@@ -68,21 +68,21 @@ export function SiteHeader() {
           <button
             type="button"
             onClick={toggleLocale}
-            className="inline-flex h-10 items-center gap-2 rounded-full border border-slate-200 bg-white/[0.03] px-3 text-xs font-semibold uppercase tracking-[0.16em] text-slate-700 transition-all hover:border-emerald-200/40 hover:text-emerald-700"
+            className="inline-flex h-10 items-center gap-2 rounded-full border border-slate-200 bg-white/[0.03] px-3 text-xs font-semibold uppercase tracking-[0.16em] text-slate-700 transition-all hover:border-emerald-200/40 hover:text-green-700"
             aria-label={t.nav.language}
             title={t.nav.language}
           >
-            <Globe className="size-4 text-emerald-700" />
-            <span className={cn(locale === "es" ? "text-emerald-700" : "text-slate-500")}>ES</span>
+            <Globe className="size-4 text-green-700" />
+            <span className={cn(locale === "es" ? "text-green-700" : "text-slate-500")}>ES</span>
             <span className="text-ink-600">/</span>
-            <span className={cn(locale === "en" ? "text-emerald-700" : "text-slate-500")}>EN</span>
+            <span className={cn(locale === "en" ? "text-green-700" : "text-slate-500")}>EN</span>
           </button>
 
           <CallButton label={t.nav.call} className="hidden sm:inline-flex" />
 
           <Button asChild variant="gold" size="default" className="hidden lg:inline-flex">
             <Link href="/quote">
-              GET STARTED
+              {isEs ? "SOLICITAR VISITA" : "REQUEST A VISIT"}
             </Link>
           </Button>
 
@@ -111,7 +111,7 @@ export function SiteHeader() {
               key={link.href}
               href={link.href}
               onClick={() => setOpen(false)}
-              className="rounded-xl px-4 py-3 text-sm font-medium text-slate-900 transition-colors hover:bg-emerald-50 hover:text-emerald-700"
+              className="rounded-xl px-4 py-3 text-sm font-medium text-slate-900 transition-colors hover:bg-emerald-50 hover:text-green-700"
             >
               {link.label}
             </Link>
@@ -122,7 +122,7 @@ export function SiteHeader() {
           <CallButton label={`${t.nav.call} ${BUSINESS.phoneDisplay}`} className="w-full" />
           <Button asChild variant="gold" className="w-full">
             <Link href="/quote" onClick={() => setOpen(false)}>
-              GET STARTED
+              {isEs ? "SOLICITAR VISITA" : "REQUEST A VISIT"}
             </Link>
           </Button>
           <Button asChild variant="ghost" className="w-full">
@@ -133,7 +133,7 @@ export function SiteHeader() {
           </Button>
 
           <p className="mt-2 flex items-center gap-2 text-xs text-slate-500">
-            <PhoneCall className="size-3.5 text-emerald-600" />
+            <PhoneCall className="size-3.5 text-green-600" />
             {BUSINESS.hoursEs}
           </p>
         </div>
