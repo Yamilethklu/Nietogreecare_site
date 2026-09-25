@@ -129,6 +129,61 @@
   }
 }
 
+/* Paleta exclusiva del panel: superficies lisas, acentos verdes y texto oscuro. */
+.admin-shell {
+  background: #eaf8ee;
+  color: #101d18;
+}
+
+.admin-shell [class*="bg-gradient"] {
+  background-image: none !important;
+  background-color: #ffffff !important;
+}
+
+.admin-shell [class*="bg-ink"] {
+  background-color: #ffffff !important;
+}
+
+.admin-shell [class*="bg-forest"],
+.admin-shell [class*="bg-[#1B4332]"] {
+  background-color: #dcfce7 !important;
+}
+
+.admin-shell [class*="text-ink"],
+.admin-shell [class*="text-white"],
+.admin-shell [class*="text-gold"] {
+  color: #111827 !important;
+}
+
+.admin-shell [class*="border-gold"],
+.admin-shell [class*="border-white"] {
+  border-color: #a7dfb4 !important;
+}
+
+.admin-shell [role="tab"] {
+  border-color: #9fceb0;
+  background: #ffffff;
+  color: #14251a;
+}
+
+.admin-shell [role="tab"][aria-selected="true"] {
+  border-color: #16a34a;
+  background: #4ade80;
+  color: #052e16;
+}
+
+.admin-shell select {
+  border-color: #a7dfb4;
+  background: #ffffff;
+  color: #111827;
+}
+
+.admin-shell button[class*="bg-green"],
+.admin-shell a[class*="bg-green"] {
+  background: #4ade80;
+  color: #052e16;
+}
+
 /* Google Maps: controles y poligonos con la paleta de la marca */
 .gm-style .gm-style-iw-c {
   background-color: #090d16 !important;
