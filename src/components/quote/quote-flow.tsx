@@ -21,7 +21,7 @@ import { Step1Address, Step1AddressHint } from "@/components/quote/step-1-addres
 import { LawnMeasurement } from "@/components/quote/lawn-measurement";
 import { matchMowRate, type MowRate } from "@/lib/instant-pricing";
 import { BUSINESS } from "@/lib/constants";
-import { PropertySatellite } from "@/components/quote/property-satellite";
+import { PropertySatellite } from "@/components/quote/property-satellite";`nimport { OtherServicesForm } from "@/components/quote/other-services-form";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, LuxuryCard } from "@/components/ui/card";
@@ -235,7 +235,7 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
               </div>
               <div className="space-y-3">
                 <p className="text-sm font-bold text-emerald-950">{isEs ? "Ubicación del trabajo" : "Job location"}</p>
-                <PropertySatellite address={store.address} latitude={store.latitude} longitude={store.longitude} isEs={isEs} />
+                {/* <PropertySatellite address={store.address} latitude={store.latitude} longitude={store.longitude} isEs={isEs} /> */}
                 <p className="text-xs text-slate-600">{isEs ? "El punto verde indica la dirección seleccionada. Confirma que sea la propiedad correcta." : "The green marker shows the selected address. Check that this is the right property."}</p>
               </div>
             </section>
@@ -323,6 +323,11 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
             </section>
           )}
           {store.step === 3 && (
+            <OtherServicesForm />
+            <section className="space-y-5">
+              <h2 className="text-2xl font-bold text-slate-900">
+                {isEs ? "3. Frecuencia de Corte" : "3. Mowing Frequency"}
+              </h2>
             <section className="space-y-5">
               <h2 className="text-2xl font-bold text-slate-900">
                 {isEs ? "3. Frecuencia de Corte" : "3. Mowing Frequency"}
