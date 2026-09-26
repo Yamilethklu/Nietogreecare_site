@@ -1,7 +1,6 @@
 "use client";
 
-import * as React from "react";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { motion } from "framer-motion";
 import {
   ArrowDown,
@@ -16,14 +15,10 @@ import {
 } from "lucide-react";
 
 import { useLanguage } from "@/components/providers/language-provider";
-import { CallButton } from "@/components/site/brand";
 import { CoverageMap } from "@/components/site/coverage-map";
-import { Step1Address } from "@/components/quote/step-1-address";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input, Label } from "@/components/ui/input";
-import { buildSmsHref, BUSINESS, SERVICE_CITIES, SERVICE_ZIP_CODES, ZIP_CITY_MAP } from "@/lib/constants";
-import { useQuoteStore } from "@/store/quote-store";
+import { buildSmsHref, BUSINESS, SERVICE_CITIES, SERVICE_ZIP_CODES } from "@/lib/constants";
 
 const fadeUp = {
   hidden: { opacity: 0, y: 18 },
@@ -34,37 +29,7 @@ const fadeUp = {
  * Hero claro con entrada inmediata al cotizador y mapa de cobertura.
  */
 export function Hero({ backgroundUrl }: { backgroundUrl: string }) {
-  const router = useRouter();
   const { t, isEs } = useLanguage();
-
-  const address = useQuoteStore((state) => state.address);
-  const zipCode = useQuoteStore((state) => state.zipCode);
-  const setAddress = useQuoteStore((state) => state.setAddress);
-  const setStep = useQuoteStore((state) => state.setStep);
-
-  const [heroZip, setHeroZip] = React.useState(zipCode ?? "");
-  const [heroError, setHeroError] = React.useState("");
-
-  React.useEffect(() => {
-    if (zipCode) setHeroZip(zipCode);
-  }, [zipCode]);
-
-  const handleHeroSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!address || address.trim().length < 4) {
-      setHeroError(isEs ? "Ingrese su dirección para cotizar." : "Please enter your address.");
-      return;
-    }
-    const cleanZip = heroZip.replace(/\D/g, "").slice(0, 5);
-    if (!/^\d{5}$/.test(cleanZip)) { setHeroError("Enter a valid 5-digit ZIP Code."); return; }
-    setHeroError("");
-    setAddress({
-      zipCode: cleanZip,
-      city: ZIP_CITY_MAP[cleanZip] ?? "",
-    });
-    setStep(1);
-    router.push(`/quote?address=${encodeURIComponent(address)}&zip=${encodeURIComponent(cleanZip)}`);
-  };
 
   const trust = [
     { icon: ShieldCheck, label: t.hero.trustLicensed },
@@ -134,48 +99,21 @@ export function Hero({ backgroundUrl }: { backgroundUrl: string }) {
             {t.hero.subtitle}
           </motion.p>
 
-          {/* Formulario Directo en el Hero */}
-          <motion.form
+          <motion.div
             variants={fadeUp}
             transition={{ duration: 0.6 }}
-            onSubmit={handleHeroSubmit}
             className="mt-1 flex flex-col gap-4 rounded-2xl border border-emerald-200 bg-white p-4 shadow-sm"
           >
             <p className="text-xs font-semibold uppercase tracking-wider text-green-700">
               {isEs ? "Obtenga su cotización instantánea" : "Get your instant quote"}
             </p>
-
-            <div className="grid gap-3 sm:grid-cols-[1.6fr_1fr]">
-              <div>
-                <Step1Address error={heroError} isEs={isEs} />
-              </div>
-              <div>
-                <Label htmlFor="hero-zip">{isEs ? "Zip Code *" : "Zip Code *"}</Label>
-                <Input
-                  id="hero-zip"
-                  value={heroZip}
-                  onChange={(e) => setHeroZip(e.target.value.replace(/\D/g, "").slice(0, 5))}
-                  placeholder="78642"
-                  maxLength={5}
-                  className="mt-2"
-                />
-              </div>
-            </div>
-
-            {heroError && (
-              <p className="text-xs text-rose-400 font-medium">{heroError}</p>
-            )}
-
-            <Button
-              type="submit"
-              variant="gold"
-              size="lg"
-              className="mt-1 w-full text-base font-bold tracking-wide shadow-lg hover:scale-[1.01] transition-transform"
-            >
-              {isEs ? "SOLICITAR ESTIMADO GRATIS" : "REQUEST A FREE ESTIMATE"}
-              <ArrowRight className="ml-2 size-5" />
+            <Button asChild variant="gold" size="lg" className="mt-1 w-full text-base font-bold shadow-lg transition-transform hover:scale-[1.01]">
+              <Link href="/quote">
+                {isEs ? "SOLICITAR ESTIMADO GRATIS" : "REQUEST A FREE ESTIMATE"}
+                <ArrowRight className="ml-2 size-5" />
+              </Link>
             </Button>
-          </motion.form>
+          </motion.div>
 
           <motion.ul
             variants={fadeUp}
