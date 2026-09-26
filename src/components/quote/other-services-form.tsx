@@ -1,13 +1,13 @@
 "use client";
 
 import * as React from "react";
-import { MessageSquare, Send, Wrench } from "lucide-react";
+import { MessageSquare, Wrench } from "lucide-react";
 
 import { useLanguage } from "@/components/providers/language-provider";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input, Label, Textarea } from "@/components/ui/input";
-import { buildOwnerSmsHref, BUSINESS } from "@/lib/constants";
+import { buildOwnerSmsHref } from "@/lib/constants";
 
 const OTHER_JOB_TYPES = [
   { key: "bush_trimming", labelEs: "Poda de arbustos", labelEn: "Bush Trimming" },
@@ -26,35 +26,29 @@ export function OtherServicesForm() {
   const [saving, setSaving] = React.useState(false);
   const [saveError, setSaveError] = React.useState("");
 
-<<<<<<< HEAD
   const toggleJob = (key: string) => {
     setSelectedJobs((prev) => 
       prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]
     );
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const jobNames = selectedJobs.map(key => {
-        const job = OTHER_JOB_TYPES.find(j => j.key === key);
-        return job ? (isEs ? job.labelEs : job.labelEn) : key;
-    }).join(", ");
-=======
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (saving) return;
     setSaving(true);
     setSaveError("");
-    const selectedJob = OTHER_JOB_TYPES.find((j) => j.key === jobType);
-    const jobName = selectedJob ? (isEs ? selectedJob.labelEs : selectedJob.labelEn) : jobType;
->>>>>>> 53167c1ff35f4f870c5ae43ba8ee2472c2c8b90f
+    
+    const jobNames = selectedJobs.map(key => {
+        const job = OTHER_JOB_TYPES.find(j => j.key === key);
+        return job ? (isEs ? job.labelEs : job.labelEn) : key;
+    }).join(", ");
 
     let referenceCode = "";
     try {
       const response = await fetch("/api/other-services", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ jobType, name, address, phone, comments }),
+        body: JSON.stringify({ jobTypes: selectedJobs, name, phone, comments }),
       });
       const result = await response.json();
       if (!response.ok || !result.ok) throw new Error(result.error || "No se pudo registrar la solicitud.");
@@ -66,12 +60,8 @@ export function OtherServicesForm() {
     }
 
     const body = [
-<<<<<<< HEAD
       `Solicitud de Otros Servicios: ${jobNames}`,
-=======
-      `Solicitud de visita para estimado en persona (${jobName})`,
       `Folio: ${referenceCode}`,
->>>>>>> 53167c1ff35f4f870c5ae43ba8ee2472c2c8b90f
       `Nombre: ${name}`,
       `Teléfono: ${phone}`,
       comments ? `Comentarios: ${comments}` : "",
@@ -85,26 +75,12 @@ export function OtherServicesForm() {
   };
 
   return (
-<<<<<<< HEAD
     <Card className="border-emerald-500/20 bg-white shadow-sm">
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-xl font-bold text-slate-900">
           <Wrench className="size-5 text-emerald-600" />
           {isEs ? "Solicitar otros servicios" : "Request other services"}
         </CardTitle>
-=======
-    <Card className="border-emerald-200/20 bg-white shadow-luxury">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-xl font-bold text-slate-900">
-          <Wrench className="size-5 text-green-600" />
-          {isEs ? "Otros trabajos: solicita una visita" : "Other jobs: request an on-site estimate"}
-        </CardTitle>
-        <p className="text-xs text-slate-600">
-          {isEs
-            ? "Para poda, mulch, limpieza, árboles y otros trabajos, deja tus datos. Te contactaremos para ir a darte el estimado en persona."
-            : "For trimming, mulch, cleanups, tree work and other jobs, leave your details. We will contact you to arrange an in-person estimate."}
-        </p>
->>>>>>> 53167c1ff35f4f870c5ae43ba8ee2472c2c8b90f
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -117,15 +93,9 @@ export function OtherServicesForm() {
                   type="button"
                   onClick={() => toggleJob(type.key)}
                   className={`rounded-xl border p-3 text-left text-xs font-semibold transition ${
-<<<<<<< HEAD
                     selectedJobs.includes(type.key)
                       ? "border-emerald-600 bg-emerald-50 text-emerald-700"
                       : "border-slate-200 bg-slate-50 text-slate-600 hover:border-emerald-600/50"
-=======
-                    jobType === type.key
-                      ? "border-green-400 bg-emerald-50 text-green-700"
-                      : "border-slate-200 bg-slate-50 text-slate-600 hover:border-slate-200"
->>>>>>> 53167c1ff35f4f870c5ae43ba8ee2472c2c8b90f
                   }`}
                 >
                   {isEs ? type.labelEs : type.labelEn}
@@ -171,12 +141,8 @@ export function OtherServicesForm() {
             />
           </div>
 
-<<<<<<< HEAD
-          <Button type="submit" className="w-full font-bold bg-emerald-600 hover:bg-emerald-700">
-=======
           {saveError && <p role="alert" className="text-sm text-red-600">{saveError}</p>}
-          <Button type="submit" disabled={saving} variant="gold" className="w-full font-bold">
->>>>>>> 53167c1ff35f4f870c5ae43ba8ee2472c2c8b90f
+          <Button type="submit" disabled={saving} className="w-full font-bold bg-emerald-600 hover:bg-emerald-700">
             <MessageSquare className="mr-2 size-4" />
             {saving ? (isEs ? "Guardando..." : "Saving...") : (isEs ? "SOLICITAR VISITA POR SMS" : "REQUEST ON-SITE ESTIMATE BY SMS")}
           </Button>
