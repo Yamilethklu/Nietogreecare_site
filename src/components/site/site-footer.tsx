@@ -30,11 +30,11 @@ export async function SiteFooter() {
   ];
 
   return (
-    <footer className="relative mt-8 border-t border-white/10 bg-ink-950/80">
+    <footer className="relative mt-8 border-t border-slate-200 bg-white">
       <div className="container grid gap-10 py-14 lg:grid-cols-4">
         <div className="flex flex-col gap-4 lg:col-span-1">
           <SiteLogo size="md" />
-          <p className="text-sm leading-relaxed text-ink-200/75">{t.footer.tagline}</p>
+          <p className="text-sm leading-relaxed text-slate-700/75">{t.footer.tagline}</p>
           <div className="flex items-center gap-2">
             <Badge variant="dark">{isEs ? "Empresa local" : "Local business"}</Badge>
             <Badge variant="forest">{isEs ? "Bilingue" : "Bilingual"}</Badge>
@@ -50,7 +50,7 @@ export async function SiteFooter() {
               <li key={link.href}>
                 <Link
                   href={link.href}
-                  className="text-sm text-ink-200/80 transition-colors hover:text-gold-200"
+                  className="text-sm text-slate-700/80 transition-colors hover:text-gold-200"
                 >
                   {link.label}
                 </Link>
@@ -70,7 +70,7 @@ export async function SiteFooter() {
               </li>
             ))}
           </ul>
-          <p className="text-xs leading-relaxed text-ink-400">
+          <p className="text-xs leading-relaxed text-slate-500">
             {NEARBY_CITIES.join(" · ")}
           </p>
         </div>
@@ -79,7 +79,7 @@ export async function SiteFooter() {
           <h3 className="text-xs font-semibold uppercase tracking-[0.18em] text-gold-200">
             {t.footer.contactTitle}
           </h3>
-          <ul className="flex flex-col gap-2 text-sm text-ink-200/80">
+          <ul className="flex flex-col gap-2 text-sm text-slate-700/80">
             <li>
               <a href={BUSINESS.telHref} className="flex items-center gap-2 hover:text-gold-200">
                 <Phone className="size-4 text-gold-400" />
@@ -105,10 +105,10 @@ export async function SiteFooter() {
             </li>
           </ul>
           <div className="flex items-center gap-3 pt-1">
-            <span className="grid size-9 place-items-center rounded-full border border-white/10 text-ink-400">
+            <span className="grid size-9 place-items-center rounded-full border border-slate-200 text-slate-500">
               <Instagram className="size-4" />
             </span>
-            <span className="grid size-9 place-items-center rounded-full border border-white/10 text-ink-400">
+            <span className="grid size-9 place-items-center rounded-full border border-slate-200 text-slate-500">
               <Facebook className="size-4" />
             </span>
           </div>

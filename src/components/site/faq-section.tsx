@@ -54,16 +54,16 @@ export function FaqSection() {
         ? "¿Cómo se calcula la tarifa de mi propiedad?"
         : "How is my property pricing calculated?",
       answer: isEs
-        ? "El precio se basa en la selección de áreas (Front/Back), si la propiedad es lote de esquina, ocupación y la frecuencia elegida. Verás la tarifa fija exacta en nuestro cotizador instantáneo."
-        : "Pricing is calculated based on area selections (Front, Back, or Both), corner lot status, property occupancy, and service frequency.",
+        ? "Marca tu césped en el satélite. El cotizador calcula los pies cuadrados y muestra la tarifa semanal o quincenal en cuanto hay un rango de precio configurado. Para otros trabajos te contactamos personalmente."
+        : "Outline your lawn on the satellite map. The quote shows weekly or bi-weekly prices as soon as a matching rate has been set. For other jobs, we contact you with a personal estimate.",
     },
     {
       question: isEs
         ? "¿Qué métodos de pago aceptan?"
         : "What payment methods do you accept?",
       answer: isEs
-        ? "Aceptamos efectivo, Venmo (@gxrciaa_), Cash App ($JaimeNietoMorales) y Zelle. El pago se realiza después de completar el servicio."
-        : "We accept Cash, Venmo (@gxrciaa_), Cash App ($JaimeNietoMorales), and Zelle. Payment is processed upon completion of service.",
+        ? "Aceptamos efectivo, Venmo (@gxrciaa_), Cash App ($JaimeNietoMorales) y Zelle. Preferimos el pago después de cada corte; máximo dos cortes sin pagar."
+        : "We accept Cash, Venmo (@gxrciaa_), Cash App ($JaimeNietoMorales), and Zelle. Payment after each cut is preferred; at most two cuts may remain unpaid.",
     },
   ];
 
@@ -92,8 +92,8 @@ export function FaqSection() {
                 key={faq.question}
                 className={`overflow-hidden border transition-all duration-300 ${
                   isOpen
-                    ? "border-gold-500/40 bg-ink-900/90 shadow-lg"
-                    : "border-white/10 bg-ink-950/60 hover:border-white/20"
+                    ? "border-emerald-200 bg-white shadow-sm"
+                    : "border-slate-200 bg-white/60 hover:border-slate-200"
                 }`}
               >
                 <button
@@ -102,19 +102,19 @@ export function FaqSection() {
                   className="flex w-full items-center justify-between p-5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-400"
                   aria-expanded={isOpen}
                 >
-                  <span className="flex items-center gap-3 pr-4 font-semibold text-white sm:text-lg">
-                    <HelpCircle className="size-5 text-gold-400 shrink-0" />
+                  <span className="flex items-center gap-3 pr-4 font-semibold text-slate-900 sm:text-lg">
+                    <HelpCircle className="size-5 text-emerald-600 shrink-0" />
                     {faq.question}
                   </span>
                   <ChevronDown
-                    className={`size-5 text-gold-400 shrink-0 transition-transform duration-300 ${
+                    className={`size-5 text-emerald-600 shrink-0 transition-transform duration-300 ${
                       isOpen ? "rotate-180" : ""
                     }`}
                   />
                 </button>
 
                 {isOpen && (
-                  <div className="border-t border-white/10 px-5 py-4 text-sm leading-relaxed text-ink-200 bg-black/20">
+                  <div className="border-t border-slate-200 px-5 py-4 text-sm leading-relaxed text-slate-700 bg-slate-50/20">
                     {faq.answer}
                   </div>
                 )}

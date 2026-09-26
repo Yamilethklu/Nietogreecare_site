@@ -35,21 +35,16 @@ export function SiteHeader() {
   }, [open]);
 
   const links = [
-    { href: "/#servicios", label: isEs ? "Services" : "Services" },
-    { href: "/#pricing", label: isEs ? "Pricing" : "Pricing" },
-    { href: "/#faq", label: isEs ? "Questions" : "Questions" },
-    { href: "/#referrals", label: isEs ? "Referrals" : "Referrals" },
-    { href: "/#contacto", label: isEs ? "Contact Us" : "Contact Us" },
+    { href: "/services", label: isEs ? "SERVICIOS" : "SERVICES" },
+    { href: "/pricing", label: isEs ? "PRECIOS" : "PRICING" },
+    { href: "/questions", label: isEs ? "PREGUNTAS" : "QUESTIONS" },
+    { href: "/referrals", label: isEs ? "REFERIDOS" : "REFERRALS" },
+    { href: "/contact", label: isEs ? "CONTÁCTANOS" : "CONTACT US" },
   ];
 
   return (
     <header
-      className={cn(
-        "sticky top-0 z-50 w-full transition-all duration-500",
-        scrolled
-          ? "border-b border-gold-500/20 bg-ink-950/90 backdrop-blur-xl"
-          : "border-b border-transparent bg-gradient-to-b from-ink-950/85 to-transparent",
-      )}
+      className="sticky top-0 z-50 w-full border-b border-slate-200 bg-white shadow-sm"
     >
       <div className="container flex h-20 items-center justify-between gap-4">
         <Link href="/" aria-label={BUSINESS.name} className="focus-ring rounded-xl">
@@ -61,7 +56,7 @@ export function SiteHeader() {
             <Link
               key={link.href}
               href={link.href}
-              className="rounded-full px-3.5 py-2 text-sm font-medium text-ink-200 transition-colors hover:bg-white/5 hover:text-gold-200"
+              className="rounded-full px-3.5 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-emerald-50 hover:text-green-700"
             >
               {link.label}
             </Link>
@@ -73,28 +68,28 @@ export function SiteHeader() {
           <button
             type="button"
             onClick={toggleLocale}
-            className="inline-flex h-10 items-center gap-2 rounded-full border border-white/12 bg-white/[0.03] px-3 text-xs font-semibold uppercase tracking-[0.16em] text-ink-200 transition-all hover:border-gold-500/40 hover:text-gold-200"
+            className="inline-flex h-10 items-center gap-2 rounded-full border border-slate-200 bg-white/[0.03] px-3 text-xs font-semibold uppercase tracking-[0.16em] text-slate-700 transition-all hover:border-emerald-200/40 hover:text-green-700"
             aria-label={t.nav.language}
             title={t.nav.language}
           >
-            <Globe className="size-4 text-gold-300" />
-            <span className={cn(locale === "es" ? "text-gold-200" : "text-ink-400")}>ES</span>
+            <Globe className="size-4 text-green-700" />
+            <span className={cn(locale === "es" ? "text-green-700" : "text-slate-500")}>ES</span>
             <span className="text-ink-600">/</span>
-            <span className={cn(locale === "en" ? "text-gold-200" : "text-ink-400")}>EN</span>
+            <span className={cn(locale === "en" ? "text-green-700" : "text-slate-500")}>EN</span>
           </button>
 
           <CallButton label={t.nav.call} className="hidden sm:inline-flex" />
 
-          <Button asChild variant="gold" size="default" className="hidden xl:inline-flex">
+          <Button asChild variant="gold" size="default" className="hidden lg:inline-flex">
             <Link href="/quote">
-              GET STARTED
+              {isEs ? "EMPIEZA" : "GET STARTED"}
             </Link>
           </Button>
 
           <button
             type="button"
             onClick={() => setOpen((value) => !value)}
-            className="inline-flex size-10 items-center justify-center rounded-full border border-white/12 text-ink-100 transition-colors hover:border-gold-500/40 lg:hidden"
+            className="inline-flex size-10 items-center justify-center rounded-full border border-slate-200 text-slate-900 transition-colors hover:border-emerald-200/40 lg:hidden"
             aria-label={t.nav.menu}
             aria-expanded={open}
           >
@@ -106,7 +101,7 @@ export function SiteHeader() {
       {/* Menu movil */}
       <div
         className={cn(
-          "overflow-hidden border-t border-gold-500/10 bg-ink-950/98 backdrop-blur-xl transition-all duration-300 lg:hidden",
+          "overflow-hidden border-t border-emerald-200/10 bg-white backdrop-blur-xl transition-all duration-300 lg:hidden",
           open ? "max-h-[70vh]" : "max-h-0",
         )}
       >
@@ -116,7 +111,7 @@ export function SiteHeader() {
               key={link.href}
               href={link.href}
               onClick={() => setOpen(false)}
-              className="rounded-xl px-4 py-3 text-sm font-medium text-ink-100 transition-colors hover:bg-white/5 hover:text-gold-200"
+              className="rounded-xl px-4 py-3 text-sm font-medium text-slate-900 transition-colors hover:bg-emerald-50 hover:text-green-700"
             >
               {link.label}
             </Link>
@@ -127,7 +122,7 @@ export function SiteHeader() {
           <CallButton label={`${t.nav.call} ${BUSINESS.phoneDisplay}`} className="w-full" />
           <Button asChild variant="gold" className="w-full">
             <Link href="/quote" onClick={() => setOpen(false)}>
-              GET STARTED
+              {isEs ? "EMPIEZA" : "GET STARTED"}
             </Link>
           </Button>
           <Button asChild variant="ghost" className="w-full">
@@ -137,8 +132,8 @@ export function SiteHeader() {
             </Link>
           </Button>
 
-          <p className="mt-2 flex items-center gap-2 text-xs text-ink-400">
-            <PhoneCall className="size-3.5 text-gold-400" />
+          <p className="mt-2 flex items-center gap-2 text-xs text-slate-500">
+            <PhoneCall className="size-3.5 text-green-600" />
             {BUSINESS.hoursEs}
           </p>
         </div>

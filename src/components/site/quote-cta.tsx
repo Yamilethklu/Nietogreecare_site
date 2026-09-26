@@ -40,7 +40,7 @@ export function QuoteCta() {
             {benefits.map((benefit) => (
               <li
                 key={benefit}
-                className="flex items-center gap-3 rounded-2xl border border-white/15 bg-black/35 p-4 text-sm font-medium text-white"
+                className="flex items-center gap-3 rounded-2xl border border-white/15 bg-white/35 p-4 text-sm font-medium text-slate-900"
               >
                 <Zap className="size-4 shrink-0 text-amber-400" />
                 {benefit}

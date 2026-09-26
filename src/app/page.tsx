@@ -1,24 +1,15 @@
 import type { Metadata } from "next";
 
-import { AboutSection } from "@/components/site/about-section";
-import { ContactSection } from "@/components/site/contact-section";
-import { FaqSection } from "@/components/site/faq-section";
-import { FloatingContact } from "@/components/site/floating-contact";
+import { PaymentsSection } from "@/components/site/payments-section";
+import { Reviews } from "@/components/site/reviews";
 import { GalleryCarousel } from "@/components/site/gallery-carousel";
 import { Hero } from "@/components/site/hero";
-import { PaymentsSection } from "@/components/site/payments-section";
-import { PricingSection } from "@/components/site/pricing-section";
-import { QuoteCta } from "@/components/site/quote-cta";
-import { ReferralsSection } from "@/components/site/referrals-section";
-import { ServicesSection } from "@/components/site/services-section";
-import { SiteFooter } from "@/components/site/site-footer";
 import { SiteHeader } from "@/components/site/header";
 import { BUSINESS, SERVICE_CITIES, SERVICE_ZIP_CODES } from "@/lib/constants";
 import { fetchCarouselSlides } from "@/lib/gallery";
 import { getDictionary } from "@/lib/i18n";
 import { LOCALE_COOKIE } from "@/lib/i18n/config";
 import { normalizeLocale } from "@/lib/i18n";
-import { buildQrDataUrl } from "@/lib/qr";
 import { cookies } from "next/headers";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -34,19 +25,15 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 /**
- * Pagina principal: hero, catalogo de servicios, precios transparentes, galeria,
- * referidos, preguntas frecuentes, pagos y contacto.
+ * Portada y galería. Los demás contenidos se abren desde el menú.
  */
 export default async function HomePage() {
   const cookieStore = await cookies();
   const locale = normalizeLocale(cookieStore.get(LOCALE_COOKIE)?.value);
   const t = getDictionary(locale);
 
-  const [slides, cashAppQrDataUrl, venmoQrDataUrl] = await Promise.all([
-    fetchCarouselSlides(),
-    buildQrDataUrl(BUSINESS.cashAppUrl),
-    buildQrDataUrl(BUSINESS.venmoUrl),
-  ]);
+  const slides = await fetchCarouselSlides();
+  const grassPhoto = slides.find((slide) => /c[eé]sped|grass|lawn|yard/i.test(`${slide.title ?? ""} ${slide.description ?? ""}`) && !/\.(mp4|mov|webm)(?:$|[?#])/i.test(slide.url));
 
   const structuredData = {
     "@context": "https://schema.org",
@@ -65,7 +52,6 @@ export default async function HomePage() {
       postalCode: SERVICE_ZIP_CODES.slice(0, 1)[0],
     },
     openingHours: "Mo-Sa 07:00-19:00",
-    priceRange: "$$",
     paymentAccepted: ["Cash", "Cash App", "Venmo", "Zelle"],
     url: process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000",
   };
@@ -78,20 +64,12 @@ export default async function HomePage() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
       />
       <SiteHeader />
-      <main>
-        <Hero />
-        <ServicesSection />
-        <PricingSection />
-        <GalleryCarousel items={slides} />
-        <ReferralsSection />
-        <QuoteCta />
-        <FaqSection />
-        <AboutSection />
-        <PaymentsSection cashAppQrDataUrl={cashAppQrDataUrl} venmoQrDataUrl={venmoQrDataUrl} />
-        <ContactSection />
+      <main className="bg-emerald-50 text-slate-900">
+        <Hero backgroundUrl={grassPhoto?.url ?? "/hero-bg.jpg"} />
+        <GalleryCarousel items={slides.length ? slides : [{ id: "lawn-photo", url: "/hero-bg.jpg", title: "Nieto Green Care LLC", description: null, location: null }]} />
+        <Reviews />
+        <PaymentsSection />
       </main>
-      <SiteFooter />
-      <FloatingContact />
     </>
   );
 }

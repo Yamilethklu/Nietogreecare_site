@@ -27,7 +27,7 @@ export function FooterNote() {
         </div>
       </div>
 
-      <div className="flex flex-col gap-2 text-xs text-ink-400 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-2 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between">
         <p>
           © {new Date().getFullYear()} {BUSINESS.name} · {t.footer.rights}
         </p>

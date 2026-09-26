@@ -18,7 +18,7 @@ export const zipCodeSchema = z
   .regex(/^\d{5}$/, "El codigo postal debe tener 5 digitos.")
   .refine((value) => SERVICE_ZIP_SET.has(value), {
     message:
-      "Por el momento no damos servicio en ese codigo postal. Atendemos Austin, Hutto, Round Rock, Georgetown, Cedar Park y alrededores.",
+      "Por el momento no damos servicio en ese código postal. Atendemos Liberty Hill, Cedar Park, Leander, Georgetown, Hutto, Round Rock y Jarrell.",
   });
 
 export const phoneSchema = z
@@ -48,7 +48,8 @@ export const measurementSchema = z.object({
   estimatedCubicYards: z.number().min(0),
   depthInches: z.number().min(0.5).max(24),
   perimeterFt: z.number().min(0),
-  polygon: z.array(polygonPointSchema).default([]),
+  polygon: z.array(polygonPointSchema).max(40).default([]),
+  polygons: z.array(z.array(polygonPointSchema).min(3).max(40)).max(8).optional(),
   polygonPath: z.string().nullable().default(null),
   bounds: boundsSchema.nullable().default(null),
   center: polygonPointSchema.nullable().default(null),
@@ -86,19 +87,26 @@ export const step5Schema = z.object({
     .regex(/^\d{4}-\d{2}-\d{2}$/, "Seleccione la fecha de servicio."),
 });
 
+export const measurementStepSchema = z.object({ measurement: measurementSchema }).refine((value) => value.measurement.polygon.length >= 3 && value.measurement.areaSqFt > 0, { message: "Marque el césped en el satélite.", path: ["measurement"] });
+
 export const step6Schema = z.object({});
 
 export const step7Schema = z.object({
   firstName: z.string().trim().min(1, "Ingrese su nombre."),
   lastName: z.string().trim().min(1, "Ingrese sus apellidos."),
   customerPhone: phoneSchema,
-  customerEmail: z.string().trim().email("Correo inválido.").optional().or(z.literal("")),
+  customerEmail: z.string().trim().email("Ingrese un correo válido."),
+  hasGateCode: z.boolean(),
+  gateCode: z.string(),
+}).refine((data) => !data.hasGateCode || data.gateCode.trim().length > 0, {
+  message: "Indique el código del candado o acceso.", path: ["gateCode"],
 });
 
 /** Payload completo enviado a POST /api/leads */
 export const leadSubmissionSchema = z
   .object({
     referenceCode: z.string().trim().min(4).max(40),
+    quotedPrice: z.number().positive(),
     address: z.string().trim().min(5),
     formattedAddress: z.string().trim().default(""),
     zipCode: zipCodeSchema,
@@ -107,11 +115,12 @@ export const leadSubmissionSchema = z
     placeId: z.string().nullable().default(null),
     latitude: z.number().nullable().default(null),
     longitude: z.number().nullable().default(null),
-    areaSqFt: z.number().min(0).default(0),
+    areaSqFt: z.number().positive(),
     areaSqYd: z.number().min(0).default(0),
     estimatedCubicYards: z.number().min(0).default(0),
     depthInches: z.number().min(0).max(24).default(2),
-    polygon: z.array(polygonPointSchema).default([]),
+    polygon: z.array(polygonPointSchema).max(40).default([]),
+  polygons: z.array(z.array(polygonPointSchema).min(3).max(40)).max(8).optional(),
     polygonPath: z.string().nullable().default(null),
     snapshotUrl: z.string().nullable().default(null),
     mapBounds: boundsSchema.nullable().default(null),
@@ -122,11 +131,21 @@ export const leadSubmissionSchema = z
     selectedServices: selectedServicesSchema,
     customerName: z.string().trim().min(2),
     customerPhone: phoneSchema,
-    customerEmail: z.string().trim().email().optional().or(z.literal("")),
+    customerEmail: z.string().trim().email(),
     details: z.string().trim().max(2000).default(""),
     additionalNotes: z.string().trim().max(2000).default(""),
-    paymentMethod: z.enum(["cash", "transfer", "on_completion"]),
+    paymentMethod: z.enum(["cash", "cash_app", "venmo", "zelle"]),
+    cashLocation: z.string().trim().max(300).default(""),
+    quoteOptions: z.object({
+      serviceFrequency: z.enum(["ongoing", "one_time"]),
+      mowFrequency: z.enum(["weekly", "bi_weekly"]),
+      areaSelection: z.enum(["front_back", "front_only", "back_only"]),
+      isCornerLot: z.boolean(),
+      propertyOccupancy: z.enum(["occupied", "vacant"]),
+    }),
   })
+  .refine((data) => data.paymentMethod !== "cash" || data.cashLocation.length > 2, { message: "Indique dónde dejará el efectivo.", path: ["cashLocation"] })
+  .refine((data) => data.polygon.length >= 3, { message: "Marque el área del césped.", path: ["polygon"] })
   .refine((data) => !data.hasGateCode || data.gateCode.length > 0, {
     message: "Indique la contrasena del porton.",
     path: ["gateCode"],

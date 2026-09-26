@@ -8,7 +8,7 @@ export const es = {
   meta: {
     title: "Nieto Green Care LLC | Paisajismo de lujo en Austin, TX",
     description:
-      "Corte de cesped, diseno de paisajismo, sod, fertilizacion y mantenimiento premium en Austin, Hutto, Round Rock, Georgetown y Cedar Park.",
+      "Corte de cesped, diseno de paisajismo, sod, fertilizacion y mantenimiento premium en Liberty Hill, Cedar Park, Leander, Georgetown, Hutto, Round Rock y Jarrell.",
   },
   nav: {
     home: "Inicio",
@@ -30,7 +30,7 @@ export const es = {
     badge: "Austin, TX · Servicio premium",
     slogan: "Tu jardin, cuidado con excelencia.",
     subtitle:
-      "Diseno, mantenimiento y transformacion de areas verdes con estandares de lujo. Atendemos Austin, Hutto, Round Rock, Georgetown y Cedar Park.",
+      "Diseno, mantenimiento y transformacion de areas verdes con estandares de lujo. Atendemos Liberty Hill, Cedar Park, Leander, Georgetown, Hutto, Round Rock y Jarrell.",
     ctaQuote: "COTIZACIÓN",
     ctaCall: "Llamar 737-314-4215",
     ctaServices: "Ver servicios",
@@ -79,7 +79,7 @@ export const es = {
       "Hoy ejecutamos proyectos de paisajismo, instalacion de sod, fertilizacion y mantenimiento programado con equipo profesional, protocolos claros y comunicacion directa con cada cliente.",
     coverageTitle: "Nuestra cobertura",
     coverageText:
-      "Damos servicio en Austin y sus alrededores: Hutto, Round Rock, Georgetown, Cedar Park, Pflugerville, Leander, Manor y Liberty Hill.",
+      "Atendemos Liberty Hill, Cedar Park, Leander, Georgetown, Hutto, Round Rock y Jarrell.",
     standardTitle: "Nuestro estandar de trabajo",
     standard1: "Puntualidad y confirmacion por telefono o mensaje de texto antes de cada visita.",
     standard2: "Limpieza total del area: retiramos todos los residuos vegetales al terminar.",
@@ -236,11 +236,11 @@ export const es = {
       subtitle:
         "Indique la direccion exacta y su codigo postal para verificar que estamos en su zona de cobertura.",
       addressLabel: "Direccion completa",
-      addressPlaceholder: "Ej. 1200 Barton Springs Rd, Austin, TX",
+      addressPlaceholder: "Ej. 1015 Boxwood Loop, Georgetown, TX",
       addressHint: "El autocompletado usa Google Maps para ubicar su propiedad con precision.",
       zipLabel: "Codigo postal",
       zipPlaceholder: "78701",
-      zipHint: "Validamos los codigos postales de Austin, Hutto, Round Rock, Georgetown y Cedar Park.",
+      zipHint: "Validamos los codigos postales de Liberty Hill, Cedar Park, Leander, Georgetown, Hutto, Round Rock y Jarrell.",
       zipValid: "Excelente, damos servicio en su codigo postal.",
       zipCity: "Ciudad detectada",
       useLocation: "Usar mi ubicacion actual",

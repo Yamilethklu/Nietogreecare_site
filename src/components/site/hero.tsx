@@ -1,8 +1,6 @@
 "use client";
 
 import * as React from "react";
-import Image from "next/image";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import {
@@ -25,7 +23,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
 import { buildSmsHref, BUSINESS, SERVICE_CITIES, SERVICE_ZIP_CODES, ZIP_CITY_MAP } from "@/lib/constants";
-import { usePublicAsset } from "@/lib/use-public-asset";
 import { useQuoteStore } from "@/store/quote-store";
 
 const fadeUp = {
@@ -34,14 +31,11 @@ const fadeUp = {
 };
 
 /**
- * Hero principal: fondo fotografico de cesped (hero-bg.jpg) con overlay oscuro
- * calibrado, mensaje de marca integrado dentro del contenedor sobre la imagen y
- * vista satelital real del area de cobertura.
+ * Hero claro con entrada inmediata al cotizador y mapa de cobertura.
  */
-export function Hero() {
+export function Hero({ backgroundUrl }: { backgroundUrl: string }) {
   const router = useRouter();
   const { t, isEs } = useLanguage();
-  const heroBackground = usePublicAsset("/hero-bg.jpg");
 
   const address = useQuoteStore((state) => state.address);
   const zipCode = useQuoteStore((state) => state.zipCode);
@@ -62,12 +56,14 @@ export function Hero() {
       return;
     }
     const cleanZip = heroZip.replace(/\D/g, "").slice(0, 5);
+    if (!/^\d{5}$/.test(cleanZip)) { setHeroError("Enter a valid 5-digit ZIP Code."); return; }
+    setHeroError("");
     setAddress({
       zipCode: cleanZip,
       city: ZIP_CITY_MAP[cleanZip] ?? "",
     });
     setStep(1);
-    router.push("/quote");
+    router.push(`/quote?address=${encodeURIComponent(address)}&zip=${encodeURIComponent(cleanZip)}`);
   };
 
   const trust = [
@@ -102,42 +98,15 @@ export function Hero() {
   return (
     <section
       id="inicio"
-      className="relative isolate -mt-20 overflow-hidden pb-16 pt-32 sm:pt-36 lg:pb-24 lg:pt-40"
+      className="relative isolate overflow-hidden bg-gradient-to-b from-emerald-100 to-lime-50 pb-16 pt-16 sm:pt-20 lg:pb-24"
     >
-      {/* Fondo de cesped: /public/hero-bg.jpg. Si el archivo aun no esta
-          publicado se usa /public/hero-bg.svg para no dejar el hero sin textura. */}
-      <div aria-hidden="true" className="absolute inset-0 -z-10">
-        <div
-          className="absolute inset-0 bg-cover bg-center"
-          style={{ backgroundImage: "url('/hero-bg.svg')" }}
-        />
-        {heroBackground === "ready" ? (
-          <Image
-            src="/hero-bg.jpg"
-            alt=""
-            fill
-            priority
-            sizes="100vw"
-            className="object-cover object-center"
-          />
-        ) : null}
-        {/* El cesped sigue visible; la legibilidad se concentra detrás del contenido. */}
-        <div className="absolute inset-0 bg-ink-950/18" />
-        <div className="absolute inset-0 bg-gradient-to-r from-ink-950/65 via-ink-950/26 to-transparent" />
-        <div className="absolute inset-0 bg-gradient-to-b from-ink-950/38 via-transparent to-ink-950/58" />
-      </div>
-
-      <span
-        aria-hidden="true"
-        className="pointer-events-none absolute -right-32 top-24 size-[420px] rounded-full bg-gold-500/10 blur-[130px]"
-      />
-
+      <div className="absolute inset-x-0 top-0 -z-10 h-[780px] bg-cover bg-center" style={{ backgroundImage: `linear-gradient(90deg, rgba(236,253,245,.93), rgba(220,252,231,.70) 54%, rgba(20,83,45,.10)), url(${JSON.stringify(backgroundUrl)})` }} aria-hidden="true" />
       <div className="container relative grid items-center gap-14 lg:grid-cols-[1.05fr_0.95fr]">
         <motion.div
           initial="hidden"
           animate="visible"
           variants={{ visible: { transition: { staggerChildren: 0.09 } } }}
-          className="relative flex flex-col gap-6 rounded-3xl border border-white/15 bg-emerald-950/80 p-5 shadow-[0_12px_48px_-24px_rgba(9,13,22,0.95)] backdrop-blur-md sm:p-7 lg:-ml-7"
+          className="relative flex flex-col gap-6 rounded-3xl border border-lime-300 bg-white/85 p-5 shadow-xl shadow-emerald-950/15 backdrop-blur-md sm:p-7 lg:-ml-7"
         >
           <motion.div variants={fadeUp} transition={{ duration: 0.5 }}>
             <Badge className="gap-2">
@@ -149,10 +118,10 @@ export function Hero() {
           <motion.h1
             variants={fadeUp}
             transition={{ duration: 0.6 }}
-            className="font-display text-4xl font-semibold leading-[1.08] text-white drop-shadow-[0_3px_22px_rgba(9,13,22,0.9)] sm:text-5xl lg:text-6xl"
+            className="font-display text-4xl font-semibold leading-[1.08] text-slate-900 sm:text-5xl lg:text-6xl"
           >
             {BUSINESS.name}
-            <span className="mt-3 block ngc-gradient-text text-3xl sm:text-4xl lg:text-[2.9rem]">
+            <span className="mt-3 block text-green-600 text-3xl sm:text-4xl lg:text-[2.9rem]">
               {t.hero.slogan}
             </span>
           </motion.h1>
@@ -160,7 +129,7 @@ export function Hero() {
           <motion.p
             variants={fadeUp}
             transition={{ duration: 0.6 }}
-            className="max-w-2xl text-base leading-relaxed text-white drop-shadow-[0_1px_12px_rgba(9,13,22,0.95)] sm:text-lg"
+            className="max-w-2xl text-base leading-relaxed text-slate-900 sm:text-lg"
           >
             {t.hero.subtitle}
           </motion.p>
@@ -170,9 +139,9 @@ export function Hero() {
             variants={fadeUp}
             transition={{ duration: 0.6 }}
             onSubmit={handleHeroSubmit}
-            className="mt-1 flex flex-col gap-4 rounded-2xl border border-emerald-500/30 bg-emerald-950/60 p-4 backdrop-blur-md"
+            className="mt-1 flex flex-col gap-4 rounded-2xl border border-emerald-200 bg-white p-4 shadow-sm"
           >
-            <p className="text-xs font-semibold uppercase tracking-wider text-emerald-300">
+            <p className="text-xs font-semibold uppercase tracking-wider text-green-700">
               {isEs ? "Obtenga su cotización instantánea" : "Get your instant quote"}
             </p>
 
@@ -186,7 +155,7 @@ export function Hero() {
                   id="hero-zip"
                   value={heroZip}
                   onChange={(e) => setHeroZip(e.target.value.replace(/\D/g, "").slice(0, 5))}
-                  placeholder="78701"
+                  placeholder="78642"
                   maxLength={5}
                   className="mt-2"
                 />
@@ -203,7 +172,7 @@ export function Hero() {
               size="lg"
               className="mt-1 w-full text-base font-bold tracking-wide shadow-lg hover:scale-[1.01] transition-transform"
             >
-              FREE PRICE QUOTE
+              {isEs ? "SOLICITAR ESTIMADO GRATIS" : "REQUEST A FREE ESTIMATE"}
               <ArrowRight className="ml-2 size-5" />
             </Button>
           </motion.form>
@@ -214,8 +183,8 @@ export function Hero() {
             className="flex flex-wrap gap-x-6 gap-y-3 pt-2"
           >
             {trust.map((item) => (
-              <li key={item.label} className="flex items-center gap-2 text-sm text-white">
-                <item.icon className="size-4 text-amber-300" />
+              <li key={item.label} className="flex items-center gap-2 text-sm text-slate-900">
+                <item.icon className="size-4 text-green-600" />
                 {item.label}
               </li>
             ))}
@@ -234,35 +203,35 @@ export function Hero() {
             {metrics.map((metric) => (
               <li
                 key={metric.label}
-                className="rounded-2xl border border-white/30 bg-black/70 p-4 backdrop-blur-md"
+                className="rounded-2xl border border-slate-200 bg-white p-4 backdrop-blur-md"
               >
-                <metric.icon className="size-4 text-amber-300" />
-                <p className="mt-2 text-[11px] uppercase tracking-[0.14em] text-white">
+                <metric.icon className="size-4 text-green-600" />
+                <p className="mt-2 text-[11px] uppercase tracking-[0.14em] text-slate-900">
                   {metric.label}
                 </p>
-                <p className="mt-1 text-sm font-semibold text-amber-300">{metric.value}</p>
+                <p className="mt-1 text-sm font-semibold text-green-600">{metric.value}</p>
               </li>
             ))}
           </ul>
 
-          <div className="mt-4 flex flex-wrap items-center justify-center gap-2 rounded-2xl border border-white/30 bg-black/70 p-3 backdrop-blur-md">
+          <div className="mt-4 flex flex-wrap items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white p-3 backdrop-blur-md">
             {SERVICE_CITIES.map((city) => (
               <a
                 key={city}
                 href={buildSmsHref()}
-                className="rounded-full border border-amber-300/55 bg-black/50 px-3 py-1 text-xs font-semibold text-white transition hover:border-amber-300 hover:text-amber-300"
+                className="rounded-full border border-amber-300/55 bg-white px-3 py-1 text-xs font-semibold text-slate-900 transition hover:border-amber-300 hover:text-green-600"
               >
                 {city}
               </a>
             ))}
           </div>
 
-          <div className="mt-5 flex items-center justify-center gap-2 rounded-2xl border border-white/30 bg-black/70 px-4 py-3 text-sm font-semibold text-white backdrop-blur-md">
-            <Phone className="size-4 text-amber-300" />
-            <a href={BUSINESS.telHref} className="text-amber-300 hover:text-amber-200">
+          <div className="mt-5 flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-900 backdrop-blur-md">
+            <Phone className="size-4 text-green-600" />
+            <a href={BUSINESS.telHref} className="text-green-600 hover:text-amber-200">
               {BUSINESS.phoneDisplay}
             </a>
-            <span className="text-amber-300">·</span>
+            <span className="text-green-600">·</span>
             <span>{isEs ? BUSINESS.hoursEs : BUSINESS.hoursEn}</span>
           </div>
         </motion.div>
@@ -270,7 +239,7 @@ export function Hero() {
 
       <div className="container relative pb-10">
         <div className="ngc-gold-line" />
-        <p className="mt-4 flex items-center justify-center gap-2 text-[11px] uppercase tracking-[0.28em] text-ink-400">
+        <p className="mt-4 flex items-center justify-center gap-2 text-[11px] uppercase tracking-[0.28em] text-slate-500">
           <ArrowDown className="size-3.5 animate-float-slow text-gold-500" />
           {t.hero.scroll}
         </p>

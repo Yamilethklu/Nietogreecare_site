@@ -3,7 +3,7 @@
  */
 
 export type LeadStatus = "pending" | "scheduled" | "completed" | "cancelled";
-export type PaymentMethod = "cash" | "transfer" | "on_completion";
+export type PaymentMethod = "cash" | "cash_app" | "venmo" | "zelle" | "transfer" | "on_completion";
 
 export type PolygonPoint = { lat: number; lng: number };
 
@@ -21,6 +21,7 @@ export type QuoteMeasurement = {
   depthInches: number;
   perimeterFt: number;
   polygon: PolygonPoint[];
+  polygons?: PolygonPoint[][];
   polygonPath: string | null;
   bounds: MapBounds | null;
   center: PolygonPoint | null;
