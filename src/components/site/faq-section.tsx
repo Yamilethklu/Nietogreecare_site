@@ -54,16 +54,16 @@ export function FaqSection() {
         ? "¿Cómo se calcula la tarifa de mi propiedad?"
         : "How is my property pricing calculated?",
       answer: isEs
-        ? "El dueño revisa tu solicitud y se comunica contigo para darte el precio personalmente antes de comenzar. No mostramos precios automáticos en el sitio."
-        : "The owner reviews your request and contacts you personally with the price before work begins. The site does not show automatic prices.",
+        ? "Marca tu césped en el satélite. El cotizador calcula los pies cuadrados y muestra la tarifa semanal o quincenal en cuanto hay un rango de precio configurado. Para otros trabajos te contactamos personalmente."
+        : "Outline your lawn on the satellite map. The quote shows weekly or bi-weekly prices as soon as a matching rate has been set. For other jobs, we contact you with a personal estimate.",
     },
     {
       question: isEs
         ? "¿Qué métodos de pago aceptan?"
         : "What payment methods do you accept?",
       answer: isEs
-        ? "Aceptamos efectivo, Venmo (@gxrciaa_), Cash App ($JaimeNietoMorales) y Zelle. El pago se realiza después de completar el servicio."
-        : "We accept Cash, Venmo (@gxrciaa_), Cash App ($JaimeNietoMorales), and Zelle. Payment is processed upon completion of service.",
+        ? "Aceptamos efectivo, Venmo (@gxrciaa_), Cash App ($JaimeNietoMorales) y Zelle. Preferimos el pago después de cada corte; máximo dos cortes sin pagar."
+        : "We accept Cash, Venmo (@gxrciaa_), Cash App ($JaimeNietoMorales), and Zelle. Payment after each cut is preferred; at most two cuts may remain unpaid.",
     },
   ];
 

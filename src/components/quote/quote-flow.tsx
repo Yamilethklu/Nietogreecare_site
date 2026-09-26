@@ -18,6 +18,9 @@ import {
 import { useLanguage } from "@/components/providers/language-provider";
 import { useToast } from "@/components/providers/toast-provider";
 import { Step1Address, Step1AddressHint } from "@/components/quote/step-1-address";
+import { LawnMeasurement } from "@/components/quote/lawn-measurement";
+import { matchMowRate, type MowRate } from "@/lib/instant-pricing";
+import { BUSINESS } from "@/lib/constants";
 import { PropertySatellite } from "@/components/quote/property-satellite";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -33,6 +36,7 @@ import {
   step3Schema,
   step4Schema,
   step5Schema,
+  measurementStepSchema,
   step7Schema,
 } from "@/lib/validation";
 import { pickSubmissionFields, TOTAL_STEPS, useQuoteStore } from "@/store/quote-store";
@@ -44,6 +48,11 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
   const [hydrated, setHydrated] = React.useState(false);
   const [errors, setErrors] = React.useState<Record<string, string>>({});
   const [sending, setSending] = React.useState(false);
+  const [rates, setRates] = React.useState<MowRate[]>([]);
+
+  React.useEffect(() => { void fetch("/api/lawn-rates", {cache:"no-store"}).then(async (response) => { if (!response.ok) throw new Error("rates"); const payload = await response.json(); setRates(payload.data ?? []); }).catch(() => {}); }, []);
+  const rate = matchMowRate(rates, store.measurement?.areaSqFt ?? 0, store.mowFrequency);
+  const price = rate ? Number(rate.price) : null;
 
   React.useEffect(() => {
     const applyUrlAddress = () => {
@@ -79,9 +88,9 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
     else if (store.step === 2) result = step2Schema.safeParse(store);
     else if (store.step === 3) result = step3Schema.safeParse(store);
     else if (store.step === 4) result = step4Schema.safeParse(store);
-    else if (store.step === 5) result = step5Schema.safeParse(store);
-    else if (store.step === 6) result = { success: true };
-    else if (store.step === 7) result = step7Schema.safeParse(store);
+    else if (store.step === 5) result = measurementStepSchema.safeParse(store);
+    else if (store.step === 6) result = step5Schema.safeParse(store);
+    else if (store.step === 7 && price === null) { toast({ title: isEs ? "El dueño aún debe configurar el precio para esta medida." : "The owner needs to configure pricing for this area.", variant: "error" }); return; }
 
     if (!result.success && result.error) {
       setErrors(formatZodErrors(result.error));
@@ -94,6 +103,8 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
 
   const submit = async () => {
     const result = step7Schema.safeParse(store);
+    if (price === null || !store.measurement) { toast({ title: isEs ? "No hay tarifa disponible para esta medida." : "No rate available for this lawn size.", variant: "error" }); return; }
+    if (store.paymentMethod === "cash" && store.cashLocation.trim().length < 3) { setErrors({cashLocation:isEs ? "Indique dónde dejará el efectivo." : "Tell us where you will leave cash."}); return; }
     if (!result.success) {
       setErrors(formatZodErrors(result.error));
       toast({ title: isEs ? "Complete sus datos de contacto" : "Complete contact details", variant: "error" });
@@ -106,18 +117,21 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
       const response = await fetch("/api/leads", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...pickSubmissionFields(store), referenceCode, snapshotUrl: null }),
+        body: JSON.stringify({ ...pickSubmissionFields(store), referenceCode, quotedPrice: price, snapshotUrl: null }),
       });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok || !payload.ok) {
         throw new Error(payload.error ?? (isEs ? "No se pudo enviar la solicitud." : "Failed to send request."));
       }
 
+      const acceptedPrice = Number(payload.data.price);
       const smsBody = [
         `Nieto Green Care LLC - Cotización de Yarda`,
         `Folio: ${referenceCode}`,
         `Dirección: ${store.address}`,
-        `Servicio: corte de yarda; precio pendiente de contacto personal`,
+        `Servicio: corte de yarda; $${acceptedPrice.toFixed(2)} por corte + impuestos aplicables`,
+        `Césped: ${Math.round(store.measurement.areaSqFt)} pies cuadrados`,
+        `Pago: ${store.paymentMethod}${store.paymentMethod === "cash" ? `; efectivo en ${store.cashLocation}` : ""}`,
         `Servicio: ${store.serviceFrequency === "ongoing" ? "Ongoing" : "One-time"}`,
         `Frecuencia: ${store.mowFrequency === "weekly" ? "Weekly" : "Bi-Weekly"}`,
         `Área: ${store.areaSelection === "front_back" ? "Front & Back" : store.areaSelection === "front_only" ? "Front Only" : "Back Only"}`,
@@ -144,7 +158,7 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
   }
 
   if (store.submitted) {
-    return <Confirmation isEs={isEs} address={store.address} onReset={store.reset} />;
+    return <Confirmation isEs={isEs} address={store.address} onReset={store.reset} price={price} paymentMethod={store.paymentMethod} cashLocation={store.cashLocation} />;
   }
 
   return (
@@ -168,10 +182,10 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
             <CardTitle className="text-2xl font-bold text-slate-900">
               {isEs ? "Solicitud de corte de yarda" : "Lawn Mowing Request"}
             </CardTitle>
-            <span className="rounded-full border border-lime-300 bg-lime-100 px-3 py-1 text-sm font-bold text-emerald-900">{isEs ? "Estimado personal" : "Personal estimate"}</span>
+            <span className="rounded-full border border-lime-300 bg-lime-100 px-3 py-1 text-sm font-bold text-emerald-900">{isEs ? "Precio instantáneo" : "Instant price"}</span>
           </div>
 
-          <div className="mt-4 grid grid-cols-7 gap-1">
+          <div className="mt-4 grid grid-cols-8 gap-1">
             {Array.from({ length: TOTAL_STEPS }, (_, i) => i + 1).map((s) => (
               <button
                 key={s}
@@ -425,13 +439,17 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
           )}
 
           {store.step === 5 && (
+            <section className="space-y-5"><h2 className="text-2xl font-bold text-slate-900">{isEs ? "5. Mide el césped" : "5. Measure Your Lawn"}</h2><LawnMeasurement latitude={store.latitude} longitude={store.longitude} measurement={store.measurement} onChange={store.setMeasurement} onClear={store.clearMeasurement} isEs={isEs} /><FieldError>{errors.measurement}</FieldError></section>
+          )}
+
+          {store.step === 6 && (
             <section className="space-y-6">
               <h2 className="text-2xl font-bold text-slate-900 flex items-center justify-between">
-                <span>{isEs ? "5. Calendario de Servicio" : "5. Service Calendar"}</span>
+                <span>{isEs ? "6. Calendario de Servicio" : "6. Service Calendar"}</span>
 
               </h2>
 
-              <MowingCalendar selected={store.requestedDate} isEs={isEs} onSelect={store.setSchedule} />
+              <MowingCalendar selected={store.requestedDate} isEs={isEs} onSelect={store.setSchedule} price={price} />
               <div>
                 <Label htmlFor="service-date">{isEs ? "Fecha preferida *" : "Preferred Date *"}</Label>
                 <Input
@@ -465,23 +483,24 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
               </div>
 
               <p className="rounded-xl bg-green-50 p-4 text-sm text-green-800">
-                {isEs ? "El dueño te contactará para darte el precio personalmente." : "The owner will contact you personally with the price."}
+                {price !== null ? (isEs ? `$${price.toFixed(2)} por corte + impuestos aplicables` : `$${price.toFixed(2)} per cut + applicable tax`) : (isEs ? "El dueño aún debe configurar la tarifa para esta medida." : "The owner must configure the rate for this lawn size.")}
               </p>
             </section>
           )}
 
-          {store.step === 6 && (
+          {store.step === 7 && (
             <section className="space-y-6">
               <div className="grid items-start gap-5 border-b border-lime-200 pb-6 sm:grid-cols-[1fr_1.05fr]">
                 <div>
                   <h2 className="text-3xl font-extrabold leading-tight text-emerald-950 sm:text-4xl">My Custom<br />Lawn Mowing<br />Plan</h2>
                   <p className="mt-4 rounded-xl bg-lime-100 p-3 text-sm font-semibold text-emerald-950">
-                    {isEs ? "El dueño te contactará para darte el estimado personalmente." : "The owner will contact you with your estimate personally."}
+                    {price !== null ? (isEs ? `$${price.toFixed(2)} por corte · ${store.mowFrequency === "weekly" ? "semanal" : "quincenal"} + impuestos aplicables` : `$${price.toFixed(2)} per cut · ${store.mowFrequency === "weekly" ? "weekly" : "bi-weekly"} + applicable tax`) : (isEs ? "No hay tarifa configurada para esta medida. El dueño debe establecerla en el panel." : "No rate configured for this area. The owner must set it in the admin panel.")}
                   </p>
                 </div>
-                <PropertySatellite address={store.address} latitude={store.latitude} longitude={store.longitude} isEs={isEs} compact />
+                <PropertySatellite address={store.address} latitude={store.latitude} longitude={store.longitude} isEs={isEs} compact polygon={store.measurement?.polygons ?? (store.measurement?.polygon ? [store.measurement.polygon] : [])} />
               </div>
 
+              <p className="font-bold text-emerald-900">{isEs ? "Área de césped" : "Lawn square footage"}: {Math.round(store.measurement?.areaSqFt ?? 0).toLocaleString()} sq ft</p>
               <div className="grid gap-4 border-b border-lime-200 pb-6 text-sm sm:grid-cols-3">
                 <div><p className="text-xs font-extrabold uppercase tracking-wider text-emerald-950">Address</p><p className="mt-1 text-slate-800">{store.address}</p></div>
                 <div><p className="text-xs font-extrabold uppercase tracking-wider text-emerald-950">{isEs ? "Fecha preferida" : "Preferred date"}</p><p className="mt-1 text-slate-800">{store.requestedDate ? new Date(`${store.requestedDate}T12:00:00`).toLocaleDateString(isEs ? "es-MX" : "en-US", { dateStyle: "long" }) : "—"}</p></div>
@@ -519,10 +538,10 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
             </section>
           )}
 
-          {store.step === 7 && (
+          {store.step === 8 && (
             <section className="space-y-6">
               <h2 className="text-2xl font-bold text-slate-900">
-                {isEs ? "7. Datos de Cuenta y Detalles del Patio" : "7. Account & Yard Details"}
+                {isEs ? "8. Datos de Cuenta y Detalles del Patio" : "8. Account & Yard Details"}
               </h2>
 
               <div className="grid gap-4 sm:grid-cols-2">
@@ -647,6 +666,7 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
                   </div>
                 )}
               </div>
+              <div className="rounded-2xl border border-emerald-300 bg-emerald-50 p-5 space-y-3"><h3 className="font-bold text-emerald-950">{isEs ? "Forma de pago" : "Payment method"}</h3><p className="text-sm text-slate-800">{isEs ? "Preferimos el pago después de cada corte. Máximo dos cortes pendientes de pago." : "Payment after each cut is preferred. No more than two cuts may remain unpaid."}</p><div className="grid gap-2 sm:grid-cols-4">{(["cash", "cash_app", "venmo", "zelle"] as const).map((method) => <button type="button" key={method} aria-pressed={store.paymentMethod === method} onClick={() => store.setPaymentMethod(method)} className={`rounded-lg border px-3 py-3 font-semibold ${store.paymentMethod === method ? "border-emerald-600 bg-emerald-600 text-white" : "border-slate-300 bg-white text-slate-900"}`}>{method === "cash" ? "Cash" : method === "cash_app" ? "Cash App" : method === "venmo" ? "Venmo" : "Zelle"}</button>)}</div>{store.paymentMethod === "cash" && <div><Label htmlFor="cash-location">{isEs ? "¿Dónde dejará el efectivo después de cada corte? *" : "Where will you leave cash after each cut? *"}</Label><Input id="cash-location" value={store.cashLocation} onChange={(event) => store.setPersonal({cashLocation:event.target.value})} className="mt-2" /><FieldError>{errors.cashLocation}</FieldError></div>}{store.paymentMethod === "cash_app" && <p>Cash App: {BUSINESS.cashAppTag}</p>}{store.paymentMethod === "venmo" && <p>Venmo: {BUSINESS.venmoHandle}</p>}{store.paymentMethod === "zelle" && <p>Zelle: {BUSINESS.zellePhone}</p>}</div>
               <div>
                 <Label htmlFor="special-notes">{isEs ? "Notas o indicaciones especiales" : "Special requests or notes"}</Label>
                 <Textarea id="special-notes" value={store.additionalNotes} onChange={(event) => store.setPersonal({ additionalNotes: event.target.value })} maxLength={2000} placeholder={isEs ? "Cuéntanos si hay algo especial sobre tu patio o el acceso." : "Tell us anything special about your lawn or access."} className="mt-2" />
@@ -686,7 +706,7 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
   );
 }
 
-function MowingCalendar({ selected, isEs, onSelect }: { selected: string | null; isEs: boolean; onSelect: (date: string) => void }) {
+function MowingCalendar({ selected, isEs, onSelect, price }: { selected: string | null; isEs: boolean; onSelect: (date: string) => void; price: number | null }) {
   const [monthOffset, setMonthOffset] = React.useState(0);
   const now = new Date();
   const month = new Date(now.getFullYear(), now.getMonth() + monthOffset, 1);
@@ -708,7 +728,7 @@ function MowingCalendar({ selected, isEs, onSelect }: { selected: string | null;
           const iso = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
           const disabled = iso < todayISO() || date.getDay() === 0;
           return <button key={iso} type="button" disabled={disabled} onClick={() => onSelect(iso)} aria-pressed={selected === iso} aria-label={date.toLocaleDateString(isEs ? "es-MX" : "en-US", { dateStyle: "long" })} className={`min-h-14 rounded-lg border px-1 py-2 text-xs sm:min-h-16 ${selected === iso ? "border-green-500 bg-emerald-50 text-emerald-900" : "border-slate-100 text-slate-900 hover:border-emerald-300"} disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-300`}>
-            <span className="block font-semibold">{index + 1}</span>
+            <span className="block font-semibold">{index + 1}</span>{!disabled && price !== null && <span className="block text-[10px] font-bold text-emerald-700">${price.toFixed(0)}</span>}
           </button>;
         })}
       </div>
@@ -721,8 +741,14 @@ function Confirmation({
   isEs,
   address,
   onReset,
+  price,
+  paymentMethod,
+  cashLocation,
 }: {
   isEs: boolean;
+  price: number | null;
+  paymentMethod: string;
+  cashLocation: string;
   address: string;
   onReset: () => void;
 }) {
@@ -739,10 +765,11 @@ function Confirmation({
             : "Your request has been saved. If your SMS app did not open automatically, click below to text the owner."}
         </p>
 
-        <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4">
+        <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4"><p className="text-xl font-bold text-emerald-900">{price !== null ? `$${price.toFixed(2)} / ${isEs ? "corte" : "cut"} + ${isEs ? "impuestos aplicables" : "applicable tax"}` : ""}</p>
           <p className="font-semibold text-slate-900 text-sm">{address}</p>
         </div>
 
+        <div className="rounded-xl bg-lime-50 p-4 text-left text-sm text-slate-800"><p className="font-bold text-emerald-950">{isEs ? "Pago elegido" : "Selected payment"}: {paymentMethod === "cash_app" ? "Cash App" : paymentMethod === "venmo" ? "Venmo" : paymentMethod === "zelle" ? "Zelle" : "Cash"}</p>{paymentMethod === "cash" && <p>{isEs ? "Efectivo en" : "Leave cash at"}: {cashLocation}</p>}{paymentMethod === "cash_app" && <a className="text-emerald-700 underline" href={BUSINESS.cashAppUrl} target="_blank" rel="noreferrer">{BUSINESS.cashAppTag}</a>}{paymentMethod === "venmo" && <a className="text-emerald-700 underline" href={BUSINESS.venmoUrl} target="_blank" rel="noreferrer">{BUSINESS.venmoHandle}</a>}{paymentMethod === "zelle" && <p>{BUSINESS.zellePhone}</p>}<p className="mt-2">{isEs ? "Preferimos el pago después de cada corte; máximo dos cortes sin pagar." : "Payment after every cut is preferred; at most two cuts may remain unpaid."}</p></div>
         <div className="flex flex-wrap justify-center gap-3">
           <Button asChild className="bg-green-500 hover:bg-green-600">
             <a href={buildOwnerSmsHref(address)}>

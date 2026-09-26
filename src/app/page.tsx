@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 
+import { PaymentsSection } from "@/components/site/payments-section";
+import { Reviews } from "@/components/site/reviews";
 import { GalleryCarousel } from "@/components/site/gallery-carousel";
 import { Hero } from "@/components/site/hero";
 import { SiteHeader } from "@/components/site/header";
@@ -65,11 +67,8 @@ export default async function HomePage() {
       <main className="bg-emerald-50 text-slate-900">
         <Hero backgroundUrl={grassPhoto?.url ?? "/hero-bg.jpg"} />
         <GalleryCarousel items={slides.length ? slides : [{ id: "lawn-photo", url: "/hero-bg.jpg", title: "Nieto Green Care LLC", description: null, location: null }]} />
-        <div className="container border-t border-slate-200 py-8 text-center text-sm text-slate-600">
-          <span className="mr-3">{BUSINESS.name} · {BUSINESS.phoneDisplay}</span>
-          <a href={BUSINESS.venmoUrl} target="_blank" rel="noopener noreferrer" className="mx-2 font-semibold text-green-600 hover:underline">Venmo</a>
-          <a href={BUSINESS.cashAppUrl} target="_blank" rel="noopener noreferrer" className="mx-2 font-semibold text-green-600 hover:underline">Cash App</a>
-        </div>
+        <Reviews />
+        <PaymentsSection />
       </main>
     </>
   );

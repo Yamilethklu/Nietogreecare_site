@@ -23,8 +23,8 @@ import { buildReferenceCode } from "@/lib/utils";
  * el recorte del area y los pasos completados, incluso si el cliente cierra el navegador.
  */
 
-export const TOTAL_STEPS = 7;
-export const DRAFT_STORAGE_KEY = "ngc-quote-draft-v2";
+export const TOTAL_STEPS = 8;
+export const DRAFT_STORAGE_KEY = "ngc-quote-draft-v3";
 
 export type ServiceFrequency = "ongoing" | "one_time";
 export type PropertyOccupancy = "occupied" | "vacant";
@@ -79,6 +79,7 @@ export type QuoteStateFields = {
   details: string;
   additionalNotes: string;
   paymentMethod: PaymentMethod;
+  cashLocation: string;
   referenceCode: string | null;
   updatedAt: string;
   submitted: boolean;
@@ -146,7 +147,8 @@ const initialFields: QuoteStateFields = {
   selectedServices: ["weekly_biweekly_lawn_service"],
   details: "",
   additionalNotes: "",
-  paymentMethod: "on_completion",
+  paymentMethod: "cash",
+  cashLocation: "",
   referenceCode: null,
   updatedAt: "",
   submitted: false,
@@ -161,6 +163,7 @@ export function buildMeasurement(
   areaSqFt: number,
   depthInches: number = DEFAULT_DEPTH_INCHES,
   zoom?: number | null,
+  polygons?: PolygonPoint[][],
 ): QuoteMeasurement {
   const bounds = getBounds(polygon);
   const center = getCentroid(polygon);
@@ -171,6 +174,7 @@ export function buildMeasurement(
     depthInches,
     perimeterFt: Math.round(polygonPerimeterFeet(polygon) * 100) / 100,
     polygon,
+    polygons: polygons ?? [polygon],
     polygonPath: polygon.length > 2 ? encodePolyline(polygon) : null,
     bounds,
     center,
@@ -223,7 +227,7 @@ export const useQuoteStore = create<QuoteStore>()(
         set({ completedSteps: [...completedSteps, step], updatedAt: new Date().toISOString() });
       },
 
-      setAddress: (payload) => set((state) => ({ ...state, ...payload, updatedAt: new Date().toISOString() })),
+      setAddress: (payload) => set((state) => ({ ...state, ...payload, ...(payload.placeId && payload.placeId !== state.placeId ? {measurement:null} : {}), updatedAt: new Date().toISOString() })),
 
       setLawnOptions: (payload) => set((state) => ({ ...state, ...payload, updatedAt: new Date().toISOString() })),
 
@@ -355,7 +359,7 @@ export function pickSubmissionFields(state: QuoteStore) {
   const fullName = `${state.firstName} ${state.lastName}`.trim() || state.customerName;
 
   const surveyDetails = [
-    "Servicio: corte de yarda; precio por confirmar directamente con el dueño",
+    "Servicio: corte de yarda con tarifa calculada por área",
     `Frecuencia: ${state.serviceFrequency === "ongoing" ? "Ongoing" : "One-time"}`,
     `Ocupación: ${state.propertyOccupancy === "occupied" ? "Occupied" : "Vacant"}`,
     `Corte: ${state.mowFrequency === "weekly" ? "Weekly" : "Bi-Weekly"}`,
@@ -367,6 +371,7 @@ export function pickSubmissionFields(state: QuoteStore) {
     `Portón comunidad: ${state.hasCommunityGate ? "Sí" : "No"}`,
     `Portón patio trasero: ${state.hasBackyardGate ? "Sí" : "No"}`,
     `Mascotas patio trasero: ${state.hasPetsInBackyard ? "Sí" : "No"}`,
+    `Pago elegido: ${state.paymentMethod}; ubicación de efectivo: ${state.cashLocation || "N/A"}`,
   ].join(" | ");
 
   return {
@@ -379,14 +384,15 @@ export function pickSubmissionFields(state: QuoteStore) {
     placeId: state.placeId,
     latitude: state.latitude,
     longitude: state.longitude,
-    areaSqFt: 0,
-    areaSqYd: 0,
+    areaSqFt: state.measurement?.areaSqFt ?? 0,
+    areaSqYd: state.measurement?.areaSqYd ?? 0,
     estimatedCubicYards: 0,
     depthInches: 2,
-    polygon: [],
-    polygonPath: null,
+    polygon: state.measurement?.polygon ?? [],
+    polygons: state.measurement?.polygons ?? (state.measurement?.polygon ? [state.measurement.polygon] : []),
+    polygonPath: state.measurement?.polygonPath ?? null,
     snapshotUrl: null,
-    mapBounds: null,
+    mapBounds: state.measurement?.bounds ?? null,
     hasGateCode: state.hasGateCode,
     gateCode: state.hasGateCode ? state.gateCode.trim() : "",
     requestedDate: state.requestedDate || new Date().toISOString().split("T")[0],
@@ -397,7 +403,8 @@ export function pickSubmissionFields(state: QuoteStore) {
     customerEmail: state.customerEmail,
     details: surveyDetails,
     additionalNotes: state.additionalNotes || "",
-    paymentMethod: state.paymentMethod || "on_completion",
+    paymentMethod: state.paymentMethod,
+    cashLocation: state.cashLocation,
     quoteOptions: {
       serviceFrequency: state.serviceFrequency,
       mowFrequency: state.mowFrequency,

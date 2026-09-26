@@ -72,7 +72,7 @@ export function PaymentsSection({
                 {t.payments.policyTitle}
               </h3>
             </span>
-            <p className="text-sm leading-relaxed text-slate-700/80">{t.payments.policyText}</p>
+            <p className="text-sm leading-relaxed text-slate-700/80">{isEs ? "Preferimos el pago después de cada corte. Se permiten máximo dos cortes pendientes de pago." : "Payment after each cut is preferred. A maximum of two cuts may remain unpaid."}</p>
             <ul className="flex flex-col gap-2">
               {t.payments.policyPoints.map((point) => (
                 <li key={point} className="flex items-start gap-2 text-sm text-slate-700/80">
