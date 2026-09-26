@@ -102,7 +102,7 @@ export function GalleryCarousel({ items }: { items: GalleryCarouselItem[] }) {
                         alt={slide.title ?? `${t.gallery.slide} ${slideIndex + 1}`}
                         fill
                         sizes="(max-width: 1024px) 100vw, 1100px"
-                        className="object-cover"
+                        className="object-contain"
                         priority={slideIndex === 0}
                       />
                     )}

@@ -38,26 +38,26 @@ const SERVICE_ICONS: Record<string, LucideIcon> = {
 };
 
 /** Catálogo oficial de servicios, sin precios públicos. */
-export function ServicesSection() {
+export function ServicesSection({ compact = false }: { compact?: boolean }) {
   const { t, isEs } = useLanguage();
 
   return (
-    <section id="servicios" className="ngc-section scroll-mt-24">
-      <div className="container flex flex-col gap-9">
+    <section id="servicios" className={compact ? "scroll-mt-24 py-10" : "ngc-section scroll-mt-24"}>
+      <div className={`container flex flex-col ${compact ? "gap-5" : "gap-9"}`}>
         <SectionHeading
           eyebrow={t.services.eyebrow}
           title={t.services.title}
           subtitle={t.services.subtitle}
         />
 
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <div className={`grid gap-3 ${compact ? "sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5" : "sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"}`}>
           {SERVICES.map((service) => {
             const Icon = SERVICE_ICONS[service.icon] ?? Leaf;
             return (
               <Card
                 key={service.key}
                 className={cn(
-                  "group relative flex min-h-[190px] flex-col gap-3 overflow-hidden p-4 transition-all duration-500 sm:p-5",
+                  `group relative flex flex-col gap-3 overflow-hidden transition-all duration-500 ${compact ? "min-h-0 p-3" : "min-h-[190px] p-4 sm:p-5"}`,
                   "hover:-translate-y-1 hover:border-gold-500/40 hover:shadow-gold",
                   service.featured && "border-emerald-200 bg-white",
                 )}
@@ -75,16 +75,16 @@ export function ServicesSection() {
                   <h3 className="font-display text-base font-semibold leading-snug text-slate-900 sm:text-lg">
                     {isEs ? service.nameEs : service.nameEn}
                   </h3>
-                  <p className="text-xs leading-relaxed text-slate-700/80 sm:text-sm">
+                  {!compact && <p className="text-xs leading-relaxed text-slate-700/80 sm:text-sm">
                     {isEs ? service.descriptionEs : service.descriptionEn}
-                  </p>
+                  </p>}
                 </div>
 
-                <div className="relative border-t border-white/8 pt-3">
+                {!compact && <div className="relative border-t border-white/8 pt-3">
                   <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-gold-300">
                     {t.services.included}
                   </span>
-                </div>
+                </div>}
               </Card>
             );
           })}

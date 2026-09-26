@@ -67,7 +67,7 @@ export const metadata: Metadata = {
     siteName: BUSINESS.name,
     title: "Nieto Green Care LLC | Paisajismo de lujo en Austin, TX",
     description:
-      "Cotiza tu corte de césped en siete pasos. Liberty Hill, Cedar Park, Leander, Georgetown, Hutto, Round Rock y Jarrell.",
+      "Cotiza tu corte de césped en cuatro pasos. Austin, Liberty Hill, Cedar Park, Leander, Georgetown, Hutto, Round Rock y Jarrell.",
   },
   twitter: {
     card: "summary_large_image",

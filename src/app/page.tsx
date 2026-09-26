@@ -5,6 +5,7 @@ import { Reviews } from "@/components/site/reviews";
 import { GalleryCarousel } from "@/components/site/gallery-carousel";
 import { Hero } from "@/components/site/hero";
 import { SiteHeader } from "@/components/site/header";
+import { ServicesSection } from "@/components/site/services-section";
 import { BUSINESS, SERVICE_CITIES, SERVICE_ZIP_CODES } from "@/lib/constants";
 import { fetchCarouselSlides } from "@/lib/gallery";
 import { getDictionary } from "@/lib/i18n";
@@ -66,6 +67,7 @@ export default async function HomePage() {
       <SiteHeader />
       <main className="bg-emerald-50 text-slate-900">
         <Hero backgroundUrl={grassPhoto?.url ?? "/hero-bg.jpg"} />
+        <ServicesSection compact />
         <GalleryCarousel items={slides.length ? slides : [{ id: "lawn-photo", url: "/hero-bg.jpg", title: "Nieto Green Care LLC", description: null, location: null }]} />
         <Reviews />
         <PaymentsSection />

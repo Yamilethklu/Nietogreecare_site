@@ -92,10 +92,8 @@ export const measurementStepSchema = z.object({ measurement: measurementSchema }
 export const step6Schema = z.object({});
 
 export const step7Schema = z.object({
-  firstName: z.string().trim().min(1, "Ingrese su nombre."),
-  lastName: z.string().trim().min(1, "Ingrese sus apellidos."),
+  customerName: z.string().trim().min(2, "Ingrese su nombre completo."),
   customerPhone: phoneSchema,
-  customerEmail: z.string().trim().email("Ingrese un correo válido."),
   hasGateCode: z.boolean(),
   gateCode: z.string(),
 }).refine((data) => !data.hasGateCode || data.gateCode.trim().length > 0, {
@@ -131,7 +129,7 @@ export const leadSubmissionSchema = z
     selectedServices: selectedServicesSchema,
     customerName: z.string().trim().min(2),
     customerPhone: phoneSchema,
-    customerEmail: z.string().trim().email(),
+    customerEmail: z.string().trim().email().or(z.literal("")).default(""),
     details: z.string().trim().max(2000).default(""),
     additionalNotes: z.string().trim().max(2000).default(""),
     paymentMethod: z.enum(["cash", "cash_app", "venmo", "zelle"]),

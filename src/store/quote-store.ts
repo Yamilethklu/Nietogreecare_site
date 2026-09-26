@@ -23,7 +23,7 @@ import { buildReferenceCode } from "@/lib/utils";
  * el recorte del area y los pasos completados, incluso si el cliente cierra el navegador.
  */
 
-export const TOTAL_STEPS = 8;
+export const TOTAL_STEPS = 4;
 export const DRAFT_STORAGE_KEY = "ngc-quote-draft-v3";
 
 export type ServiceFrequency = "ongoing" | "one_time";
@@ -356,7 +356,7 @@ export const useQuoteStore = create<QuoteStore>()(
 
 /** Campos que se envian a la API al confirmar la solicitud. */
 export function pickSubmissionFields(state: QuoteStore) {
-  const fullName = `${state.firstName} ${state.lastName}`.trim() || state.customerName;
+  const fullName = state.customerName.trim() || `${state.firstName} ${state.lastName}`.trim();
 
   const surveyDetails = [
     "Servicio: corte de yarda con tarifa calculada por área",

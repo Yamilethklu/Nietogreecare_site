@@ -28,10 +28,6 @@ export function PropertySatellite({ address, latitude, longitude, isEs, compact 
         fullscreenControl: false,
         gestureHandling: "cooperative",
       });
-      new window.google.maps.Marker({ map, position, title: address, icon: {
-        path: window.google.maps.SymbolPath.CIRCLE,
-        fillColor: "#65e918", fillOpacity: 1, strokeColor: "#ffffff", strokeWeight: 3, scale: 11,
-      } });
       polygon?.forEach((path) => { if (path.length >= 3) new window.google.maps.Polygon({ map, paths:path, strokeColor:"#93ef22", strokeWeight:3, fillColor:"#5cd524", fillOpacity:0.38 }); });
       setAvailable(true);
     });
@@ -39,7 +35,7 @@ export function PropertySatellite({ address, latitude, longitude, isEs, compact 
   }, [address, hasCoordinates, latitude, longitude, polygon]);
 
   const staticUrl = hasCoordinates && GOOGLE_MAPS_API_KEY
-    ? `https://maps.googleapis.com/maps/api/staticmap?center=${latitude},${longitude}&zoom=19&size=640x420&scale=2&maptype=satellite&${polygon?.length ? polygon.map(path => `path=fillcolor:0x5cd52460%7Ccolor:0x93ef22ff%7Cweight:3%7C${path.map((p) => `${p.lat},${p.lng}`).join("%7C")}%7C${path[0].lat},${path[0].lng}&`).join("") : `markers=color:0x65e918%7C${latitude},${longitude}&`}key=${encodeURIComponent(GOOGLE_MAPS_API_KEY)}`
+    ? `https://maps.googleapis.com/maps/api/staticmap?center=${latitude},${longitude}&zoom=19&size=640x420&scale=2&maptype=satellite&${polygon?.length ? polygon.map(path => `path=fillcolor:0x5cd52460%7Ccolor:0x93ef22ff%7Cweight:3%7C${path.map((p) => `${p.lat},${p.lng}`).join("%7C")}%7C${path[0].lat},${path[0].lng}&`).join("") : ""}key=${encodeURIComponent(GOOGLE_MAPS_API_KEY)}`
     : null;
 
   return (

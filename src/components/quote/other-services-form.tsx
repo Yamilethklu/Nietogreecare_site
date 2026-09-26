@@ -7,17 +7,17 @@ import { useLanguage } from "@/components/providers/language-provider";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input, Label, Textarea } from "@/components/ui/input";
-import { buildOwnerSmsHref } from "@/lib/constants";
+import { BUSINESS } from "@/lib/constants";
 
 const OTHER_JOB_TYPES = [
   { key: "tree_bush", labelEs: "Poda de árboles y arbustos", labelEn: "Tree & Bush Trimming" },
-  { key: "sod", labelEs: "Instalación de césped", labelEn: "Sod Installation" },
+  { key: "sod", labelEs: "Instalación de césped en rollo", labelEn: "Sod Installation" },
   { key: "flowers", labelEs: "Camas de flores", labelEn: "Flower Beds" },
   { key: "fertilizer", labelEs: "Fertilización", labelEn: "Fertilizer" },
-  { key: "gravel", labelEs: "Instalación de grava", labelEn: "Gravel & Rock Installation" },
+  { key: "gravel", labelEs: "Instalación de grava y piedra", labelEn: "Gravel & Rock Installation" },
   { key: "metal_edging", labelEs: "Bordes metálicos", labelEn: "Metal Edging" },
-  { key: "mulch", labelEs: "Instalación de mulch", labelEn: "Mulch Installation" },
-  { key: "cleanup", labelEs: "Limpieza general", labelEn: "Yard Clean Up" },
+  { key: "mulch", labelEs: "Instalación de mantillo", labelEn: "Mulch Installation" },
+  { key: "cleanup", labelEs: "Limpieza general de patio", labelEn: "Yard Clean Up" },
   { key: "top_soil", labelEs: "Tierra vegetal", labelEn: "Top Soil" },
 ] as const;
 
@@ -41,6 +41,14 @@ export function OtherServicesForm() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (saving) return;
+    if (selectedJobs.length === 0) {
+      setSaveError(isEs ? "Seleccione al menos un trabajo." : "Select at least one service.");
+      return;
+    }
+    if (!hasGate) {
+      setSaveError(isEs ? "Indique si el patio tiene candado o portón." : "Choose whether the yard has a lock or gate.");
+      return;
+    }
     setSaving(true);
     setSaveError("");
     
@@ -49,25 +57,8 @@ export function OtherServicesForm() {
         return job ? (isEs ? job.labelEs : job.labelEn) : key;
     }).join(", ");
 
-    let referenceCode = "";
-    try {
-      const response = await fetch("/api/other-services", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ jobTypes: selectedJobs, name, phone, comments, hasGate, gateCode }),
-      });
-      const result = await response.json();
-      if (!response.ok || !result.ok) throw new Error(result.error || "No se pudo registrar la solicitud.");
-      referenceCode = result.referenceCode;
-    } catch (error) {
-      setSaveError(error instanceof Error ? error.message : "No se pudo registrar la solicitud.");
-      setSaving(false);
-      return;
-    }
-
     const body = [
-      `Solicitud de Otros Servicios: ${jobNames}`,
-      `Folio: ${referenceCode}`,
+      `Solicitud de cotización: ${jobNames}`,
       `Nombre: ${name}`,
       `Teléfono: ${phone}`,
       `¿Acceso con candado?: ${hasGate === "yes" ? "Sí" : "No"}`,
@@ -77,9 +68,7 @@ export function OtherServicesForm() {
       .filter(Boolean)
       .join("\n");
 
-    const smsUrl = buildOwnerSmsHref("Austin, TX", body);
-    window.location.href = smsUrl;
-    setSaving(false);
+    window.location.href = `${BUSINESS.smsHref}?body=${encodeURIComponent(body)}`;
   };
 
   return (
@@ -120,7 +109,7 @@ export function OtherServicesForm() {
 
           <div>
             <Label>{isEs ? "¿El patio tiene candado / portón?" : "Does the yard have a lock/gate?"}</Label>
-            <div className="flex gap-4 mt-1">
+            <div className="mt-1 flex gap-4">
                 <Button type="button" variant={hasGate === "yes" ? "default" : "outline"} onClick={() => setHasGate("yes")}>{isEs ? "Sí" : "Yes"}</Button>
                 <Button type="button" variant={hasGate === "no" ? "default" : "outline"} onClick={() => setHasGate("no")}>{isEs ? "No" : "No"}</Button>
             </div>

@@ -52,6 +52,7 @@ export const ADMIN_EMAILS = [
 ] as const;
 
 export const SERVICE_CITIES = [
+  "Austin",
   "Liberty Hill",
   "Cedar Park",
   "Leander",
