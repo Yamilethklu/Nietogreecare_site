@@ -10,11 +10,15 @@ import { Input, Label, Textarea } from "@/components/ui/input";
 import { buildOwnerSmsHref } from "@/lib/constants";
 
 const OTHER_JOB_TYPES = [
-  { key: "bush_trimming", labelEs: "Poda de arbustos", labelEn: "Bush Trimming" },
-  { key: "mulch_installation", labelEs: "Instalación de Mulch", labelEn: "Mulch Installation" },
-  { key: "yard_cleanups", labelEs: "Limpiezas", labelEn: "Cleanups" },
-  { key: "tree_services", labelEs: "Servicio de árboles", labelEn: "Tree Services" },
-  { key: "landscaping", labelEs: "Paisajismo", labelEn: "Landscaping" },
+  { key: "tree_bush", labelEs: "Poda de árboles y arbustos", labelEn: "Tree & Bush Trimming" },
+  { key: "sod", labelEs: "Instalación de césped", labelEn: "Sod Installation" },
+  { key: "flowers", labelEs: "Camas de flores", labelEn: "Flower Beds" },
+  { key: "fertilizer", labelEs: "Fertilización", labelEn: "Fertilizer" },
+  { key: "gravel", labelEs: "Instalación de grava", labelEn: "Gravel & Rock Installation" },
+  { key: "metal_edging", labelEs: "Bordes metálicos", labelEn: "Metal Edging" },
+  { key: "mulch", labelEs: "Instalación de mulch", labelEn: "Mulch Installation" },
+  { key: "cleanup", labelEs: "Limpieza general", labelEn: "Yard Clean Up" },
+  { key: "top_soil", labelEs: "Tierra vegetal", labelEn: "Top Soil" },
 ] as const;
 
 export function OtherServicesForm() {
@@ -22,6 +26,8 @@ export function OtherServicesForm() {
   const [selectedJobs, setSelectedJobs] = React.useState<string[]>([]);
   const [name, setName] = React.useState("");
   const [phone, setPhone] = React.useState("");
+  const [hasGate, setHasGate] = React.useState<"yes" | "no" | "">("");
+  const [gateCode, setGateCode] = React.useState("");
   const [comments, setComments] = React.useState("");
   const [saving, setSaving] = React.useState(false);
   const [saveError, setSaveError] = React.useState("");
@@ -48,7 +54,7 @@ export function OtherServicesForm() {
       const response = await fetch("/api/other-services", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ jobTypes: selectedJobs, name, phone, comments }),
+        body: JSON.stringify({ jobTypes: selectedJobs, name, phone, comments, hasGate, gateCode }),
       });
       const result = await response.json();
       if (!response.ok || !result.ok) throw new Error(result.error || "No se pudo registrar la solicitud.");
@@ -64,6 +70,8 @@ export function OtherServicesForm() {
       `Folio: ${referenceCode}`,
       `Nombre: ${name}`,
       `Teléfono: ${phone}`,
+      `¿Acceso con candado?: ${hasGate === "yes" ? "Sí" : "No"}`,
+      hasGate === "yes" && gateCode ? `Código/Info acceso: ${gateCode}` : "",
       comments ? `Comentarios: ${comments}` : "",
     ]
       .filter(Boolean)
@@ -79,24 +87,19 @@ export function OtherServicesForm() {
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-xl font-bold text-slate-900">
           <Wrench className="size-5 text-emerald-600" />
-          {isEs ? "Solicitar otros servicios" : "Request other services"}
+          {isEs ? "SELECCIONE LOS TRABAJOS A REALIZAR" : "SELECT SERVICES TO PERFORM"}
         </CardTitle>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <Label>{isEs ? "Seleccione los trabajos *" : "Select jobs *"}</Label>
-            <div className="mt-2 grid gap-2 sm:grid-cols-2">
+            <div className="grid gap-2 sm:grid-cols-3">
               {OTHER_JOB_TYPES.map((type) => (
                 <button
                   key={type.key}
                   type="button"
                   onClick={() => toggleJob(type.key)}
-                  className={`rounded-xl border p-3 text-left text-xs font-semibold transition ${
-                    selectedJobs.includes(type.key)
-                      ? "border-emerald-600 bg-emerald-50 text-emerald-700"
-                      : "border-slate-200 bg-slate-50 text-slate-600 hover:border-emerald-600/50"
-                  }`}
+                  className={`rounded-xl border p-3 text-left text-xs font-semibold transition ${selectedJobs.includes(type.key) ? "border-emerald-600 bg-emerald-50 text-emerald-700" : "border-slate-200 bg-slate-50 text-slate-600 hover:border-emerald-600/50"}`}
                 >
                   {isEs ? type.labelEs : type.labelEn}
                 </button>
@@ -107,44 +110,34 @@ export function OtherServicesForm() {
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
               <Label htmlFor="other-name">{isEs ? "Nombre completo *" : "Full Name *"}</Label>
-              <Input
-                id="other-name"
-                required
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder={isEs ? "Ej. Juan Pérez" : "e.g. John Smith"}
-                className="mt-1"
-              />
+              <Input id="other-name" required value={name} onChange={(e) => setName(e.target.value)} placeholder={isEs ? "Ej. Juan Pérez" : "e.g. John Smith"} className="mt-1" />
             </div>
             <div>
               <Label htmlFor="other-phone">{isEs ? "Teléfono *" : "Phone *"}</Label>
-              <Input
-                id="other-phone"
-                required
-                type="tel"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                placeholder="737-000-0000"
-                className="mt-1"
-              />
+              <Input id="other-phone" required type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="737-000-0000" className="mt-1" />
             </div>
           </div>
 
           <div>
-            <Label htmlFor="other-comments">{isEs ? "Comentarios / Detalle" : "Comments / Work details"}</Label>
-            <Textarea
-              id="other-comments"
-              value={comments}
-              onChange={(e) => setComments(e.target.value)}
-              className="mt-1"
-              rows={3}
-            />
+            <Label>{isEs ? "¿El patio tiene candado / portón?" : "Does the yard have a lock/gate?"}</Label>
+            <div className="flex gap-4 mt-1">
+                <Button type="button" variant={hasGate === "yes" ? "default" : "outline"} onClick={() => setHasGate("yes")}>{isEs ? "Sí" : "Yes"}</Button>
+                <Button type="button" variant={hasGate === "no" ? "default" : "outline"} onClick={() => setHasGate("no")}>{isEs ? "No" : "No"}</Button>
+            </div>
+            {hasGate === "yes" && (
+                <Input className="mt-2" placeholder={isEs ? "Código o info de acceso" : "Gate code or access info"} value={gateCode} onChange={(e) => setGateCode(e.target.value)} />
+            )}
+          </div>
+
+          <div>
+            <Label htmlFor="other-comments">{isEs ? "Comentarios / Detalles" : "Comments / Work details"}</Label>
+            <Textarea id="other-comments" value={comments} onChange={(e) => setComments(e.target.value)} className="mt-1" rows={3} />
           </div>
 
           {saveError && <p role="alert" className="text-sm text-red-600">{saveError}</p>}
           <Button type="submit" disabled={saving} className="w-full font-bold bg-emerald-600 hover:bg-emerald-700">
             <MessageSquare className="mr-2 size-4" />
-            {saving ? (isEs ? "Guardando..." : "Saving...") : (isEs ? "SOLICITAR VISITA POR SMS" : "REQUEST ON-SITE ESTIMATE BY SMS")}
+            {saving ? (isEs ? "Guardando..." : "Saving...") : (isEs ? "SOLICITAR COTIZACIÓN POR SMS" : "REQUEST QUOTE BY SMS")}
           </Button>
         </form>
       </CardContent>
