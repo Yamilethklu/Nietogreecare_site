@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 
 import { PaymentsSection } from "@/components/site/payments-section";
 import { Reviews } from "@/components/site/reviews";
@@ -69,6 +70,7 @@ export default async function HomePage() {
         <GalleryCarousel items={slides.length ? slides : [{ id: "lawn-photo", url: "/hero-bg.jpg", title: "Nieto Green Care LLC", description: null, location: null }]} />
         <Reviews />
         <PaymentsSection />
+        <div className="container flex flex-wrap gap-5 border-t border-emerald-200 py-6 text-sm font-semibold text-emerald-900"><Link href="/admin">Acceso administradores</Link><Link href="/crew">Acceso trabajadores</Link></div>
       </main>
     </>
   );

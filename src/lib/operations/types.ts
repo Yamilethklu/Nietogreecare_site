@@ -1,0 +1,9 @@
+export type OrderStatus = 'scheduled' | 'in_progress' | 'completed' | 'cancelled';
+export type Cadence = 'weekly' | 'bi_weekly' | 'one_time';
+export type OpsPaymentMethod = 'cash' | 'cash_app' | 'venmo' | 'zelle' | 'check' | 'other';
+export type CrewMember = {id:string;full_name:string;email:string;phone:string|null;active:boolean};
+export type ServicePlan = {id:string;lead_id:string;crew_member_id:string|null;cadence:Cadence;first_date:string;preferred_start:string;duration_minutes:number;price_per_visit:number|string;active:boolean;notes:string|null};
+export type WorkOrder = {id:string;plan_id:string|null;lead_id:string;crew_member_id:string|null;service_date:string;start_time:string;duration_minutes:number;status:OrderStatus;price:number|string;paid_amount:number|string;payment_method:OpsPaymentMethod|null;paid_at:string|null;completed_at:string|null;notes:string|null;created_at:string};
+export type WorkInvoice={id:string;order_id:string;invoice_number:string;total:number|string;customer_email:string|null;issued_at:string;sent_at:string|null;email_error:string|null};
+export type OpsLead={id:string;customer_name:string;customer_email:string|null;customer_phone:string;address:string;city:string|null;zip_code:string;final_price:number|string|null;requested_date:string|null;reference_code:string;details:string|null;additional_notes:string|null};
+export type OpsData={crew:CrewMember[];plans:ServicePlan[];orders:WorkOrder[];invoices:WorkInvoice[];leads:OpsLead[]};
