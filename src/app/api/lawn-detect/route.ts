@@ -41,6 +41,21 @@ function getGeometry(payload: any): GeoJsonGeometry | null {
   return candidates.find((geometry) => geometry?.type === "Polygon" || geometry?.type === "MultiPolygon") ?? null;
 }
 
+function getBuildingGeometry(payload: any): GeoJsonGeometry | null {
+  const firstFeature = payload?.features?.[0] ?? payload?.parcels?.features?.[0] ?? payload?.results?.[0] ?? payload?.data?.features?.[0];
+  const properties = firstFeature?.properties ?? firstFeature?.parcel ?? firstFeature ?? {};
+  const candidates = [
+    properties?.building_geometry,
+    properties?.building?.geometry,
+    properties?.buildings?.[0]?.geometry,
+    properties?.structures?.[0]?.geometry,
+    properties?.footprint,
+    properties?.building_footprint,
+    payload?.buildings?.features?.[0]?.geometry,
+  ];
+  return candidates.find((geometry) => geometry?.type === "Polygon" || geometry?.type === "MultiPolygon") ?? null;
+}
+
 function rectangleFootprint(latitude: number, longitude: number): GeoJsonPolygon {
   const feetPerLatitudeDegree = 364000;
   const feetToLat = (feet: number) => feet / feetPerLatitudeDegree;
@@ -74,8 +89,11 @@ function fallbackLawn(latitude: number, longitude: number) {
     rect(-34, -62, 24, -30),
     rect(-34, 30, 24, 62),
   ];
+  const parcelPolygons = [
+    rect(-82, -68, 82, 68),
+  ];
   const areaSqFt = polygons.reduce((total, path) => total + turf.area(turf.polygon([[...path.map((p) => [p.lng, p.lat]), [path[0].lng, path[0].lat]]])) * SQ_M_TO_SQ_FT, 0);
-  return { polygons, areaSqM: areaSqFt / SQ_M_TO_SQ_FT, areaSqFt };
+  return { polygons, parcelPolygons, areaSqM: areaSqFt / SQ_M_TO_SQ_FT, areaSqFt };
 }
 
 export async function GET(request: Request) {
@@ -117,6 +135,7 @@ export async function GET(request: Request) {
     const regridResponse = await fetch(regridUrl, { cache: "no-store" });
     const regrid = await regridResponse.json();
     const parcelGeometry = getGeometry(regrid);
+    const buildingGeometry = getBuildingGeometry(regrid);
 
     if (!parcelGeometry) {
       const fallback = fallbackLawn(latitude, longitude);
@@ -124,7 +143,7 @@ export async function GET(request: Request) {
     }
 
     const parcel = turf.feature(parcelGeometry as any);
-    const house = turf.feature(rectangleFootprint(latitude, longitude) as any);
+    const house = turf.feature((buildingGeometry ?? rectangleFootprint(latitude, longitude)) as any);
     const lawn = turf.difference(turf.featureCollection([parcel as any, house as any]) as any);
     const geometry = (lawn?.geometry ?? parcel.geometry) as GeoJsonGeometry;
     const areaSqM = turf.area(geometry as any);
@@ -135,6 +154,7 @@ export async function GET(request: Request) {
       formattedAddress,
       latitude,
       longitude,
+      parcelPolygons: geometryToPolygons(parcelGeometry),
       polygons: geometryToPolygons(geometry),
       areaSqM,
       areaSqFt: areaSqM * SQ_M_TO_SQ_FT,
