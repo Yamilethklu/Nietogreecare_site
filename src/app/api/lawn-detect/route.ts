@@ -145,42 +145,44 @@ export async function GET(request: Request) {
     const regridResponse = await fetch(regridUrl, { cache: "no-store" });
     const regrid = await regridResponse.json();
     const parcelGeometry = toSinglePolygon(getGeometry(regrid));
-    const regridBuildingGeometry = getBuildingGeometry(regrid);
-    const solarBuildingGeometry = regridBuildingGeometry ? null : await getSolarBuildingGeometry(latitude, longitude, GOOGLE_KEY);
-    const buildingGeometry = toSinglePolygon(regridBuildingGeometry ?? solarBuildingGeometry ?? rectangleFootprint(latitude, longitude));
+    const buildingGeometry = toSinglePolygon(getBuildingGeometry(regrid));
 
     if (!parcelGeometry) return NextResponse.json({ ok: false, error: "parcel_not_found", formattedAddress, latitude, longitude }, { status: 404 });
-    if (!buildingGeometry) return NextResponse.json({ ok: false, error: "building_footprint_not_found", formattedAddress, latitude, longitude }, { status: 404 });
+
+    let houseGeometry = buildingGeometry;
+    let simulated = false;
+    if (!houseGeometry) {
+      houseGeometry = await getSolarBuildingGeometry(latitude, longitude, GOOGLE_KEY);
+      if (!houseGeometry) {
+        houseGeometry = rectangleFootprint(latitude, longitude);
+        simulated = true;
+      }
+    }
 
     const parcel = turf.feature(parcelGeometry as any);
-    const house = turf.feature(buildingGeometry as any);
+    const house = turf.feature(houseGeometry as any);
     const jardin = turf.difference(turf.featureCollection([parcel as any, house as any]) as any);
     if (!jardin?.geometry) return NextResponse.json({ ok: false, error: "lawn_difference_failed", formattedAddress, latitude, longitude }, { status: 422 });
-    const geometry = toSinglePolygon(jardin.geometry as GeoJsonGeometry);
-    if (!geometry) return NextResponse.json({ ok: false, error: "lawn_polygon_invalid", formattedAddress, latitude, longitude }, { status: 422 });
-    const areaSqM = turf.area(turf.feature(geometry as any) as any);
+    const geometry = jardin.geometry as GeoJsonGeometry;
+    const areaSqM = turf.area(jardin as any);
     const polygons = geometryToPolygons(geometry);
     if (!polygons.length || areaSqM <= 0) return NextResponse.json({ ok: false, error: "lawn_area_empty", formattedAddress, latitude, longitude }, { status: 422 });
-    const center = turf.center(turf.feature(geometry as any) as any);
-    const [centerLng, centerLat] = center.geometry.coordinates;
-    const areaSqFt = areaSqM * SQ_M_TO_SQ_FT;
-    const huellaCasaSimulada = !regridBuildingGeometry && !solarBuildingGeometry;
+    const centroPoint = turf.center(jardin as any);
+    const centro = {
+      lat: centroPoint.geometry.coordinates[1],
+      lng: centroPoint.geometry.coordinates[0],
+    };
 
     return NextResponse.json({
       ok: true,
-      source: huellaCasaSimulada ? "regrid_minus_placeholder_house" : solarBuildingGeometry ? "regrid_minus_google_solar" : "regrid_minus_building",
+      poligonoJardin: geometry,
+      areaMetros: areaSqM,
+      areaPies: areaSqM * SQ_M_TO_SQ_FT,
+      centro,
+      huellaCasaSimulada: simulated,
       formattedAddress,
       latitude,
       longitude,
-      poligonoJardin: geometry,
-      areaMetros: areaSqM,
-      areaPies: areaSqFt,
-      centro: { lat: centerLat, lng: centerLng },
-      huellaCasaSimulada,
-      hasBuildingFootprint: !huellaCasaSimulada,
-      polygons,
-      areaSqM,
-      areaSqFt,
     });
   } catch {
     return NextResponse.json({ ok: false, error: "lawn_detection_failed", formattedAddress, latitude, longitude }, { status: 500 });
