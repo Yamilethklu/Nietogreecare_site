@@ -65,7 +65,7 @@ export function PropertySatellite({ address, latitude, longitude, isEs, compact 
   const mapPaths = googlePaths.length ? googlePaths : fallbackPaths;
   const flatPaths = React.useMemo(() => mapPaths.flat(), [mapPaths]);
   const allFlatPaths = React.useMemo(() => [...parcelPaths.flat(), ...flatPaths], [parcelPaths, flatPaths]);
-  const lawnCenter = React.useMemo(() => center ?? getCenter(allFlatPaths), [center, allFlatPaths]);
+  const lawnCenter = React.useMemo(() => center ?? getCenter(flatPaths) ?? getCenter(allFlatPaths), [center, flatPaths, allFlatPaths]);
   const lawnBounds = React.useMemo(() => getBounds(allFlatPaths), [allFlatPaths]);
 
   React.useEffect(() => {
