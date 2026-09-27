@@ -15,6 +15,15 @@ const ALLOWED_GALLERY_MEDIA_TYPES = [
   "video/webm",
 ] as const;
 const MAX_GALLERY_MEDIA_BYTES = 50 * 1024 * 1024;
+const extensionForType: Record<string, string> = {
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp",
+  "image/avif": "avif",
+  "video/mp4": "mp4",
+  "video/quicktime": "mov",
+  "video/webm": "webm",
+};
 
 export async function POST(request: Request) {
   const gate = await requireAdmin();
@@ -28,7 +37,8 @@ export async function POST(request: Request) {
   }
   const db = getSupabaseAdminClient();
   if (!db) return NextResponse.json({ ok: false, error: "Supabase no configurado." }, { status: 503 });
-  const path = `gallery/${Date.now()}-${slugify(fileName)}`;
+  const baseName = fileName.replace(/\.[^.]+$/, "");
+  const path = `gallery/${Date.now()}-${slugify(baseName)}.${extensionForType[fileType]}`;
   const { data, error } = await db.storage.from(GALLERY_BUCKET).createSignedUploadUrl(path);
   if (error || !data) return NextResponse.json({ ok: false, error: error?.message || "No se pudo preparar la subida." }, { status: 500 });
   return NextResponse.json({ ok: true, data: { bucket: GALLERY_BUCKET, path, token: data.token } });
