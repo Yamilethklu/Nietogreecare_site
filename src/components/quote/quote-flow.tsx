@@ -12,7 +12,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FieldError, Input, Label, Textarea } from "@/components/ui/input";
 import { BUSINESS, SERVICES, ZIP_CITY_MAP } from "@/lib/constants";
-import { polygonAreaSquareFeet } from "@/lib/geo";
 import { matchMowRate, type MowRate } from "@/lib/instant-pricing";
 import { formatZodErrors, step1Schema, step7Schema } from "@/lib/validation";
 import type { PaymentMethod, PolygonPoint } from "@/lib/types";
@@ -35,57 +34,11 @@ type LawnDetectionResponse = {
   latitude?: number;
   longitude?: number;
   polygons?: PolygonPoint[][];
-  parcelPolygons?: PolygonPoint[][];
   areaSqM?: number;
   areaSqFt?: number;
 };
 
 const SQ_FT_PER_SQ_M = 10.7639;
-const FEET_PER_LATITUDE_DEGREE = 364000;
-
-function feetToLatitude(feet: number) {
-  return feet / FEET_PER_LATITUDE_DEGREE;
-}
-
-function feetToLongitude(feet: number, latitude: number) {
-  return feet / (FEET_PER_LATITUDE_DEGREE * Math.cos((latitude * Math.PI) / 180));
-}
-
-function rectangleFromFeet(
-  latitude: number,
-  longitude: number,
-  southFeet: number,
-  westFeet: number,
-  northFeet: number,
-  eastFeet: number,
-): PolygonPoint[] {
-  return [
-    { lat: latitude + feetToLatitude(southFeet), lng: longitude + feetToLongitude(westFeet, latitude) },
-    { lat: latitude + feetToLatitude(southFeet), lng: longitude + feetToLongitude(eastFeet, latitude) },
-    { lat: latitude + feetToLatitude(northFeet), lng: longitude + feetToLongitude(eastFeet, latitude) },
-    { lat: latitude + feetToLatitude(northFeet), lng: longitude + feetToLongitude(westFeet, latitude) },
-  ];
-}
-
-function estimateLawnAreas(latitude: number, longitude: number, targetAreaSqFt: number) {
-  const scale = Math.max(0.7, Math.min(2.2, Math.sqrt(targetAreaSqFt / 3200)));
-  const lotHalfWidth = 62 * scale;
-  const lotHalfDepth = 76 * scale;
-  const houseHalfWidth = 30 * scale;
-  const drivewayHalfWidth = 12 * scale;
-  const polygons = [
-    rectangleFromFeet(latitude, longitude, 28 * scale, -lotHalfWidth, lotHalfDepth, lotHalfWidth),
-    rectangleFromFeet(latitude, longitude, -lotHalfDepth, -lotHalfWidth, -34 * scale, -drivewayHalfWidth),
-    rectangleFromFeet(latitude, longitude, -lotHalfDepth, drivewayHalfWidth, -34 * scale, lotHalfWidth),
-    rectangleFromFeet(latitude, longitude, -34 * scale, -lotHalfWidth, 24 * scale, -houseHalfWidth),
-    rectangleFromFeet(latitude, longitude, -34 * scale, houseHalfWidth, 24 * scale, lotHalfWidth),
-  ];
-  const parcelPolygons = [
-    rectangleFromFeet(latitude, longitude, -lotHalfDepth - 6 * scale, -lotHalfWidth - 6 * scale, lotHalfDepth + 6 * scale, lotHalfWidth + 6 * scale),
-  ];
-  const area = polygons.reduce((total, polygon) => total + polygonAreaSquareFeet(polygon), 0);
-  return { polygons, parcelPolygons, area };
-}
 
 export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
   const { isEs } = useLanguage();
@@ -96,7 +49,6 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
   const [rates, setRates] = React.useState<MowRate[]>([]);
   const [sending, setSending] = React.useState(false);
   const [gateAnswer, setGateAnswer] = React.useState<"yes" | "no" | "">("");
-  const [areaInput, setAreaInput] = React.useState("2500");
 
   React.useEffect(() => {
     void fetch("/api/lawn-rates", { cache: "no-store" })
@@ -132,16 +84,9 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
   }, []);
 
   React.useEffect(() => {
-    if (store.measurement) setAreaInput(String(Math.round(store.measurement.areaSqFt)));
-  }, [store.measurement]);
-
-  React.useEffect(() => {
     if (store.step !== 2 || store.measurement || store.latitude == null || store.longitude == null) return;
     let cancelled = false;
-    const applyFallback = () => {
-      const estimate = estimateLawnAreas(store.latitude!, store.longitude!, 2500);
-      store.setMeasurement(buildMeasurement(estimate.polygons[0], estimate.area, 2, 19, estimate.polygons, estimate.parcelPolygons));
-    };
+    setErrors((current) => ({ ...current, measurement: "" }));
     void fetch(`/api/lawn-detect?address=${encodeURIComponent(store.formattedAddress || store.address)}`, { cache: "no-store" })
       .then(async (response) => {
         if (!response.ok) throw new Error("lawn-detect");
@@ -152,7 +97,10 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
         const polygons = payload.polygons?.filter((path) => path.length >= 3) ?? [];
         const areaSqFt = Number(payload.areaSqFt);
         if (!payload.ok || !polygons.length || !Number.isFinite(areaSqFt) || areaSqFt <= 0) {
-          applyFallback();
+          setErrors((current) => ({
+            ...current,
+            measurement: isEs ? "No se pudo calcular automáticamente el jardín con Regrid." : "Could not calculate the lawn automatically with Regrid.",
+          }));
           return;
         }
         if (typeof payload.latitude === "number" && typeof payload.longitude === "number") {
@@ -162,11 +110,15 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
             longitude: payload.longitude,
           });
         }
-        const parcelPolygons = payload.parcelPolygons?.filter((path) => path.length >= 3) ?? [];
-        store.setMeasurement(buildMeasurement(polygons[0], areaSqFt, 2, 19, polygons, parcelPolygons.length ? parcelPolygons : undefined));
+        store.setMeasurement(buildMeasurement(polygons[0], areaSqFt, 2, 19, polygons));
       })
       .catch(() => {
-        if (!cancelled) applyFallback();
+        if (!cancelled) {
+          setErrors((current) => ({
+            ...current,
+            measurement: isEs ? "No se pudo calcular automáticamente el jardín con Regrid." : "Could not calculate the lawn automatically with Regrid.",
+          }));
+        }
       });
     return () => { cancelled = true; };
   }, [
@@ -178,6 +130,7 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
     store.setAddress,
     store.setMeasurement,
     store.step,
+    isEs,
   ]);
 
   const rate = matchMowRate(rates, store.measurement?.areaSqFt ?? 0, store.mowFrequency);
@@ -239,15 +192,6 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
     current.goNext();
   };
 
-  const updateArea = (value: string) => {
-    setAreaInput(value);
-    const area = Number(value);
-    const current = useQuoteStore.getState();
-    if (!Number.isFinite(area) || area < 500 || area > 250000 || current.latitude == null || current.longitude == null) return;
-    const estimate = estimateLawnAreas(current.latitude, current.longitude, area);
-    current.setMeasurement(buildMeasurement(estimate.polygons[0], estimate.area, 2, 19, estimate.polygons, estimate.parcelPolygons));
-  };
-
   const submit = async () => {
     const current = useQuoteStore.getState();
     if (price === null || !current.measurement) {
@@ -306,7 +250,6 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
   if (store.submitted) return <Confirmation isEs={isEs} store={store} price={price} onReset={store.reset} />;
 
   const polygon = store.measurement?.polygons ?? (store.measurement?.polygon ? [store.measurement.polygon] : []);
-  const parcelPolygon = store.measurement?.parcelPolygons;
   const lawnAreaSqFt = Math.round(store.measurement?.areaSqFt ?? 0);
   const lawnAreaSqM = Math.round(((store.measurement?.areaSqFt ?? 0) / SQ_FT_PER_SQ_M) * 100) / 100;
 
@@ -332,10 +275,10 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
           </section>}
 
           {store.step === 2 && <section className="space-y-5">
-            <div><h2 className="text-xl font-bold text-slate-900">{isEs ? "2. Estimación satelital" : "2. Satellite estimate"}</h2><p className="mt-1 text-sm text-slate-600">{isEs ? "Estimación aproximada basada en la ubicación. Ajuste los pies cuadrados para reflejar el césped que se cortará." : "Approximate location-based estimate. Adjust the square footage to match the lawn area to be mowed."}</p></div>
-            <PropertySatellite address={store.address} latitude={store.latitude} longitude={store.longitude} isEs={isEs} polygon={polygon} parcelPolygon={parcelPolygon} />
+            <div><h2 className="text-xl font-bold text-slate-900">{isEs ? "2. Medición satelital automática" : "2. Automatic satellite measurement"}</h2><p className="mt-1 text-sm text-slate-600">{isEs ? "El sistema calcula automáticamente el jardín con Regrid y Turf, excluyendo la casa." : "The system automatically calculates the lawn with Regrid and Turf, excluding the house."}</p></div>
+            <PropertySatellite address={store.address} latitude={store.latitude} longitude={store.longitude} isEs={isEs} polygon={polygon} />
             <p className="font-bold text-emerald-900">{isEs ? "Área del jardín" : "Lawn area"}: {lawnAreaSqM.toLocaleString()} m² · {lawnAreaSqFt.toLocaleString()} ft²</p>
-            <div><Label htmlFor="quote-area">{isEs ? "Pies cuadrados estimados" : "Estimated square footage"}</Label><Input id="quote-area" type="number" min={500} max={250000} step={100} value={areaInput} onChange={(event) => updateArea(event.target.value)} className="mt-2 max-w-xs" /><FieldError>{errors.measurement}</FieldError></div>
+            <FieldError>{errors.measurement}</FieldError>
             <div className="rounded-lg bg-emerald-50 p-4 text-sm font-semibold text-emerald-950">{price !== null ? `$${price.toFixed(2)} / ${store.mowFrequency === "weekly" ? (isEs ? "semanal" : "weekly") : (isEs ? "quincenal" : "bi-weekly")}` : (isEs ? "Calculando tarifa…" : "Calculating rate…")}</div>
           </section>}
 
@@ -356,7 +299,7 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
           {store.step === 4 && <section className="space-y-6">
             <div className="grid gap-5 border-b border-emerald-100 pb-5 sm:grid-cols-[1fr_1fr]">
               <div><h2 className="text-2xl font-extrabold text-emerald-950">My Custom Lawn Mowing Plan</h2><p className="mt-3 text-2xl font-bold text-emerald-800">{price !== null ? `$${price.toFixed(2)} / ${store.mowFrequency === "weekly" ? (isEs ? "semanal" : "weekly") : (isEs ? "quincenal" : "bi-weekly")}` : ""}</p><p className="mt-2 text-sm text-slate-600">{store.address}</p></div>
-              <PropertySatellite address={store.address} latitude={store.latitude} longitude={store.longitude} isEs={isEs} compact polygon={polygon} parcelPolygon={parcelPolygon} />
+              <PropertySatellite address={store.address} latitude={store.latitude} longitude={store.longitude} isEs={isEs} compact polygon={polygon} />
             </div>
             <p className="font-bold text-emerald-900">{isEs ? "Área del jardín" : "Lawn area"}: {lawnAreaSqM.toLocaleString()} m² · {lawnAreaSqFt.toLocaleString()} ft²</p>
             <div className="grid gap-3 text-sm sm:grid-cols-2"><p><strong>{isEs ? "Frecuencia" : "Frequency"}:</strong> {store.mowFrequency === "weekly" ? (isEs ? "Semanal" : "Weekly") : (isEs ? "Quincenal" : "Bi-weekly")}</p><p><strong>{isEs ? "Día preferido" : "Preferred service day"}:</strong> {store.requestedDate || (isEs ? "Seleccione una fecha" : "Choose a date")}</p><p className="sm:col-span-2"><strong>{isEs ? "Trabajos" : "Services"}:</strong> {store.selectedServices.map((key) => { const service = SERVICES.find((item) => item.key === key); return service ? (isEs ? service.nameEs : service.nameEn) : key; }).join(", ")}</p><p><strong>{isEs ? "Cliente" : "Customer"}:</strong> {store.customerName}</p><p><strong>{isEs ? "Teléfono" : "Phone"}:</strong> {store.customerPhone}</p><p><strong>{isEs ? "Candado/portón" : "Lock/gate"}:</strong> {store.hasGateCode ? `${isEs ? "Sí" : "Yes"} · ${store.gateCode}` : (isEs ? "No" : "No")}</p><p><strong>{isEs ? "Notas" : "Notes"}:</strong> {store.additionalNotes || "—"}</p></div>
