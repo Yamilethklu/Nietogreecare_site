@@ -6,7 +6,15 @@ import { MapPin } from "lucide-react";
 import type { PolygonPoint } from "@/lib/types";
 import { GOOGLE_MAPS_API_KEY, loadGoogleMaps } from "@/lib/google-maps";
 
-type Props = { address: string; latitude: number | null; longitude: number | null; isEs: boolean; compact?: boolean; polygon?: PolygonPoint[][] };
+type Props = {
+  address: string;
+  latitude: number | null;
+  longitude: number | null;
+  isEs: boolean;
+  compact?: boolean;
+  polygon?: PolygonPoint[][];
+  parcelPolygon?: PolygonPoint[][];
+};
 
 function getOutline(paths?: PolygonPoint[][]): PolygonPoint[] | null {
   const points = paths?.flat().filter((point) => Number.isFinite(point.lat) && Number.isFinite(point.lng)) ?? [];
@@ -30,11 +38,11 @@ function getOutline(paths?: PolygonPoint[][]): PolygonPoint[] | null {
   ];
 }
 
-export function PropertySatellite({ address, latitude, longitude, isEs, compact = false, polygon }: Props) {
+export function PropertySatellite({ address, latitude, longitude, isEs, compact = false, polygon, parcelPolygon }: Props) {
   const container = React.useRef<HTMLDivElement>(null);
   const [available, setAvailable] = React.useState(false);
   const hasCoordinates = latitude !== null && longitude !== null && Number.isFinite(latitude) && Number.isFinite(longitude);
-  const outline = React.useMemo(() => getOutline(polygon), [polygon]);
+  const outline = React.useMemo(() => parcelPolygon?.[0] ?? getOutline(polygon), [parcelPolygon, polygon]);
 
   React.useEffect(() => {
     if (!hasCoordinates || !container.current) return;
@@ -51,8 +59,32 @@ export function PropertySatellite({ address, latitude, longitude, isEs, compact 
         fullscreenControl: false,
         gestureHandling: "cooperative",
       });
-      if (outline?.length) new window.google.maps.Polygon({ map, paths:outline, strokeColor:"#93ef22", strokeWeight:4, fillColor:"#22c55e", fillOpacity:0.18, clickable:false });
-      polygon?.forEach((path) => { if (path.length >= 3) new window.google.maps.Polygon({ map, paths:path, strokeColor:"#93ef22", strokeWeight:3, fillColor:"#5cd524", fillOpacity:0.38 }); });
+      if (outline?.length) {
+        new window.google.maps.Polygon({
+          map,
+          paths: outline,
+          strokeColor: "#74e600",
+          strokeOpacity: 0.95,
+          strokeWeight: 4,
+          fillColor: "#22c55e",
+          fillOpacity: 0.12,
+          clickable: false,
+        });
+      }
+      polygon?.forEach((path) => {
+        if (path.length >= 3) {
+          new window.google.maps.Polygon({
+            map,
+            paths: path,
+            strokeColor: "#93ef22",
+            strokeOpacity: 0.95,
+            strokeWeight: 3,
+            fillColor: "#42d624",
+            fillOpacity: 0.42,
+            clickable: false,
+          });
+        }
+      });
       new window.google.maps.Marker({ map, position, icon: "https://maps.google.com/mapfiles/ms/icons/red-dot.png" });
       setAvailable(true);
     });
@@ -60,7 +92,7 @@ export function PropertySatellite({ address, latitude, longitude, isEs, compact 
   }, [address, hasCoordinates, latitude, longitude, outline, polygon]);
 
   const staticUrl = hasCoordinates && GOOGLE_MAPS_API_KEY
-    ? `https://maps.googleapis.com/maps/api/staticmap?center=${latitude},${longitude}&zoom=19&size=640x420&scale=2&maptype=satellite&markers=color:red%7C${latitude},${longitude}&${outline?.length ? `path=fillcolor:0x22c55e2e%7Ccolor:0x93ef22ff%7Cweight:4%7C${outline.map((p) => `${p.lat},${p.lng}`).join("%7C")}%7C${outline[0].lat},${outline[0].lng}&` : ""}${polygon?.length ? polygon.map(path => `path=fillcolor:0x5cd52470%7Ccolor:0x93ef22ff%7Cweight:3%7C${path.map((p) => `${p.lat},${p.lng}`).join("%7C")}%7C${path[0].lat},${path[0].lng}&`).join("") : ""}key=${encodeURIComponent(GOOGLE_MAPS_API_KEY)}`
+    ? `https://maps.googleapis.com/maps/api/staticmap?center=${latitude},${longitude}&zoom=19&size=640x420&scale=2&maptype=satellite&markers=color:red%7C${latitude},${longitude}&${outline?.length ? `path=fillcolor:0x22c55e1f%7Ccolor:0x74e600ff%7Cweight:4%7C${outline.map((p) => `${p.lat},${p.lng}`).join("%7C")}%7C${outline[0].lat},${outline[0].lng}&` : ""}${polygon?.length ? polygon.map(path => `path=fillcolor:0x42d6246b%7Ccolor:0x93ef22ff%7Cweight:3%7C${path.map((p) => `${p.lat},${p.lng}`).join("%7C")}%7C${path[0].lat},${path[0].lng}&`).join("") : ""}key=${encodeURIComponent(GOOGLE_MAPS_API_KEY)}`
     : null;
 
   return (
