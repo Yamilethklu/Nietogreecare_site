@@ -40,12 +40,16 @@ async function getOverpassHouseFootprint(lat: number, lng: number): Promise<Area
     out geom;
   `;
 
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 4000);
+
   try {
     const response = await fetch("https://overpass-api.de/api/interpreter", {
       method: "POST",
       headers: { "Content-Type": "text/plain" },
       body: query,
       cache: "no-store",
+      signal: controller.signal,
     });
     if (!response.ok) return null;
     const payload = await response.json();
@@ -66,6 +70,8 @@ async function getOverpassHouseFootprint(lat: number, lng: number): Promise<Area
     return containing ?? candidates[0] ?? null;
   } catch {
     return null;
+  } finally {
+    clearTimeout(timeout);
   }
 }
 
