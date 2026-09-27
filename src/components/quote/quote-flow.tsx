@@ -54,7 +54,7 @@ const INVALID_LAWN_ERROR = "El área del jardín no es válida";
 function resolveMeasurementError(error: string | undefined, isEs: boolean) {
   switch (error) {
     case NO_PARCEL_ERROR:
-      return error;
+      return isEs ? error : "No parcel data is available for this address.";
     case LAWN_COMPUTE_ERROR:
       return isEs ? error : "Could not calculate the lawn area.";
     case INVALID_LAWN_ERROR:
