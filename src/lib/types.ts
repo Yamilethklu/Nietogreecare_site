@@ -22,6 +22,7 @@ export type QuoteMeasurement = {
   perimeterFt: number;
   polygon: PolygonPoint[];
   polygons?: PolygonPoint[][];
+  parcelPolygons?: PolygonPoint[][];
   polygonPath: string | null;
   bounds: MapBounds | null;
   center: PolygonPoint | null;
