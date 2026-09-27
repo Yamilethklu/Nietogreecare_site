@@ -138,7 +138,7 @@ export async function POST(request: Request) {
     const areaPies = areaMetros * 10.7639;
     const centro = turf.center(jardin).geometry.coordinates;
     if (!Number.isFinite(areaMetros) || areaMetros <= 0) {
-      return NextResponse.json({ error: INVALID_LAWN_ERROR, warning: house.warning }, { status: 422 });
+      return NextResponse.json({ error: LAWN_COMPUTE_ERROR, warning: house.warning }, { status: 422 });
     }
 
     return NextResponse.json({

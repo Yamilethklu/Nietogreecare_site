@@ -142,6 +142,7 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
         const areaSqFt = Number(payload.areaPies);
         const center = payload.centro && Number.isFinite(payload.centro.lat) && Number.isFinite(payload.centro.lng) ? payload.centro : null;
         if (!payload.ok || !polygons.length || !Number.isFinite(areaSqFt) || areaSqFt <= 0) {
+          setMeasurementWarning(payload.warning || "");
           setErrors((current) => ({
             ...current,
             measurement: resolveMeasurementError(payload.error, isEs),
