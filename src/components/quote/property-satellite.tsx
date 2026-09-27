@@ -53,13 +53,14 @@ export function PropertySatellite({ address, latitude, longitude, isEs, compact 
       });
       if (outline?.length) new window.google.maps.Polygon({ map, paths:outline, strokeColor:"#93ef22", strokeWeight:4, fillColor:"#22c55e", fillOpacity:0.18, clickable:false });
       polygon?.forEach((path) => { if (path.length >= 3) new window.google.maps.Polygon({ map, paths:path, strokeColor:"#93ef22", strokeWeight:3, fillColor:"#5cd524", fillOpacity:0.38 }); });
+      new window.google.maps.Marker({ map, position, icon: "https://maps.google.com/mapfiles/ms/icons/red-dot.png" });
       setAvailable(true);
     });
     return () => { cancelled = true; };
   }, [address, hasCoordinates, latitude, longitude, outline, polygon]);
 
   const staticUrl = hasCoordinates && GOOGLE_MAPS_API_KEY
-    ? `https://maps.googleapis.com/maps/api/staticmap?center=${latitude},${longitude}&zoom=19&size=640x420&scale=2&maptype=satellite&${outline?.length ? `path=fillcolor:0x22c55e2e%7Ccolor:0x93ef22ff%7Cweight:4%7C${outline.map((p) => `${p.lat},${p.lng}`).join("%7C")}%7C${outline[0].lat},${outline[0].lng}&` : ""}${polygon?.length ? polygon.map(path => `path=fillcolor:0x5cd52470%7Ccolor:0x93ef22ff%7Cweight:3%7C${path.map((p) => `${p.lat},${p.lng}`).join("%7C")}%7C${path[0].lat},${path[0].lng}&`).join("") : ""}key=${encodeURIComponent(GOOGLE_MAPS_API_KEY)}`
+    ? `https://maps.googleapis.com/maps/api/staticmap?center=${latitude},${longitude}&zoom=19&size=640x420&scale=2&maptype=satellite&markers=color:red%7C${latitude},${longitude}&${outline?.length ? `path=fillcolor:0x22c55e2e%7Ccolor:0x93ef22ff%7Cweight:4%7C${outline.map((p) => `${p.lat},${p.lng}`).join("%7C")}%7C${outline[0].lat},${outline[0].lng}&` : ""}${polygon?.length ? polygon.map(path => `path=fillcolor:0x5cd52470%7Ccolor:0x93ef22ff%7Cweight:3%7C${path.map((p) => `${p.lat},${p.lng}`).join("%7C")}%7C${path[0].lat},${path[0].lng}&`).join("") : ""}key=${encodeURIComponent(GOOGLE_MAPS_API_KEY)}`
     : null;
 
   return (
