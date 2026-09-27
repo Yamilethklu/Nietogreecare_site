@@ -150,6 +150,6 @@ export async function POST(request: Request) {
       warning: house.warning,
     });
   } catch {
-    return NextResponse.json({ error: LAWN_COMPUTE_ERROR }, { status: 502 });
+    return NextResponse.json({ error: "No se pudo obtener la geometría catastral de esta dirección." }, { status: 502 });
   }
 }

@@ -14,6 +14,9 @@ const NO_PARCEL_ERROR = "No hay datos catastrales para esta dirección";
 const LAWN_COMPUTE_ERROR = "No se pudo calcular el área del jardín";
 const INVALID_LAWN_ERROR = "El área del jardín no es válida";
 const APPROXIMATE_WARNING = "Aviso: la huella de la casa no está disponible, el área es aproximada";
+const LAWN_DETECTION_UNAVAILABLE = "lawn_detection_unavailable";
+const LAWN_DETECTION_FAILED = "lawn_detection_failed";
+const GEOCODE_NOT_FOUND = "geocode_not_found";
 
 function asFeature(value: any): AreaFeature | null {
   const geometry = value?.type === "Feature" ? value.geometry : value?.geometry ?? value;
@@ -98,7 +101,7 @@ export async function GET(request: Request) {
   const address = params.get("address")?.trim() ?? "";
 
   if (!address || !GOOGLE_KEY) {
-    return NextResponse.json({ ok: false, error: "missing_address_or_google_key" }, { status: 400 });
+    return NextResponse.json({ ok: false, error: LAWN_DETECTION_UNAVAILABLE }, { status: 400 });
   }
 
   const geocodeUrl = new URL("https://maps.googleapis.com/maps/api/geocode/json");
@@ -111,7 +114,7 @@ export async function GET(request: Request) {
   const location = result?.geometry?.location;
 
   if (!location || !Number.isFinite(location.lat) || !Number.isFinite(location.lng)) {
-    return NextResponse.json({ ok: false, error: "Google Maps no pudo geocodificar esta dirección." }, { status: 404 });
+    return NextResponse.json({ ok: false, error: GEOCODE_NOT_FOUND }, { status: 404 });
   }
 
   const latitude = Number(location.lat);
@@ -119,7 +122,7 @@ export async function GET(request: Request) {
   const formattedAddress = String(result.formatted_address ?? address);
 
   if (!REGRID_TOKEN) {
-    return NextResponse.json({ ok: false, error: LAWN_COMPUTE_ERROR, formattedAddress, latitude, longitude }, { status: 500 });
+    return NextResponse.json({ ok: false, error: LAWN_DETECTION_UNAVAILABLE, formattedAddress, latitude, longitude }, { status: 500 });
   }
 
   try {
@@ -181,6 +184,6 @@ export async function GET(request: Request) {
       longitude,
     });
   } catch {
-    return NextResponse.json({ ok: false, error: LAWN_COMPUTE_ERROR, formattedAddress, latitude, longitude }, { status: 500 });
+    return NextResponse.json({ ok: false, error: LAWN_DETECTION_FAILED, formattedAddress, latitude, longitude }, { status: 500 });
   }
 }

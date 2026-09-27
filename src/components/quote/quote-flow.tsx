@@ -47,6 +47,27 @@ type LawnDetectionResponse = {
 };
 
 const SQ_FT_PER_SQ_M = 10.7639;
+const NO_PARCEL_ERROR = "No hay datos catastrales para esta dirección";
+const LAWN_COMPUTE_ERROR = "No se pudo calcular el área del jardín";
+const INVALID_LAWN_ERROR = "El área del jardín no es válida";
+
+function resolveMeasurementError(error: string | undefined, isEs: boolean) {
+  switch (error) {
+    case NO_PARCEL_ERROR:
+      return error;
+    case LAWN_COMPUTE_ERROR:
+      return isEs ? error : "Could not calculate the lawn area.";
+    case INVALID_LAWN_ERROR:
+      return isEs ? error : "The lawn area is not valid.";
+    case "geocode_not_found":
+      return isEs ? "No se pudo geocodificar esta dirección." : "Could not geocode this address.";
+    case "lawn_detection_unavailable":
+    case "lawn_detection_failed":
+      return isEs ? LAWN_COMPUTE_ERROR : "Could not calculate the lawn area.";
+    default:
+      return error || (isEs ? LAWN_COMPUTE_ERROR : "Could not calculate the lawn area.");
+  }
+}
 
 function ringToPath(ring: number[][]): PolygonPoint[] {
   return ring
@@ -112,7 +133,7 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
     void fetch(`/api/lawn-detect?address=${encodeURIComponent(store.formattedAddress || store.address)}`, { cache: "no-store" })
       .then(async (response) => {
         const payload = (await response.json().catch(() => ({}))) as LawnDetectionResponse;
-        if (!response.ok) throw new Error(payload.error || (isEs ? "No se pudo calcular el área del jardín" : "Could not calculate the lawn area."));
+        if (!response.ok) throw new Error(resolveMeasurementError(payload.error, isEs));
         return payload;
       })
       .then((payload) => {
@@ -123,7 +144,7 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
         if (!payload.ok || !polygons.length || !Number.isFinite(areaSqFt) || areaSqFt <= 0) {
           setErrors((current) => ({
             ...current,
-            measurement: payload.error || (isEs ? "No se pudo calcular el área del jardín" : "Could not calculate the lawn area."),
+            measurement: resolveMeasurementError(payload.error, isEs),
           }));
           return;
         }
@@ -141,7 +162,7 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
       })
       .catch((error: unknown) => {
         if (!cancelled) {
-          const message = error instanceof Error && error.message ? error.message : "No se pudo calcular el área del jardín";
+          const message = error instanceof Error && error.message ? error.message : resolveMeasurementError(undefined, isEs);
           setErrors((current) => ({
             ...current,
             measurement: message,
