@@ -149,9 +149,13 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
   }, [store, store.paymentMethod, store.setPaymentMethod]);
 
   React.useEffect(() => {
-    if (gateAnswer || (!store.hasGateCode && !store.requestedDate && store.step <= 5)) return;
-    setGateAnswer(store.hasGateCode ? "yes" : "no");
-  }, [gateAnswer, store, store.hasGateCode, store.requestedDate, store.step]);
+    if (store.step !== 5 || gateAnswer) return;
+    if (store.hasGateCode) {
+      setGateAnswer("yes");
+      return;
+    }
+    if (store.completedSteps.includes(5)) setGateAnswer("no");
+  }, [gateAnswer, store.completedSteps, store.hasGateCode, store.step]);
 
   React.useEffect(() => {
     if (store.step !== 2 || store.measurement || store.latitude == null || store.longitude == null) return;
@@ -336,7 +340,7 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
         `${isEs ? "Día preferido" : "Preferred day"}: ${submitted.requestedDate}`,
         `${isEs ? "Cliente" : "Customer"}: ${submitted.customerName}`,
         `${isEs ? "Teléfono" : "Phone"}: ${submitted.customerPhone}`,
-        `${isEs ? "Candado/portón" : "Lock/gate"}: ${submitted.hasGateCode ? `${isEs ? "Sí" : "Yes"} (${submitted.gateCode})` : "No"}`,
+        `${isEs ? "Candado/portón" : "Lock/gate"}: ${submitted.hasGateCode ? `${isEs ? "Sí" : "Yes"} (${submitted.gateCode})` : (isEs ? "No" : "No")}`,
         `${isEs ? "Pago" : "Payment"}: ${submitted.paymentMethod === "venmo" ? "Venmo" : submitted.paymentMethod === "cash_app" ? "Cash App" : "Zelle"}`,
         submitted.additionalNotes.trim() ? `${isEs ? "Notas" : "Notes"}: ${submitted.additionalNotes.trim()}` : "",
       ].filter(Boolean).join("\n");
