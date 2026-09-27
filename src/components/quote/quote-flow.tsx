@@ -14,7 +14,7 @@ import { FieldError, Input, Label, Textarea } from "@/components/ui/input";
 import { BUSINESS, SERVICES, ZIP_CITY_MAP } from "@/lib/constants";
 import { matchMowRate, type MowRate } from "@/lib/instant-pricing";
 import { getCoverageCitiesForWeekday } from "@/lib/service-schedule";
-import { formatZodErrors, step1Schema, step7Schema } from "@/lib/validation";
+import { formatZodErrors, phoneSchema, step1Schema } from "@/lib/validation";
 import type { LawnGeoJsonGeometry, PaymentMethod, PolygonPoint } from "@/lib/types";
 import { buildMeasurement, pickSubmissionFields, TOTAL_STEPS, useQuoteStore, type QuoteStore } from "@/store/quote-store";
 
@@ -136,6 +136,11 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
   }, [store.paymentMethod, store.setPaymentMethod]);
 
   React.useEffect(() => {
+    if (gateAnswer || (!store.hasGateCode && !store.requestedDate && store.step <= 5)) return;
+    setGateAnswer(store.hasGateCode ? "yes" : "no");
+  }, [gateAnswer, store.hasGateCode, store.requestedDate, store.step]);
+
+  React.useEffect(() => {
     if (store.step !== 2 || store.measurement || store.latitude == null || store.longitude == null) return;
     let cancelled = false;
     setErrors((current) => ({ ...current, measurement: "" }));
@@ -200,6 +205,9 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
 
   const rate = matchMowRate(rates, store.measurement?.areaSqFt ?? 0, store.mowFrequency);
   const price = rate ? Number(rate.price) : null;
+  const frequencyLabel = store.mowFrequency === "weekly"
+    ? (isEs ? "Atención continua" : "Continuous attention")
+    : (isEs ? "Servicio quincenal" : "Biweekly service");
   const resolveCoordinates = async () => {
     const current = useQuoteStore.getState();
     if (current.latitude != null && current.longitude != null) return true;
@@ -244,11 +252,22 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
       return;
     }
     if (current.step === 3) {
-      const result = step7Schema.safeParse(current);
-      if (!result.success || !gateAnswer) {
-        if (result.success) setErrors({ hasGateCode: isEs ? "Indique si el patio tiene candado o portón." : "Choose whether the yard has a lock or gate." });
-        else setErrors(formatZodErrors(result.error));
+      const nextErrors: Record<string, string> = {};
+      if (current.customerName.trim().length < 2) nextErrors.customerName = isEs ? "Ingrese su nombre completo." : "Enter your full name.";
+      if (!phoneSchema.safeParse(current.customerPhone).success) nextErrors.customerPhone = isEs ? "Ingrese un telefono valido de 10 digitos." : "Enter a valid 10-digit phone number.";
+      if (Object.keys(nextErrors).length > 0) {
+        setErrors(nextErrors);
         toast({ title: isEs ? "Complete los datos requeridos" : "Complete the required details", variant: "error" });
+        return;
+      }
+    }
+    if (current.step === 5) {
+      if (!gateAnswer) {
+        setErrors({ hasGateCode: isEs ? "Indique si el patio tiene candado o portón." : "Choose whether the yard has a lock or gate." });
+        return;
+      }
+      if (current.hasGateCode && !current.gateCode.trim()) {
+        setErrors({ gateCode: isEs ? "Indique el código del candado o acceso." : "Enter the lock or gate code." });
         return;
       }
     }
@@ -296,8 +315,8 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
         `Folio: ${referenceCode}`,
         `Dirección: ${submitted.address}`,
         `Área de césped: ${Math.round(submitted.measurement?.areaSqFt ?? 0).toLocaleString()} sq ft`,
-        `Tarifa: $${Number(payload.data?.price ?? price).toFixed(2)} / ${submitted.mowFrequency === "weekly" ? "weekly" : "bi-weekly"}`,
-        `Frecuencia: ${submitted.mowFrequency === "weekly" ? (isEs ? "Semanal" : "Weekly") : (isEs ? "Quincenal" : "Bi-weekly")}`,
+        `Tarifa: $${Number(payload.data?.price ?? price).toFixed(2)} / ${submitted.mowFrequency === "weekly" ? (isEs ? "Atención continua" : "Continuous attention") : (isEs ? "Servicio quincenal" : "Biweekly service")}`,
+        `Frecuencia: ${submitted.mowFrequency === "weekly" ? (isEs ? "Atención continua" : "Continuous attention") : (isEs ? "Servicio quincenal" : "Biweekly service")}`,
         `Estado de propiedad: ${submitted.propertyOccupancy === "occupied" ? (isEs ? "Ocupada" : "Occupied") : (isEs ? "Vacante" : "Vacant")}`,
         `Zona de corte: ${submitted.areaSelection === "front_back" ? (isEs ? "Frente y trasera" : "Front and back") : submitted.areaSelection === "front_only" ? (isEs ? "Solo delantera" : "Front only") : (isEs ? "Solo trasera" : "Back only")}`,
         `Trabajos: ${jobNames.join(", ")}`,
@@ -308,9 +327,10 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
         `Pago: ${submitted.paymentMethod === "venmo" ? "Venmo" : submitted.paymentMethod === "cash_app" ? "Cash App" : "Zelle"}`,
         submitted.additionalNotes.trim() ? `Notas: ${submitted.additionalNotes.trim()}` : "",
       ].filter(Boolean).join("\n");
-      const smsUrl = `${BUSINESS.smsHref}?body=${encodeURIComponent(smsBody)}`;
       submitted.markSubmitted();
-      window.location.href = smsUrl;
+      const smsUrl = `${BUSINESS.smsHref}?body=${encodeURIComponent(smsBody)}`;
+      const smsWindow = window.open(smsUrl, "_blank", "noopener");
+      if (!smsWindow) window.location.href = smsUrl;
     } catch (error) {
       toast({ title: error instanceof Error ? error.message : (isEs ? "Error al enviar" : "Could not submit"), variant: "error" });
     } finally {
@@ -352,10 +372,10 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
             <div><h2 className="text-xl font-bold text-slate-900">{isEs ? "2. Estimación y mapa satelital automático" : "2. Automatic estimate and satellite map"}</h2><p className="mt-1 text-sm text-slate-600">{isEs ? "El sistema calcula automáticamente el jardín, excluyendo la casa." : "The system automatically calculates the lawn area excluding the house."}</p></div>
             {measurementLoading && <p className="rounded-lg bg-slate-100 px-4 py-3 text-sm font-semibold text-slate-700">{isEs ? "Analizando tu propiedad por satélite..." : "Analyzing your property by satellite..."}</p>}
             <PropertySatellite address={store.address} latitude={store.latitude} longitude={store.longitude} isEs={isEs} polygon={polygon} geometry={lawnGeometry} center={markerCenter} loadingText={isEs ? "Analizando tu propiedad por satélite..." : "Analyzing your property by satellite..."} />
-            <p className="font-bold text-emerald-900">{isEs ? "Área del jardín" : "Lawn area"}: {lawnAreaSqM.toLocaleString()} m² · {lawnAreaSqFt.toLocaleString()} ft²</p>
+            <p className="font-bold text-emerald-900">{isEs ? `Área de césped calculada automáticamente: ${lawnAreaSqM.toLocaleString()} m² (${lawnAreaSqFt.toLocaleString()} ft²)` : `Automatically calculated lawn area: ${lawnAreaSqM.toLocaleString()} m² (${lawnAreaSqFt.toLocaleString()} ft²)`}</p>
             <FieldError>{errors.measurement}</FieldError>
             {measurementWarning && <div className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900">{measurementWarning}</div>}
-            <div className="rounded-lg bg-emerald-50 p-4 text-sm font-semibold text-emerald-950">{price !== null ? `$${price.toFixed(2)} / ${store.mowFrequency === "weekly" ? (isEs ? "semanal" : "weekly") : (isEs ? "quincenal" : "bi-weekly")}` : (isEs ? "Calculando tarifa…" : "Calculating rate…")}</div>
+            <div className="rounded-lg bg-emerald-50 p-4 text-sm font-semibold text-emerald-950">{price !== null ? `$${price.toFixed(2)} / ${frequencyLabel}` : (isEs ? "Calculando tarifa…" : "Calculating rate…")}</div>
           </section>}
 
           {store.step === 3 && <section className="space-y-6">
@@ -368,20 +388,19 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
               <div><Label htmlFor="quote-customer-name">{isEs ? "Nombre completo *" : "Full name *"}</Label><Input id="quote-customer-name" required value={store.customerName} onChange={(event) => store.setPersonal({ customerName: event.target.value, firstName: event.target.value, lastName: "" })} className="mt-2" /><FieldError>{errors.customerName}</FieldError></div>
               <div><Label htmlFor="quote-customer-phone">{isEs ? "Teléfono *" : "Phone *"}</Label><Input id="quote-customer-phone" required type="tel" value={store.customerPhone} onChange={(event) => store.setPersonal({ customerPhone: event.target.value })} className="mt-2" /><FieldError>{errors.customerPhone}</FieldError></div>
             </div>
-            <fieldset><legend className="text-sm font-semibold text-slate-800">{isEs ? "¿El patio tiene candado o portón? *" : "Does the yard have a lock or gate? *"}</legend><div className="mt-2 flex gap-3">{(["yes", "no"] as const).map((answer) => <button key={answer} type="button" aria-pressed={gateAnswer === answer} onClick={() => { setGateAnswer(answer); store.setGate(answer === "yes", answer === "yes" ? store.gateCode : ""); }} className={`rounded-lg border px-5 py-2 font-semibold ${gateAnswer === answer ? "border-emerald-700 bg-emerald-700 text-white" : "border-slate-300 bg-white text-slate-800"}`}>{answer === "yes" ? (isEs ? "Sí" : "Yes") : (isEs ? "No" : "No")}</button>)}</div><FieldError>{errors.hasGateCode}</FieldError>{store.hasGateCode && <div className="mt-3 max-w-sm"><Label htmlFor="quote-gate-code">{isEs ? "Código o número del candado *" : "Gate or lock code *"}</Label><Input id="quote-gate-code" required value={store.gateCode} onChange={(event) => store.setGate(true, event.target.value)} className="mt-2" /><FieldError>{errors.gateCode}</FieldError></div>}</fieldset>
             <div><Label htmlFor="quote-notes">{isEs ? "Comentarios / notas de la obra" : "Work comments / notes"}</Label><Textarea id="quote-notes" rows={3} maxLength={2000} value={store.additionalNotes} onChange={(event) => store.setPersonal({ additionalNotes: event.target.value })} className="mt-2" /></div>
           </section>}
 
           {store.step === 4 && <section className="space-y-6">
             <div>
-              <h2 className="text-xl font-bold text-slate-900">{isEs ? "4. Opciones de servicio y frecuencia" : "4. Service options and frequency"}</h2>
+              <h2 className="text-xl font-bold text-slate-900">{isEs ? "4. Detalles específicos de la solicitud" : "4. Request-specific details"}</h2>
             </div>
             <div className="grid gap-4 sm:grid-cols-3">
               <div>
-                <p className="text-sm font-semibold text-slate-800">{isEs ? "Frecuencia" : "Frequency"}</p>
+                <p className="text-sm font-semibold text-slate-800">{isEs ? "Frecuencia / continuidad" : "Frequency / continuity"}</p>
                 <div className="mt-2 space-y-2">
-                  <button type="button" aria-pressed={store.mowFrequency === "weekly"} onClick={() => store.setLawnOptions({ mowFrequency: "weekly" })} className={`w-full rounded-lg border px-3 py-2 text-left text-sm font-semibold ${store.mowFrequency === "weekly" ? "border-emerald-700 bg-emerald-50 text-emerald-900" : "border-slate-200 bg-white text-slate-700"}`}>{isEs ? "Semanal" : "Weekly"}</button>
-                  <button type="button" aria-pressed={store.mowFrequency === "bi_weekly"} onClick={() => store.setLawnOptions({ mowFrequency: "bi_weekly" })} className={`w-full rounded-lg border px-3 py-2 text-left text-sm font-semibold ${store.mowFrequency === "bi_weekly" ? "border-emerald-700 bg-emerald-50 text-emerald-900" : "border-slate-200 bg-white text-slate-700"}`}>{isEs ? "Quincenal" : "Bi-weekly"}</button>
+                  <button type="button" aria-pressed={store.mowFrequency === "weekly"} onClick={() => store.setLawnOptions({ mowFrequency: "weekly" })} className={`w-full rounded-lg border px-3 py-2 text-left text-sm font-semibold ${store.mowFrequency === "weekly" ? "border-emerald-700 bg-emerald-50 text-emerald-900" : "border-slate-200 bg-white text-slate-700"}`}>{isEs ? "Atención continua" : "Continuous attention"}</button>
+                  <button type="button" aria-pressed={store.mowFrequency === "bi_weekly"} onClick={() => store.setLawnOptions({ mowFrequency: "bi_weekly" })} className={`w-full rounded-lg border px-3 py-2 text-left text-sm font-semibold ${store.mowFrequency === "bi_weekly" ? "border-emerald-700 bg-emerald-50 text-emerald-900" : "border-slate-200 bg-white text-slate-700"}`}>{isEs ? "Servicio quincenal" : "Biweekly service"}</button>
                 </div>
               </div>
               <div>
@@ -404,17 +423,23 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
 
           {store.step === 5 && <section className="space-y-6">
             <div><h2 className="text-xl font-bold text-slate-900">{isEs ? "5. Calendario y cobertura por ciudad" : "5. Calendar and city coverage"}</h2><p className="mt-1 text-sm text-slate-600">{isEs ? `Ciudad detectada: ${store.city || "Sin ciudad"} · Seleccione un día disponible.` : `Detected city: ${store.city || "No city"} · Select an available day.`}</p></div>
+            <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-950">
+              <p>Lunes y Martes: Liberty Hill, Georgetown.</p>
+              <p>Miércoles: Leander, Cedar Park, Georgetown, Liberty Hill.</p>
+              <p>Jueves y Viernes: Hutto, Round Rock, Georgetown, Liberty Hill, Leander.</p>
+            </div>
             {store.city.trim() ? <MowingCalendar selected={store.requestedDate} city={store.city} isEs={isEs} onSelect={(date) => store.setSchedule(date, store.requestedTimeWindow ?? "08:00 - 18:00")} price={price} /> : <div className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900">{isEs ? "Primero confirme una dirección con ciudad válida en el Paso 1 para habilitar el calendario." : "Please confirm an address with a valid city in Step 1 to unlock the calendar."}</div>}
+            <fieldset><legend className="text-sm font-semibold text-slate-800">{isEs ? "¿Acceso con candado o portón? *" : "Lock or gate access? *"}</legend><div className="mt-2 flex gap-3">{(["yes", "no"] as const).map((answer) => <button key={answer} type="button" aria-pressed={gateAnswer === answer} onClick={() => { setGateAnswer(answer); store.setGate(answer === "yes", answer === "yes" ? store.gateCode : ""); setErrors((current) => ({ ...current, hasGateCode: "", gateCode: "" })); }} className={`rounded-lg border px-5 py-2 font-semibold ${gateAnswer === answer ? "border-emerald-700 bg-emerald-700 text-white" : "border-slate-300 bg-white text-slate-800"}`}>{answer === "yes" ? (isEs ? "Sí" : "Yes") : (isEs ? "No" : "No")}</button>)}</div><FieldError>{errors.hasGateCode}</FieldError>{store.hasGateCode && <div className="mt-3 max-w-sm"><Label htmlFor="quote-gate-code">{isEs ? "Código o número del candado *" : "Lock or gate code *"}</Label><Input id="quote-gate-code" required inputMode="numeric" value={store.gateCode} onChange={(event) => { store.setGate(true, event.target.value.replace(/[^\d]/g, "")); setErrors((current) => ({ ...current, gateCode: "" })); }} className="mt-2" /><FieldError>{errors.gateCode}</FieldError></div>}</fieldset>
             <FieldError>{errors.requestedDate}</FieldError>
           </section>}
 
           {store.step === 6 && <section className="space-y-6">
             <div className="grid gap-5 border-b border-emerald-100 pb-5 sm:grid-cols-[1fr_1fr]">
-              <div><h2 className="text-2xl font-extrabold text-emerald-950">My Custom Lawn Mowing Plan</h2><p className="mt-3 text-2xl font-bold text-emerald-800">{price !== null ? `$${price.toFixed(2)} / ${store.mowFrequency === "weekly" ? (isEs ? "semanal" : "weekly") : (isEs ? "quincenal" : "bi-weekly")}` : ""}</p><p className="mt-2 text-sm text-slate-600">{store.address}</p></div>
+              <div><h2 className="text-2xl font-extrabold text-emerald-950">My Custom Lawn Mowing Plan</h2><p className="mt-3 text-2xl font-bold text-emerald-800">{price !== null ? `$${price.toFixed(2)} / ${frequencyLabel}` : ""}</p><p className="mt-2 text-sm text-slate-600">{store.address}</p></div>
               <PropertySatellite address={store.address} latitude={store.latitude} longitude={store.longitude} isEs={isEs} compact polygon={polygon} geometry={lawnGeometry} center={markerCenter} />
             </div>
             <p className="font-bold text-emerald-900">{isEs ? "Pies cuadrados de césped" : "Lawn square footage"}: {lawnAreaSqFt.toLocaleString()} sq ft</p>
-            <div className="grid gap-3 text-sm sm:grid-cols-2"><p><strong>{isEs ? "Frecuencia" : "Frequency"}:</strong> {store.mowFrequency === "weekly" ? (isEs ? "Semanal" : "Weekly") : (isEs ? "Quincenal" : "Bi-weekly")}</p><p><strong>{isEs ? "Día elegido" : "Chosen day"}:</strong> {store.requestedDate || (isEs ? "Seleccione una fecha" : "Choose a date")}</p><p><strong>{isEs ? "Estado de propiedad" : "Property state"}:</strong> {store.propertyOccupancy === "occupied" ? (isEs ? "Ocupada" : "Occupied") : (isEs ? "Vacante" : "Vacant")}</p><p><strong>{isEs ? "Zona de corte" : "Cut area"}:</strong> {store.areaSelection === "front_back" ? (isEs ? "Frente y trasera" : "Front and back") : store.areaSelection === "front_only" ? (isEs ? "Solo delantera" : "Front only") : (isEs ? "Solo trasera" : "Back only")}</p><p className="sm:col-span-2"><strong>{isEs ? "Trabajos adicionales" : "Additional services"}:</strong> {store.selectedServices.map((key) => { const service = SERVICES.find((item) => item.key === key); return service ? (isEs ? service.nameEs : service.nameEn) : key; }).join(", ")}</p><p><strong>{isEs ? "Cliente" : "Customer"}:</strong> {store.customerName}</p><p><strong>{isEs ? "Teléfono" : "Phone"}:</strong> {store.customerPhone}</p><p><strong>{isEs ? "Candado/portón" : "Lock/gate"}:</strong> {store.hasGateCode ? `${isEs ? "Sí" : "Yes"} · ${store.gateCode}` : (isEs ? "No" : "No")}</p><p><strong>{isEs ? "Notas" : "Notes"}:</strong> {store.additionalNotes || "—"}</p></div>
+            <div className="grid gap-3 text-sm sm:grid-cols-2"><p><strong>{isEs ? "Frecuencia" : "Frequency"}:</strong> {frequencyLabel}</p><p><strong>{isEs ? "Día elegido" : "Chosen day"}:</strong> {store.requestedDate || (isEs ? "Seleccione una fecha" : "Choose a date")}</p><p><strong>{isEs ? "Estado de propiedad" : "Property state"}:</strong> {store.propertyOccupancy === "occupied" ? (isEs ? "Ocupada" : "Occupied") : (isEs ? "Vacante" : "Vacant")}</p><p><strong>{isEs ? "Zona de corte" : "Cut area"}:</strong> {store.areaSelection === "front_back" ? (isEs ? "Frente y trasera" : "Front and back") : store.areaSelection === "front_only" ? (isEs ? "Solo delantera" : "Front only") : (isEs ? "Solo trasera" : "Back only")}</p><p className="sm:col-span-2"><strong>{isEs ? "Trabajos adicionales" : "Additional services"}:</strong> {store.selectedServices.map((key) => { const service = SERVICES.find((item) => item.key === key); return service ? (isEs ? service.nameEs : service.nameEn) : key; }).join(", ")}</p><p><strong>{isEs ? "Cliente" : "Customer"}:</strong> {store.customerName}</p><p><strong>{isEs ? "Teléfono" : "Phone"}:</strong> {store.customerPhone}</p><p><strong>{isEs ? "Candado/portón" : "Lock/gate"}:</strong> {store.hasGateCode ? `${isEs ? "Sí" : "Yes"} · ${store.gateCode}` : (isEs ? "No" : "No")}</p><p><strong>{isEs ? "Notas" : "Notes"}:</strong> {store.additionalNotes || "—"}</p></div>
             <div className="rounded-lg bg-slate-50 p-4"><p className="text-sm font-bold text-emerald-900">{isEs ? "Incluido en cada corte" : "Included with each mow"}</p><p className="mt-2 text-sm text-slate-700">Mow lawn · Line trim · Edge · Blow debris</p></div>
           </section>}
 
@@ -427,8 +452,8 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
               </select>
               <div className="mt-3 flex flex-wrap gap-3"><a href={BUSINESS.venmoUrl} target="_blank" rel="noreferrer" className="rounded-lg border border-slate-200 bg-white px-3 py-2 font-semibold text-slate-900">Venmo · {BUSINESS.venmoUrl}</a><a href={BUSINESS.cashAppUrl} target="_blank" rel="noreferrer" className="rounded-lg border border-slate-200 bg-white px-3 py-2 font-semibold text-slate-900">Cash App · {BUSINESS.cashAppTag}</a><span className="rounded-lg border border-slate-200 bg-white px-3 py-2 font-semibold text-slate-900">Zelle · {BUSINESS.zellePhoneDisplay}</span></div>
             </div>
-            <div className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-900">{isEs ? "NOTA IMPORTANTE: Siempre que envíe su pago, asegúrese de poner su dirección en la nota del pago." : "IMPORTANT NOTE: When you send your payment, make sure to include your address in the payment note."}</div>
-            <p className="text-sm text-slate-600">{isEs ? "Al confirmar, se guarda la solicitud en Supabase y se abre el SMS nativo para enviar el resumen completo al propietario." : "On confirm, your request is saved to Supabase and the native SMS app opens with the full summary for the owner."}</p>
+            <div className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-900">NOTA IMPORTANTE: Siempre que envíe su pago, asegúrese de poner su dirección en la nota del pago.</div>
+            <p className="text-sm text-slate-600">{isEs ? "Al confirmar, se guarda la solicitud en Supabase y se prepara el SMS consolidado para el propietario." : "When you confirm, your request is saved to Supabase and the consolidated SMS for the owner is prepared."}</p>
           </section>}
 
           <div className="flex justify-between gap-3 border-t border-slate-200 pt-5">
@@ -539,5 +564,5 @@ function MowingCalendar({ selected, city, isEs, onSelect, price }: { selected: s
 
 function Confirmation({ isEs, store, price, onReset }: { isEs: boolean; store: QuoteStore; price: number | null; onReset: () => void }) {
   const smsBody = `${BUSINESS.name} - Folio ${store.referenceCode ?? ""}\n${store.address}\n${store.customerName} · ${store.customerPhone}`;
-  return <Card className="mx-auto max-w-2xl space-y-5 p-8 text-center"><CardContent className="space-y-5"><ShieldCheck className="mx-auto size-14 text-emerald-700" /><h1 className="text-2xl font-extrabold text-slate-950">{isEs ? "¡Muchas gracias por su preferencia! Su solicitud ha sido procesada." : "Thank you! Your request has been processed."}</h1><p className="text-sm text-slate-600">{isEs ? "La solicitud se guardó. Envíe el mensaje para contactar al propietario." : "Your request was saved. Send the text to contact the owner."}</p><p className="text-xl font-bold text-emerald-800">{price !== null ? `$${price.toFixed(2)} / ${store.mowFrequency === "weekly" ? "weekly" : "bi-weekly"}` : ""}</p><a href={`${BUSINESS.smsHref}?body=${encodeURIComponent(smsBody)}`} className="inline-flex items-center rounded-lg bg-emerald-700 px-4 py-3 font-bold text-white"><MessageSquare className="mr-2 size-4" />{isEs ? "Enviar SMS al propietario" : "Text the owner"}</a><div><Button variant="outline" onClick={onReset}><CheckCircle2 className="mr-2 size-4" />{isEs ? "Nueva cotización" : "New quote"}</Button></div></CardContent></Card>;
+  return <Card className="mx-auto max-w-2xl space-y-5 p-8 text-center"><CardContent className="space-y-5"><ShieldCheck className="mx-auto size-14 text-emerald-700" /><h1 className="text-2xl font-extrabold text-slate-950">{isEs ? "¡Muchas gracias por su preferencia! Su solicitud ha sido procesada." : "Thank you! Your request has been processed."}</h1><p className="text-sm text-slate-600">{isEs ? "La solicitud se guardó en Supabase y el SMS al propietario ya está listo con el resumen consolidado." : "Your request was saved to Supabase and the owner's SMS is ready with the consolidated summary."}</p><p className="text-xl font-bold text-emerald-800">{price !== null ? `$${price.toFixed(2)} / ${store.mowFrequency === "weekly" ? "weekly" : "bi-weekly"}` : ""}</p><a href={`${BUSINESS.smsHref}?body=${encodeURIComponent(smsBody)}`} className="inline-flex items-center rounded-lg bg-emerald-700 px-4 py-3 font-bold text-white"><MessageSquare className="mr-2 size-4" />{isEs ? "Abrir SMS al propietario" : "Open owner SMS"}</a><div><Button variant="outline" onClick={onReset}><CheckCircle2 className="mr-2 size-4" />{isEs ? "Nueva cotización" : "New quote"}</Button></div></CardContent></Card>;
 }

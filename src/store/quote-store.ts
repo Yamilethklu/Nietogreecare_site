@@ -394,6 +394,7 @@ export function pickSubmissionFields(state: QuoteStore) {
     depthInches: 2,
     polygon: state.measurement?.polygon ?? [],
     polygons: state.measurement?.polygons ?? (state.measurement?.polygon ? [state.measurement.polygon] : []),
+    gardenGeometry: state.measurement?.lawnGeometry,
     polygonPath: state.measurement?.polygonPath ?? null,
     snapshotUrl: null,
     mapBounds: state.measurement?.bounds ?? null,
