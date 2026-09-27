@@ -72,30 +72,6 @@ function rectangleFootprint(latitude: number, longitude: number): GeoJsonPolygon
   return { type: "Polygon", coordinates: [ring] };
 }
 
-function fallbackLawn(latitude: number, longitude: number) {
-  const feetPerLatitudeDegree = 364000;
-  const feetToLat = (feet: number) => feet / feetPerLatitudeDegree;
-  const feetToLng = (feet: number) => feet / (feetPerLatitudeDegree * Math.cos((latitude * Math.PI) / 180));
-  const rect = (south: number, west: number, north: number, east: number) => [
-    { lat: latitude + feetToLat(south), lng: longitude + feetToLng(west) },
-    { lat: latitude + feetToLat(south), lng: longitude + feetToLng(east) },
-    { lat: latitude + feetToLat(north), lng: longitude + feetToLng(east) },
-    { lat: latitude + feetToLat(north), lng: longitude + feetToLng(west) },
-  ];
-  const polygons = [
-    rect(28, -62, 76, 62),
-    rect(-76, -62, -34, -12),
-    rect(-76, 12, -34, 62),
-    rect(-34, -62, 24, -30),
-    rect(-34, 30, 24, 62),
-  ];
-  const parcelPolygons = [
-    rect(-82, -68, 82, 68),
-  ];
-  const areaSqFt = polygons.reduce((total, path) => total + turf.area(turf.polygon([[...path.map((p) => [p.lng, p.lat]), [path[0].lng, path[0].lat]]])) * SQ_M_TO_SQ_FT, 0);
-  return { polygons, parcelPolygons, areaSqM: areaSqFt / SQ_M_TO_SQ_FT, areaSqFt };
-}
-
 export async function GET(request: Request) {
   const params = new URL(request.url).searchParams;
   const address = params.get("address")?.trim() ?? "";
@@ -121,10 +97,7 @@ export async function GET(request: Request) {
   const longitude = Number(location.lng);
   const formattedAddress = String(result.formatted_address ?? address);
 
-  if (!REGRID_TOKEN) {
-    const fallback = fallbackLawn(latitude, longitude);
-    return NextResponse.json({ ok: true, source: "fallback", formattedAddress, latitude, longitude, ...fallback });
-  }
+  if (!REGRID_TOKEN) return NextResponse.json({ ok: false, error: "missing_regrid_token", formattedAddress, latitude, longitude }, { status: 500 });
 
   try {
     const regridUrl = new URL("https://app.regrid.com/api/v2/parcels");
@@ -137,30 +110,29 @@ export async function GET(request: Request) {
     const parcelGeometry = getGeometry(regrid);
     const buildingGeometry = getBuildingGeometry(regrid);
 
-    if (!parcelGeometry) {
-      const fallback = fallbackLawn(latitude, longitude);
-      return NextResponse.json({ ok: true, source: "fallback_no_parcel", formattedAddress, latitude, longitude, ...fallback });
-    }
+    if (!parcelGeometry) return NextResponse.json({ ok: false, error: "parcel_not_found", formattedAddress, latitude, longitude }, { status: 404 });
 
     const parcel = turf.feature(parcelGeometry as any);
     const house = turf.feature((buildingGeometry ?? rectangleFootprint(latitude, longitude)) as any);
-    const lawn = turf.difference(turf.featureCollection([parcel as any, house as any]) as any);
-    const geometry = (lawn?.geometry ?? parcel.geometry) as GeoJsonGeometry;
+    const jardin = turf.difference(turf.featureCollection([parcel as any, house as any]) as any);
+    if (!jardin?.geometry) return NextResponse.json({ ok: false, error: "lawn_difference_failed", formattedAddress, latitude, longitude }, { status: 422 });
+    const geometry = jardin.geometry as GeoJsonGeometry;
     const areaSqM = turf.area(geometry as any);
+    const polygons = geometryToPolygons(geometry);
+    if (!polygons.length || areaSqM <= 0) return NextResponse.json({ ok: false, error: "lawn_area_empty", formattedAddress, latitude, longitude }, { status: 422 });
 
     return NextResponse.json({
       ok: true,
-      source: lawn ? "regrid_minus_placeholder_house" : "regrid_parcel",
+      source: buildingGeometry ? "regrid_minus_building" : "regrid_minus_placeholder_house",
       formattedAddress,
       latitude,
       longitude,
-      parcelPolygons: geometryToPolygons(parcelGeometry),
-      polygons: geometryToPolygons(geometry),
+      hasBuildingFootprint: Boolean(buildingGeometry),
+      polygons,
       areaSqM,
       areaSqFt: areaSqM * SQ_M_TO_SQ_FT,
     });
   } catch {
-    const fallback = fallbackLawn(latitude, longitude);
-    return NextResponse.json({ ok: true, source: "fallback_error", formattedAddress, latitude, longitude, ...fallback });
+    return NextResponse.json({ ok: false, error: "lawn_detection_failed", formattedAddress, latitude, longitude }, { status: 500 });
   }
 }
