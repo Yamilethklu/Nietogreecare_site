@@ -32,7 +32,8 @@ export const BUSINESS = {
   venmoHandle: "@gxrciaa",
   venmoUrl: "https://venmo.com/u/gxrciaa",
   zelleName: "Nieto Green Care LLC",
-  zellePhone: "737 314 4215",
+  zellePhone: "7373144215",
+  zellePhoneDisplay: "737 314 4215",
 } as const;
 
 /** Abre el cliente SMS nativo con el texto de cotización solicitado. */

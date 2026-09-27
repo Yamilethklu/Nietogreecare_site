@@ -225,7 +225,7 @@ export function PaymentsSection({
                 <span className="text-[11px] uppercase tracking-[0.16em] text-slate-500">
                   {t.payments.zellePhone}
                 </span>
-                <span className="text-sm font-semibold text-gold-200">{BUSINESS.zellePhone}</span>
+                <span className="text-sm font-semibold text-gold-200">{BUSINESS.zellePhoneDisplay}</span>
               </div>
             </div>
 
