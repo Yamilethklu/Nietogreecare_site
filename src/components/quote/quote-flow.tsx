@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { ArrowLeft, CheckCircle2, MessageSquare, Send, ShieldCheck } from "lucide-react";
+import { ArrowLeft, CheckCircle2, ChevronLeft, ChevronRight, MessageSquare, Send, ShieldCheck } from "lucide-react";
 
 import { useLanguage } from "@/components/providers/language-provider";
 import { useToast } from "@/components/providers/toast-provider";
@@ -10,9 +10,11 @@ import { PropertySatellite } from "@/components/quote/property-satellite";
 import { Step1Address, Step1AddressHint } from "@/components/quote/step-1-address";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Select } from "@/components/ui/controls";
 import { FieldError, Input, Label, Textarea } from "@/components/ui/input";
-import { BUSINESS, SERVICES, ZIP_CITY_MAP } from "@/lib/constants";
+import { BUSINESS, SERVICES, TIME_WINDOWS, ZIP_CITY_MAP } from "@/lib/constants";
 import { matchMowRate, type MowRate } from "@/lib/instant-pricing";
+import { todayISO } from "@/lib/utils";
 import { formatZodErrors, step1Schema, step7Schema } from "@/lib/validation";
 import type { PaymentMethod, PolygonPoint } from "@/lib/types";
 import { buildMeasurement, pickSubmissionFields, TOTAL_STEPS, useQuoteStore, type QuoteStore } from "@/store/quote-store";
@@ -304,7 +306,37 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
             <p className="font-bold text-emerald-900">{isEs ? "Área del jardín" : "Lawn area"}: {lawnAreaSqM.toLocaleString()} m² · {lawnAreaSqFt.toLocaleString()} ft²</p>
             <div className="grid gap-3 text-sm sm:grid-cols-2"><p><strong>{isEs ? "Frecuencia" : "Frequency"}:</strong> {store.mowFrequency === "weekly" ? (isEs ? "Semanal" : "Weekly") : (isEs ? "Quincenal" : "Bi-weekly")}</p><p><strong>{isEs ? "Día preferido" : "Preferred service day"}:</strong> {store.requestedDate || (isEs ? "Seleccione una fecha" : "Choose a date")}</p><p className="sm:col-span-2"><strong>{isEs ? "Trabajos" : "Services"}:</strong> {store.selectedServices.map((key) => { const service = SERVICES.find((item) => item.key === key); return service ? (isEs ? service.nameEs : service.nameEn) : key; }).join(", ")}</p><p><strong>{isEs ? "Cliente" : "Customer"}:</strong> {store.customerName}</p><p><strong>{isEs ? "Teléfono" : "Phone"}:</strong> {store.customerPhone}</p><p><strong>{isEs ? "Candado/portón" : "Lock/gate"}:</strong> {store.hasGateCode ? `${isEs ? "Sí" : "Yes"} · ${store.gateCode}` : (isEs ? "No" : "No")}</p><p><strong>{isEs ? "Notas" : "Notes"}:</strong> {store.additionalNotes || "—"}</p></div>
             <div className="rounded-lg bg-slate-50 p-4"><p className="text-sm font-bold text-emerald-900">{isEs ? "Incluido en cada corte" : "Included with each mow"}</p><p className="mt-2 text-sm text-slate-700">Mow lawn · Line trim · Edge · Blow debris</p></div>
-            <div className="max-w-sm"><Label htmlFor="quote-service-date">{isEs ? "Día preferido para el corte *" : "Preferred service day *"}</Label><Input id="quote-service-date" type="date" min={new Date().toISOString().slice(0, 10)} value={store.requestedDate ?? ""} onChange={(event) => store.setSchedule(event.target.value)} className="mt-2" /><FieldError>{errors.requestedDate}</FieldError></div>
+            <MowingCalendar selected={store.requestedDate} isEs={isEs} onSelect={store.setSchedule} price={price} />
+            <div>
+              <Label htmlFor="quote-service-date">{isEs ? "Fecha preferida *" : "Preferred Date *"}</Label>
+              <Input
+                id="quote-service-date"
+                type="date"
+                min={todayISO()}
+                value={store.requestedDate ?? ""}
+                onChange={(event) => {
+                  const value = event.target.value;
+                  if (value && new Date(`${value}T12:00:00`).getDay() !== 0) store.setSchedule(value, store.requestedTimeWindow ?? "");
+                }}
+                className="mt-2 text-lg font-bold"
+              />
+              <FieldError>{errors.requestedDate}</FieldError>
+            </div>
+            <div>
+              <Label>{isEs ? "Horario preferido" : "Preferred Time Window"}</Label>
+              <Select
+                value={store.requestedTimeWindow ?? "08:00 - 18:00"}
+                onChange={(event) => store.setSchedule(store.requestedDate ?? todayISO(), event.target.value)}
+                className="mt-2"
+              >
+                <option value="08:00 - 18:00">{isEs ? "Flexible (Todo el día)" : "Flexible (All Day)"}</option>
+                {TIME_WINDOWS.map((time) => (
+                  <option key={time} value={time}>
+                    {time}
+                  </option>
+                ))}
+              </Select>
+            </div>
             <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4">
               <h3 className="font-bold text-emerald-950">{isEs ? "Método de pago" : "Payment method"}</h3>
               <select value={store.paymentMethod} onChange={(event) => store.setPaymentMethod(event.target.value as PaymentMethod)} className="mt-3 min-h-11 w-full max-w-sm rounded-lg border border-slate-300 bg-white px-3 text-slate-900">
@@ -322,6 +354,38 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
           </div>
         </CardContent>
       </Card>
+    </div>
+  );
+}
+
+function MowingCalendar({ selected, isEs, onSelect, price }: { selected: string | null; isEs: boolean; onSelect: (date: string) => void; price: number | null }) {
+  const [monthOffset, setMonthOffset] = React.useState(0);
+  const now = new Date();
+  const month = new Date(now.getFullYear(), now.getMonth() + monthOffset, 1);
+  const firstDay = (month.getDay() + 6) % 7;
+  const days = new Date(month.getFullYear(), month.getMonth() + 1, 0).getDate();
+  const labels = isEs ? ["L", "M", "M", "J", "V", "S", "D"] : ["M", "T", "W", "T", "F", "S", "S"];
+
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-6" aria-label={isEs ? "Calendario de corte" : "Mowing calendar"}>
+      <div className="mb-5 flex items-center justify-between gap-3">
+        <button type="button" disabled={monthOffset === 0} onClick={() => setMonthOffset((offset) => offset - 1)} className="rounded-lg border border-slate-200 p-2 text-slate-700 disabled:opacity-30" aria-label={isEs ? "Mes anterior" : "Previous month"}><ChevronLeft className="size-5" /></button>
+        <strong className="text-sm capitalize text-slate-900">{month.toLocaleDateString(isEs ? "es-MX" : "en-US", { month: "long", year: "numeric" })}</strong>
+        <button type="button" disabled={monthOffset === 3} onClick={() => setMonthOffset((offset) => offset + 1)} className="rounded-lg border border-slate-200 p-2 text-slate-700 disabled:opacity-30" aria-label={isEs ? "Mes siguiente" : "Next month"}><ChevronRight className="size-5" /></button>
+      </div>
+      <div className="grid grid-cols-7 gap-1 text-center sm:gap-2">
+        {labels.map((label, index) => <span key={index} className="pb-1 text-xs font-bold text-slate-500">{label}</span>)}
+        {Array.from({ length: firstDay }, (_, index) => <span key={`empty-${index}`} />)}
+        {Array.from({ length: days }, (_, index) => {
+          const date = new Date(month.getFullYear(), month.getMonth(), index + 1);
+          const iso = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+          const disabled = iso < todayISO() || date.getDay() === 0;
+          return <button key={iso} type="button" disabled={disabled} onClick={() => onSelect(iso)} aria-pressed={selected === iso} aria-label={date.toLocaleDateString(isEs ? "es-MX" : "en-US", { dateStyle: "long" })} className={`min-h-14 rounded-lg border px-1 py-2 text-xs sm:min-h-16 ${selected === iso ? "border-green-500 bg-emerald-50 text-emerald-900" : "border-slate-100 text-slate-900 hover:border-emerald-300"} disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-300`}>
+            <span className="block font-semibold">{index + 1}</span>{!disabled && price !== null && <span className="block text-[10px] font-bold text-emerald-700">${price.toFixed(0)}</span>}
+          </button>;
+        })}
+      </div>
+      <p className="mt-4 text-xs text-slate-500">{isEs ? "Elige tu fecha preferida; te contactaremos para confirmar disponibilidad." : "Choose your preferred date; we will contact you to confirm availability."}</p>
     </div>
   );
 }
