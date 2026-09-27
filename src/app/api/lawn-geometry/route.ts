@@ -5,7 +5,7 @@ export const runtime = "nodejs";
 function mapDetectError(error: string | undefined, status: number): string {
   if (error === "geocode_not_found") return "Google Maps no pudo geocodificar esta dirección.";
   if (error === "lawn_detection_unavailable" && status >= 500) {
-    return "No hay datos catastrales para esta dirección: falta configurar el token de Regrid.";
+    return "No se pudo consultar la geometría catastral para esta dirección.";
   }
   if (error === "lawn_detection_unavailable") return "No está configurada la geocodificación de Google Maps.";
   if (error === "lawn_detection_failed") return "No se pudo obtener la geometría catastral de esta dirección.";

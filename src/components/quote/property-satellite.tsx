@@ -16,6 +16,7 @@ type Props = {
   geometry?: LawnGeoJsonGeometry;
   center?: PolygonPoint | null;
   loadingText?: string;
+  showMarker?: boolean;
 };
 
 function getBounds(paths?: PolygonPoint[][]) {
@@ -53,7 +54,7 @@ function geometryToGooglePaths(geometry?: LawnGeoJsonGeometry): PolygonPoint[][]
   return geometry.coordinates.map((polygon) => polygon.map(ringToPath).filter((ring) => ring.length >= 3)).filter((polygon) => polygon.length > 0);
 }
 
-export function PropertySatellite({ address, latitude, longitude, isEs, compact = false, polygon, geometry, center, loadingText }: Props) {
+export function PropertySatellite({ address, latitude, longitude, isEs, compact = false, polygon, geometry, center, loadingText, showMarker = true }: Props) {
   const container = React.useRef<HTMLDivElement>(null);
   const [available, setAvailable] = React.useState(false);
   const hasCoordinates = latitude !== null && longitude !== null && Number.isFinite(latitude) && Number.isFinite(longitude);
@@ -85,10 +86,10 @@ export function PropertySatellite({ address, latitude, longitude, isEs, compact 
           new window.google.maps.Polygon({
             map,
             paths,
-            strokeColor: "#00FF00",
+            strokeColor: "#16a34a",
             strokeOpacity: 0.95,
             strokeWeight: 2,
-            fillColor: "#00FF00",
+            fillColor: "#22c55e",
             fillOpacity: 0.35,
             clickable: false,
           });
@@ -101,15 +102,17 @@ export function PropertySatellite({ address, latitude, longitude, isEs, compact 
         );
         map.fitBounds(bounds, 48);
       }
-      new window.google.maps.Marker({
-        map,
-        position: lawnCenter ?? position,
-        icon: "https://maps.google.com/mapfiles/ms/icons/red-dot.png",
-      });
+      if (showMarker) {
+        new window.google.maps.Marker({
+          map,
+          position: lawnCenter ?? position,
+          icon: "https://maps.google.com/mapfiles/ms/icons/red-dot.png",
+        });
+      }
       setAvailable(true);
     });
     return () => { cancelled = true; };
-  }, [address, hasCoordinates, latitude, longitude, lawnBounds, lawnCenter, mapPaths]);
+  }, [address, hasCoordinates, latitude, longitude, lawnBounds, lawnCenter, mapPaths, showMarker]);
 
   return (
     <div className={`relative overflow-hidden rounded-2xl border-2 border-lime-400 bg-emerald-950 shadow-lg ${compact ? "min-h-56" : "min-h-72 sm:min-h-96"}`}>

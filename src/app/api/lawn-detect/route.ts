@@ -1,15 +1,11 @@
 import { NextResponse } from "next/server";
 import * as turf from "@turf/turf";
-import type { Feature, MultiPolygon, Polygon } from "geojson";
+
+import { asAreaFeature, featureAreaSqFt, featureAreaSqM, featureCenter, findAreaFeature, subtractFootprint, type AreaFeature } from "@/lib/parcel-geometry";
 
 export const runtime = "nodejs";
 
-type AreaGeometry = Polygon | MultiPolygon;
-type AreaFeature = Feature<AreaGeometry>;
-
 const GOOGLE_KEY = process.env.GOOGLE_MAPS_SERVER_API_KEY || process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "";
-const REGRID_TOKEN = process.env.REGRID_TOKEN || process.env.REGRID_API_TOKEN || "";
-const SQ_M_TO_SQ_FT = 10.7639;
 const NO_PARCEL_ERROR = "No hay datos catastrales para esta dirección";
 const LAWN_COMPUTE_ERROR = "No se pudo calcular el área del jardín";
 const INVALID_LAWN_ERROR = "El área del jardín no es válida";
@@ -17,22 +13,6 @@ const APPROXIMATE_WARNING = "Aviso: la huella de la casa no está disponible, el
 const LAWN_DETECTION_UNAVAILABLE = "lawn_detection_unavailable";
 const LAWN_DETECTION_FAILED = "lawn_detection_failed";
 const GEOCODE_NOT_FOUND = "geocode_not_found";
-
-function asFeature(value: any): AreaFeature | null {
-  const geometry = value?.type === "Feature" ? value.geometry : value?.geometry ?? value;
-  if ((geometry?.type !== "Polygon" && geometry?.type !== "MultiPolygon") || !geometry.coordinates?.length) return null;
-  return turf.feature(geometry) as AreaFeature;
-}
-
-function findParcelFeature(payload: any): AreaFeature | null {
-  const candidates = [
-    ...(Array.isArray(payload?.features) ? payload.features : []),
-    ...(Array.isArray(payload?.parcels?.features) ? payload.parcels.features : []),
-    ...(Array.isArray(payload?.data?.features) ? payload.data.features : []),
-    ...(Array.isArray(payload?.parcels) ? payload.parcels : []),
-  ];
-  return candidates.map(asFeature).find((feature): feature is AreaFeature => Boolean(feature)) ?? asFeature(payload?.parcel);
-}
 
 function findBuildingFeature(payload: any): AreaFeature | null {
   const feature = payload?.features?.[0] ?? payload?.parcels?.features?.[0] ?? payload?.data?.features?.[0] ?? payload?.parcel ?? null;
@@ -47,7 +27,46 @@ function findBuildingFeature(payload: any): AreaFeature | null {
     payload?.buildings?.features?.[0],
     payload?.building,
   ];
-  return candidates.map(asFeature).find((candidate): candidate is AreaFeature => Boolean(candidate)) ?? null;
+  return candidates.map(asAreaFeature).find((candidate): candidate is AreaFeature => Boolean(candidate)) ?? null;
+}
+
+async function getOverpassHouseFootprint(lat: number, lng: number): Promise<AreaFeature | null> {
+  const query = `
+    [out:json][timeout:25];
+    (
+      way["building"](around:60,${lat},${lng});
+      relation["building"](around:60,${lat},${lng});
+    );
+    out geom;
+  `;
+
+  try {
+    const response = await fetch("https://overpass-api.de/api/interpreter", {
+      method: "POST",
+      headers: { "Content-Type": "text/plain" },
+      body: query,
+      cache: "no-store",
+    });
+    if (!response.ok) return null;
+    const payload = await response.json();
+    const point = turf.point([lng, lat]);
+    const candidates = (Array.isArray(payload?.elements) ? payload.elements : []).flatMap((element: any) => {
+      const vertices = Array.isArray(element?.geometry) ? element.geometry : [];
+      if (vertices.length < 3) return [];
+      const ring = vertices.map((vertex: any) => [Number(vertex.lon), Number(vertex.lat)]);
+      if (ring.some((position: number[]) => !Number.isFinite(position[0]) || !Number.isFinite(position[1]))) return [];
+      if (ring[0][0] !== ring.at(-1)?.[0] || ring[0][1] !== ring.at(-1)?.[1]) ring.push(ring[0]);
+      try {
+        return [turf.polygon([ring]) as AreaFeature];
+      } catch {
+        return [];
+      }
+    });
+    const containing = candidates.find((feature: AreaFeature) => turf.booleanPointInPolygon(point, feature as any));
+    return containing ?? candidates[0] ?? null;
+  } catch {
+    return null;
+  }
 }
 
 function simulatedHouseFootprint(lat: number, lng: number): AreaFeature {
@@ -99,83 +118,94 @@ async function getSolarHouseFootprint(lat: number, lng: number, apiKey: string):
 export async function GET(request: Request) {
   const params = new URL(request.url).searchParams;
   const address = params.get("address")?.trim() ?? "";
+  const latParam = Number(params.get("lat"));
+  const lngParam = Number(params.get("lng"));
 
-  if (!address || !GOOGLE_KEY) {
+  if (!address && (!Number.isFinite(latParam) || !Number.isFinite(lngParam))) {
     return NextResponse.json({ ok: false, error: LAWN_DETECTION_UNAVAILABLE }, { status: 400 });
   }
 
-  const geocodeUrl = new URL("https://maps.googleapis.com/maps/api/geocode/json");
-  geocodeUrl.searchParams.set("address", address);
-  geocodeUrl.searchParams.set("key", GOOGLE_KEY);
+  let latitude = latParam;
+  let longitude = lngParam;
+  let formattedAddress = address;
 
-  const geocodeResponse = await fetch(geocodeUrl, { cache: "no-store" });
-  const geocode = await geocodeResponse.json();
-  const result = geocode?.results?.[0];
-  const location = result?.geometry?.location;
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+    if (!address || !GOOGLE_KEY) {
+      return NextResponse.json({ ok: false, error: LAWN_DETECTION_UNAVAILABLE }, { status: 400 });
+    }
+    const geocodeUrl = new URL("https://maps.googleapis.com/maps/api/geocode/json");
+    geocodeUrl.searchParams.set("address", address);
+    geocodeUrl.searchParams.set("key", GOOGLE_KEY);
 
-  if (!location || !Number.isFinite(location.lat) || !Number.isFinite(location.lng)) {
-    return NextResponse.json({ ok: false, error: GEOCODE_NOT_FOUND }, { status: 404 });
-  }
+    const geocodeResponse = await fetch(geocodeUrl, { cache: "no-store" });
+    const geocode = await geocodeResponse.json();
+    const result = geocode?.results?.[0];
+    const location = result?.geometry?.location;
 
-  const latitude = Number(location.lat);
-  const longitude = Number(location.lng);
-  const formattedAddress = String(result.formatted_address ?? address);
+    if (!location || !Number.isFinite(location.lat) || !Number.isFinite(location.lng)) {
+      return NextResponse.json({ ok: false, error: GEOCODE_NOT_FOUND }, { status: 404 });
+    }
 
-  if (!REGRID_TOKEN) {
-    return NextResponse.json({ ok: false, error: LAWN_DETECTION_UNAVAILABLE, formattedAddress, latitude, longitude }, { status: 500 });
+    latitude = Number(location.lat);
+    longitude = Number(location.lng);
+    formattedAddress = String(result.formatted_address ?? address);
   }
 
   try {
-    const regridUrl = new URL("https://app.regrid.com/api/v2/parcels");
-    regridUrl.searchParams.set("lat", String(latitude));
-    regridUrl.searchParams.set("lon", String(longitude));
-    regridUrl.searchParams.set("token", REGRID_TOKEN);
+    const parcelUrl = new URL("https://gis.wilco.org/arcgis/rest/services/public/county_wcad_parcels/MapServer/0/query");
+    parcelUrl.searchParams.set("geometry", `${longitude},${latitude}`);
+    parcelUrl.searchParams.set("geometryType", "esriGeometryPoint");
+    parcelUrl.searchParams.set("inSR", "4326");
+    parcelUrl.searchParams.set("spatialRel", "esriSpatialRelWithin");
+    parcelUrl.searchParams.set("outFields", "*");
+    parcelUrl.searchParams.set("f", "geojson");
 
-    const regridResponse = await fetch(regridUrl, { cache: "no-store" });
-    if (!regridResponse.ok) {
+    const parcelResponse = await fetch(parcelUrl, { cache: "no-store" });
+    if (!parcelResponse.ok) {
       return NextResponse.json({ ok: false, error: NO_PARCEL_ERROR, formattedAddress, latitude, longitude }, { status: 404 });
     }
 
-    const regrid = await regridResponse.json();
-    const parcel = findParcelFeature(regrid);
+    const parcelPayload = await parcelResponse.json();
+    const parcel = findAreaFeature(parcelPayload);
     if (!parcel) {
       return NextResponse.json({ ok: false, error: NO_PARCEL_ERROR, formattedAddress, latitude, longitude }, { status: 404 });
     }
 
-    let house = findBuildingFeature(regrid);
+    let house = findBuildingFeature(parcelPayload);
     let simulated = false;
     let warning: string | undefined;
 
     if (!house) {
-      house = await getSolarHouseFootprint(latitude, longitude, GOOGLE_KEY);
-      if (!house) {
-        house = simulatedHouseFootprint(latitude, longitude);
-        simulated = true;
-        warning = APPROXIMATE_WARNING;
-      }
+      house = await getOverpassHouseFootprint(latitude, longitude);
     }
 
-    const jardin = turf.difference(turf.featureCollection([parcel, house]) as any);
+    if (!house) {
+      house = await getSolarHouseFootprint(latitude, longitude, GOOGLE_KEY);
+    }
+
+    if (!house) {
+      house = simulatedHouseFootprint(latitude, longitude);
+      simulated = true;
+      warning = APPROXIMATE_WARNING;
+    }
+
+    const jardin = subtractFootprint(parcel, house);
     if (!jardin?.geometry) {
       return NextResponse.json({ ok: false, error: LAWN_COMPUTE_ERROR, formattedAddress, latitude, longitude, warning }, { status: 422 });
     }
 
-    const areaSqM = turf.area(jardin as any);
+    const areaSqM = featureAreaSqM(jardin);
     if (!Number.isFinite(areaSqM) || areaSqM <= 0) {
       return NextResponse.json({ ok: false, error: INVALID_LAWN_ERROR, formattedAddress, latitude, longitude, warning }, { status: 422 });
     }
 
-    const centroPoint = turf.center(jardin as any);
-    const centro = {
-      lat: centroPoint.geometry.coordinates[1],
-      lng: centroPoint.geometry.coordinates[0],
-    };
+    const centro = featureCenter(jardin);
 
     return NextResponse.json({
       ok: true,
       poligonoJardin: jardin.geometry,
       areaMetros: areaSqM,
-      areaPies: areaSqM * SQ_M_TO_SQ_FT,
+      areaPies: featureAreaSqFt(jardin),
       centro,
       huellaCasaSimulada: simulated,
       warning,
