@@ -149,7 +149,7 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
   }, [store, store.paymentMethod, store.setPaymentMethod]);
 
   React.useEffect(() => {
-    if (store.step !== 5 || gateAnswer) return;
+    if (store.step !== 6 || gateAnswer) return;
     if (store.hasGateCode) {
       setGateAnswer("yes");
       return;
@@ -158,7 +158,7 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
   }, [gateAnswer, store.completedSteps, store.hasGateCode, store.step]);
 
   React.useEffect(() => {
-    if (store.step !== 2 || store.measurement || store.latitude == null || store.longitude == null) return;
+    if (store.step !== 4 || store.measurement || store.latitude == null || store.longitude == null) return;
     let cancelled = false;
     setErrors((current) => ({ ...current, measurement: "" }));
     setMeasurementWarning("");
@@ -167,6 +167,7 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
     detectUrl.searchParams.set("address", store.formattedAddress || store.address);
     detectUrl.searchParams.set("lat", String(store.latitude));
     detectUrl.searchParams.set("lng", String(store.longitude));
+    detectUrl.searchParams.set("area", store.areaSelection);
     void fetch(detectUrl.toString(), { cache: "no-store" })
       .then(async (response) => {
         const payload = (await response.json().catch(() => ({}))) as LawnDetectionResponse;
@@ -219,6 +220,7 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
     store.latitude,
     store.longitude,
     store.measurement,
+    store.areaSelection,
     store.setAddress,
     store.setMeasurement,
     store.step,
@@ -227,6 +229,10 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
 
   const rate = matchMowRate(rates, store.measurement?.areaSqFt ?? 0, store.mowFrequency);
   const price = rate ? Number(rate.price) : null;
+  const weeklyRate = matchMowRate(rates, store.measurement?.areaSqFt ?? 0, "weekly");
+  const biWeeklyRate = matchMowRate(rates, store.measurement?.areaSqFt ?? 0, "bi_weekly");
+  const weeklyPrice = weeklyRate ? Number(weeklyRate.price) : null;
+  const biWeeklyPrice = biWeeklyRate ? Number(biWeeklyRate.price) : null;
   const { descriptive: frequencyLabel, cadence: cadenceLabel } = getMowFrequencyLabels(store.mowFrequency, isEs);
   const coverageNoteLines = getCoverageNoteLines(isEs);
   const resolveCoordinates = async () => {
@@ -268,29 +274,9 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
         return;
       }
     }
-    if (current.step === 2 && !current.measurement) {
+    if (current.step === 4 && !current.measurement) {
       setErrors({ measurement: isEs ? "No se pudo estimar el área de la propiedad." : "Could not estimate the property area." });
       return;
-    }
-    if (current.step === 3) {
-      const nextErrors: Record<string, string> = {};
-      if (current.customerName.trim().length < 2) nextErrors.customerName = isEs ? "Ingrese su nombre completo." : "Enter your full name.";
-      if (!phoneSchema.safeParse(current.customerPhone).success) nextErrors.customerPhone = isEs ? "Ingrese un teléfono válido de 10 dígitos." : "Enter a valid 10-digit phone number.";
-      if (Object.keys(nextErrors).length > 0) {
-        setErrors(nextErrors);
-        toast({ title: isEs ? "Complete los datos requeridos" : "Complete the required details", variant: "error" });
-        return;
-      }
-    }
-    if (current.step === 5) {
-      if (!gateAnswer) {
-        setErrors({ hasGateCode: isEs ? "Indique si el patio tiene candado o portón." : "Choose whether the yard has a lock or gate." });
-        return;
-      }
-      if (current.hasGateCode && !current.gateCode.trim()) {
-        setErrors({ gateCode: isEs ? "Indique el código del candado o acceso." : "Enter the lock or gate code." });
-        return;
-      }
     }
     if (current.step === 5 && !current.city.trim()) {
       setErrors({ requestedDate: isEs ? "No se pudo determinar la ciudad. Regrese al paso 1 y confirme su dirección y código postal." : "Could not determine the city. Go back to Step 1 and confirm your address and ZIP code." });
@@ -299,6 +285,24 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
     if (current.step === 5 && !current.requestedDate) {
       setErrors({ requestedDate: isEs ? "Seleccione el día preferido para el corte." : "Choose your preferred service date." });
       return;
+    }
+    if (current.step === 6) {
+      const nextErrors: Record<string, string> = {};
+      if (current.customerName.trim().length < 2) nextErrors.customerName = isEs ? "Ingrese su nombre completo." : "Enter your full name.";
+      if (!phoneSchema.safeParse(current.customerPhone).success) nextErrors.customerPhone = isEs ? "Ingrese un teléfono válido de 10 dígitos." : "Enter a valid 10-digit phone number.";
+      if (Object.keys(nextErrors).length > 0) {
+        setErrors(nextErrors);
+        toast({ title: isEs ? "Complete los datos requeridos" : "Complete the required details", variant: "error" });
+        return;
+      }
+      if (!gateAnswer) {
+        setErrors({ hasGateCode: isEs ? "Indique si el patio tiene candado o portón." : "Choose whether the yard has a lock or gate." });
+        return;
+      }
+      if (current.hasGateCode && !current.gateCode.trim()) {
+        setErrors({ gateCode: isEs ? "Indique el código del candado o acceso." : "Enter the lock or gate code." });
+        return;
+      }
     }
     setErrors({});
     current.goNext();
@@ -389,67 +393,71 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
             <div><Label htmlFor="quote-zip">{isEs ? "Código postal *" : "ZIP code *"}</Label><Input id="quote-zip" required inputMode="numeric" value={store.zipCode} maxLength={5} onChange={(event) => { const zipCode = event.target.value.replace(/\D/g, "").slice(0, 5); store.setAddress({ zipCode, city: ZIP_CITY_MAP[zipCode] ?? "" }); }} placeholder="78642" className="mt-2" /><FieldError>{errors.zipCode}</FieldError></div>
           </section>}
 
-          {store.step === 2 && <section className="space-y-5">
-            <div><h2 className="text-xl font-bold text-slate-900">{isEs ? "2. Estimación y mapa satelital automático" : "2. Automatic estimate and satellite map"}</h2><p className="mt-1 text-sm text-slate-600">{isEs ? "El sistema calcula automáticamente el jardín, excluyendo la casa." : "The system automatically calculates the lawn area excluding the house."}</p></div>
-            {measurementLoading && <p className="rounded-lg bg-slate-100 px-4 py-3 text-sm font-semibold text-slate-700">{isEs ? "Analizando tu propiedad por satélite..." : "Analyzing your property by satellite..."}</p>}
-            <PropertySatellite address={store.address} latitude={store.latitude} longitude={store.longitude} isEs={isEs} polygon={polygon} geometry={lawnGeometry} center={markerCenter} loadingText={isEs ? "Analizando tu propiedad por satélite..." : "Analyzing your property by satellite..."} showMarker />
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4">
-                <p className="text-sm font-semibold text-emerald-900">{isEs ? "Área utilizable" : "Usable area"}</p>
-                <p className="mt-2 text-2xl font-extrabold text-emerald-950">{lawnAreaSqM.toLocaleString(undefined, { maximumFractionDigits: 1 })} m²</p>
-                <p className="text-sm text-emerald-900">({lawnAreaSqFt.toLocaleString(undefined, { maximumFractionDigits: 1 })} ft²)</p>
+          {store.step === 2 && <section className="space-y-6">
+            <div className="text-center"><h2 className="text-2xl font-extrabold text-emerald-700">{isEs ? "Cotización gratis" : "Free price quote."}</h2><p className="mt-2 text-slate-700">{isEs ? "¡Buenas noticias! Damos servicio en tu área." : "You're in luck! Nieto Green Care services your area."}</p></div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <p className="text-sm font-bold uppercase tracking-[0.12em] text-slate-700">{isEs ? "Frecuencia del servicio *" : "Choose your service frequency *"}</p>
+                <div className="mt-2 space-y-2">
+                  <button type="button" aria-pressed={store.serviceFrequency === "ongoing"} onClick={() => store.setLawnOptions({ serviceFrequency: "ongoing" })} className={`w-full rounded-lg border px-4 py-3 text-left font-semibold ${store.serviceFrequency === "ongoing" ? "border-emerald-600 bg-emerald-50 text-emerald-950" : "border-slate-200 bg-white text-slate-700"}`}>{isEs ? "Servicio continuo" : "Ongoing"}</button>
+                  <button type="button" aria-pressed={store.serviceFrequency === "one_time"} onClick={() => store.setLawnOptions({ serviceFrequency: "one_time" })} className={`w-full rounded-lg border px-4 py-3 text-left font-semibold ${store.serviceFrequency === "one_time" ? "border-emerald-600 bg-emerald-50 text-emerald-950" : "border-slate-200 bg-white text-slate-700"}`}>{isEs ? "Una sola vez" : "One-time"}</button>
+                </div>
               </div>
-              <div className="rounded-lg border border-emerald-200 bg-white p-4">
-                <p className="text-sm font-semibold text-slate-700">{isEs ? "Tarifa estimada" : "Estimated rate"}</p>
-                <p className="mt-2 text-2xl font-extrabold text-emerald-900">{price !== null ? `$${price.toFixed(2)}` : "—"}</p>
-                <p className="text-sm font-semibold text-slate-600">{price !== null ? `/ ${cadenceLabel}` : (isEs ? "Calculando tarifa…" : "Calculating rate…")}</p>
+              <div>
+                <p className="text-sm font-bold uppercase tracking-[0.12em] text-slate-700">{isEs ? "¿La casa está ocupada o vacante? *" : "Is your home occupied or vacant? *"}</p>
+                <div className="mt-2 space-y-2">
+                  <button type="button" aria-pressed={store.propertyOccupancy === "occupied"} onClick={() => store.setLawnOptions({ propertyOccupancy: "occupied" })} className={`w-full rounded-lg border px-4 py-3 text-left font-semibold ${store.propertyOccupancy === "occupied" ? "border-emerald-600 bg-emerald-50 text-emerald-950" : "border-slate-200 bg-white text-slate-700"}`}>{isEs ? "Ocupada" : "Occupied"}</button>
+                  <button type="button" aria-pressed={store.propertyOccupancy === "vacant"} onClick={() => store.setLawnOptions({ propertyOccupancy: "vacant" })} className={`w-full rounded-lg border px-4 py-3 text-left font-semibold ${store.propertyOccupancy === "vacant" ? "border-emerald-600 bg-emerald-50 text-emerald-950" : "border-slate-200 bg-white text-slate-700"}`}>{isEs ? "Vacante" : "Vacant"}</button>
+                </div>
               </div>
             </div>
-            <FieldError>{errors.measurement}</FieldError>
-            {measurementWarning && <div className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900">{measurementWarning}</div>}
           </section>}
 
           {store.step === 3 && <section className="space-y-6">
-            <div><h2 className="text-xl font-bold text-slate-900">{isEs ? "SELECCIONE LOS TRABAJOS A REALIZAR" : "SELECT SERVICES TO PERFORM"}</h2><p className="mt-1 text-sm text-slate-600">{isEs ? "El servicio de césped está incluido. Seleccione cualquier trabajo adicional." : "Lawn service is included. Select any additional work."}</p></div>
-            <div className="grid gap-2 sm:grid-cols-3">{SERVICES.filter((service) => service.key !== "weekly_biweekly_lawn_service").map((service) => {
-              const selected = store.selectedServices.includes(service.key);
-              return <button key={service.key} type="button" aria-pressed={selected} onClick={() => store.toggleService(service.key)} className={`min-h-12 rounded-lg border px-3 py-2 text-left text-sm font-semibold transition ${selected ? "border-emerald-700 bg-emerald-50 text-emerald-900" : "border-slate-200 bg-white text-slate-700 hover:border-emerald-400"}`}>{isEs ? service.nameEs : service.nameEn}</button>;
-            })}</div>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div><Label htmlFor="quote-customer-name">{isEs ? "Nombre completo *" : "Full name *"}</Label><Input id="quote-customer-name" required value={store.customerName} onChange={(event) => store.setPersonal({ customerName: event.target.value, firstName: event.target.value, lastName: "" })} className="mt-2" /><FieldError>{errors.customerName}</FieldError></div>
-              <div><Label htmlFor="quote-customer-phone">{isEs ? "Teléfono *" : "Phone *"}</Label><Input id="quote-customer-phone" required type="tel" value={store.customerPhone} onChange={(event) => store.setPersonal({ customerPhone: event.target.value })} className="mt-2" /><FieldError>{errors.customerPhone}</FieldError></div>
+            <div className="text-center"><h2 className="text-2xl font-extrabold text-emerald-700">{isEs ? "Cotización gratis" : "Free price quote."}</h2><p className="mt-2 text-slate-700">{isEs ? "Selecciona el área a cortar." : "Select your mow area."}</p></div>
+            <div className="space-y-4">
+              {[
+                { key: "front_back", labelEs: "Frente y atrás", labelEn: "Front & Back", art: "▣" },
+                { key: "front_only", labelEs: "Solo frente", labelEn: "Front Only", art: "▔" },
+                { key: "back_only", labelEs: "Solo atrás", labelEn: "Back Only", art: "▁" },
+              ].map((option) => {
+                const selected = store.areaSelection === option.key;
+                return <button key={option.key} type="button" aria-pressed={selected} onClick={() => store.setLawnOptions({ areaSelection: option.key as QuoteStore["areaSelection"] })} className={`flex w-full items-center gap-4 rounded-2xl border p-4 text-left transition ${selected ? "border-emerald-600 bg-emerald-50 ring-2 ring-emerald-200" : "border-slate-200 bg-white hover:border-emerald-300"}`}>
+                  <span className="grid size-20 shrink-0 place-items-center rounded-xl border border-emerald-100 bg-emerald-100 text-4xl font-black text-emerald-500">{option.art}</span>
+                  <span className="flex items-center gap-3 text-lg font-bold text-slate-950"><span className={`grid size-5 place-items-center rounded border ${selected ? "border-emerald-600 bg-emerald-500 text-white" : "border-slate-300 bg-white"}`}>{selected ? "✓" : ""}</span>{isEs ? option.labelEs : option.labelEn}</span>
+                </button>;
+              })}
             </div>
-            <div><Label htmlFor="quote-notes">{isEs ? "Comentarios / notas de la obra" : "Work comments / notes"}</Label><Textarea id="quote-notes" rows={3} maxLength={2000} value={store.additionalNotes} onChange={(event) => store.setPersonal({ additionalNotes: event.target.value })} className="mt-2" /></div>
+            <fieldset className="border-t border-slate-200 pt-5">
+              <legend className="text-sm font-bold text-slate-800">{isEs ? "¿La propiedad está en esquina? *" : "Is your property a corner lot? *"}</legend>
+              <div className="mt-3 flex gap-3">
+                <button type="button" aria-pressed={store.isCornerLot} onClick={() => store.setLawnOptions({ isCornerLot: true })} className={`rounded-lg border px-5 py-2 font-semibold ${store.isCornerLot ? "border-emerald-700 bg-emerald-700 text-white" : "border-slate-300 bg-white text-slate-800"}`}>{isEs ? "Sí" : "Yes"}</button>
+                <button type="button" aria-pressed={!store.isCornerLot} onClick={() => store.setLawnOptions({ isCornerLot: false })} className={`rounded-lg border px-5 py-2 font-semibold ${!store.isCornerLot ? "border-emerald-700 bg-emerald-700 text-white" : "border-slate-300 bg-white text-slate-800"}`}>{isEs ? "No" : "No"}</button>
+              </div>
+            </fieldset>
           </section>}
 
-          {store.step === 4 && <section className="space-y-6">
-            <div>
-              <h2 className="text-xl font-bold text-slate-900">{isEs ? "4. Detalles específicos de la solicitud" : "4. Request-specific details"}</h2>
+          {store.step === 4 && <section className="space-y-5">
+            <div><h2 className="text-xl font-bold text-slate-900">{isEs ? "4. Mapa satelital y precio automático" : "4. Satellite map and automatic price"}</h2><p className="mt-1 text-sm text-slate-600">{isEs ? "El sistema calcula el área seleccionada y excluye la casa cuando la huella está disponible." : "The system calculates the selected mow area and excludes the house when the footprint is available."}</p></div>
+            {measurementLoading && <p className="rounded-lg bg-slate-100 px-4 py-3 text-sm font-semibold text-slate-700">{isEs ? "Analizando tu propiedad por satélite..." : "Analyzing your property by satellite..."}</p>}
+            <PropertySatellite address={store.address} latitude={store.latitude} longitude={store.longitude} isEs={isEs} polygon={polygon} geometry={lawnGeometry} center={markerCenter} loadingText={isEs ? "Analizando tu propiedad por satélite..." : "Analyzing your property by satellite..."} showMarker={false} />
+            <div className="grid gap-3 sm:grid-cols-3">
+              <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4">
+                <p className="text-sm font-semibold text-emerald-900">{isEs ? "Área calculada" : "Calculated area"}</p>
+                <p className="mt-2 text-2xl font-extrabold text-emerald-950">{lawnAreaSqM.toLocaleString(undefined, { maximumFractionDigits: 1 })} m²</p>
+                <p className="text-sm text-emerald-900">({lawnAreaSqFt.toLocaleString(undefined, { maximumFractionDigits: 1 })} ft²)</p>
+              </div>
+              <button type="button" aria-pressed={store.mowFrequency === "weekly"} onClick={() => store.setLawnOptions({ mowFrequency: "weekly" })} className={`rounded-lg border p-4 text-left ${store.mowFrequency === "weekly" ? "border-emerald-600 bg-emerald-50 ring-2 ring-emerald-200" : "border-emerald-200 bg-white"}`}>
+                <p className="text-sm font-semibold text-slate-700">{isEs ? "Semanal" : "Weekly"}</p>
+                <p className="mt-2 text-2xl font-extrabold text-emerald-900">{weeklyPrice !== null ? `$${weeklyPrice.toFixed(2)}` : "—"}</p>
+              </button>
+              <button type="button" aria-pressed={store.mowFrequency === "bi_weekly"} onClick={() => store.setLawnOptions({ mowFrequency: "bi_weekly" })} className={`rounded-lg border p-4 text-left ${store.mowFrequency === "bi_weekly" ? "border-emerald-600 bg-emerald-50 ring-2 ring-emerald-200" : "border-emerald-200 bg-white"}`}>
+                <p className="text-sm font-semibold text-slate-700">{isEs ? "Quincenal" : "Bi-weekly"}</p>
+                <p className="mt-2 text-2xl font-extrabold text-emerald-900">{biWeeklyPrice !== null ? `$${biWeeklyPrice.toFixed(2)}` : "—"}</p>
+              </button>
             </div>
-            <div className="grid gap-4 sm:grid-cols-3">
-              <div>
-                <p className="text-sm font-semibold text-slate-800">{isEs ? "Frecuencia / continuidad" : "Frequency / continuity"}</p>
-                <div className="mt-2 space-y-2">
-                  <button type="button" aria-pressed={store.mowFrequency === "weekly"} onClick={() => store.setLawnOptions({ mowFrequency: "weekly" })} className={`w-full rounded-lg border px-3 py-2 text-left text-sm font-semibold ${store.mowFrequency === "weekly" ? "border-emerald-700 bg-emerald-50 text-emerald-900" : "border-slate-200 bg-white text-slate-700"}`}>{isEs ? "Atención continua" : "Continuous attention"}</button>
-                  <button type="button" aria-pressed={store.mowFrequency === "bi_weekly"} onClick={() => store.setLawnOptions({ mowFrequency: "bi_weekly" })} className={`w-full rounded-lg border px-3 py-2 text-left text-sm font-semibold ${store.mowFrequency === "bi_weekly" ? "border-emerald-700 bg-emerald-50 text-emerald-900" : "border-slate-200 bg-white text-slate-700"}`}>{isEs ? "Servicio quincenal" : "Biweekly service"}</button>
-                </div>
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-slate-800">{isEs ? "Estado de la propiedad" : "Property state"}</p>
-                <div className="mt-2 space-y-2">
-                  <button type="button" aria-pressed={store.propertyOccupancy === "occupied"} onClick={() => store.setLawnOptions({ propertyOccupancy: "occupied" })} className={`w-full rounded-lg border px-3 py-2 text-left text-sm font-semibold ${store.propertyOccupancy === "occupied" ? "border-emerald-700 bg-emerald-50 text-emerald-900" : "border-slate-200 bg-white text-slate-700"}`}>{isEs ? "Ocupado" : "Occupied"}</button>
-                  <button type="button" aria-pressed={store.propertyOccupancy === "vacant"} onClick={() => store.setLawnOptions({ propertyOccupancy: "vacant" })} className={`w-full rounded-lg border px-3 py-2 text-left text-sm font-semibold ${store.propertyOccupancy === "vacant" ? "border-emerald-700 bg-emerald-50 text-emerald-900" : "border-slate-200 bg-white text-slate-700"}`}>{isEs ? "Vacante" : "Vacant"}</button>
-                </div>
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-slate-800">{isEs ? "Zona de corte" : "Cut area"}</p>
-                <div className="mt-2 space-y-2">
-                  <button type="button" aria-pressed={store.areaSelection === "front_back"} onClick={() => store.setLawnOptions({ areaSelection: "front_back" })} className={`w-full rounded-lg border px-3 py-2 text-left text-sm font-semibold ${store.areaSelection === "front_back" ? "border-emerald-700 bg-emerald-50 text-emerald-900" : "border-slate-200 bg-white text-slate-700"}`}>{isEs ? "Frente y trasera" : "Front and back"}</button>
-                  <button type="button" aria-pressed={store.areaSelection === "front_only"} onClick={() => store.setLawnOptions({ areaSelection: "front_only" })} className={`w-full rounded-lg border px-3 py-2 text-left text-sm font-semibold ${store.areaSelection === "front_only" ? "border-emerald-700 bg-emerald-50 text-emerald-900" : "border-slate-200 bg-white text-slate-700"}`}>{isEs ? "Solo delantera" : "Front only"}</button>
-                  <button type="button" aria-pressed={store.areaSelection === "back_only"} onClick={() => store.setLawnOptions({ areaSelection: "back_only" })} className={`w-full rounded-lg border px-3 py-2 text-left text-sm font-semibold ${store.areaSelection === "back_only" ? "border-emerald-700 bg-emerald-50 text-emerald-900" : "border-slate-200 bg-white text-slate-700"}`}>{isEs ? "Solo trasera" : "Back only"}</button>
-                </div>
-              </div>
-            </div>
+            <FieldError>{errors.measurement}</FieldError>
+            {measurementWarning && <div className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900">{measurementWarning}</div>}
           </section>}
 
           {store.step === 5 && <section className="space-y-6">
@@ -458,7 +466,6 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
               {coverageNoteLines.map((line) => <p key={line}>{line}</p>)}
             </div>
             {store.city.trim() ? <MowingCalendar selected={store.requestedDate} city={store.city} isEs={isEs} onSelect={(date) => store.setSchedule(date, store.requestedTimeWindow ?? "08:00 - 18:00")} price={price} /> : <div className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900">{isEs ? "Primero confirme una dirección con ciudad válida en el Paso 1 para habilitar el calendario." : "Please confirm an address with a valid city in Step 1 to unlock the calendar."}</div>}
-            <fieldset><legend className="text-sm font-semibold text-slate-800">{isEs ? "¿Acceso con candado o portón? *" : "Lock or gate access? *"}</legend><div className="mt-2 flex gap-3">{(["yes", "no"] as const).map((answer) => <button key={answer} type="button" aria-pressed={gateAnswer === answer} onClick={() => { setGateAnswer(answer); store.setGate(answer === "yes", answer === "yes" ? store.gateCode : ""); setErrors((current) => ({ ...current, hasGateCode: "", gateCode: "" })); }} className={`rounded-lg border px-5 py-2 font-semibold ${gateAnswer === answer ? "border-emerald-700 bg-emerald-700 text-white" : "border-slate-300 bg-white text-slate-800"}`}>{answer === "yes" ? (isEs ? "Sí" : "Yes") : (isEs ? "No" : "No")}</button>)}</div><FieldError>{errors.hasGateCode}</FieldError>{store.hasGateCode && <div className="mt-3 max-w-sm"><Label htmlFor="quote-gate-code">{isEs ? "Código o número del candado *" : "Lock or gate code *"}</Label><Input id="quote-gate-code" required inputMode="numeric" value={store.gateCode} onChange={(event) => { store.setGate(true, event.target.value.replace(/[^\d]/g, "")); setErrors((current) => ({ ...current, gateCode: "" })); }} className="mt-2" /><FieldError>{errors.gateCode}</FieldError></div>}</fieldset>
             <FieldError>{errors.requestedDate}</FieldError>
           </section>}
 
@@ -468,8 +475,27 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
               <PropertySatellite address={store.address} latitude={store.latitude} longitude={store.longitude} isEs={isEs} compact polygon={polygon} geometry={lawnGeometry} center={markerCenter} />
             </div>
             <p className="font-bold text-emerald-900">{isEs ? "Pies cuadrados de césped" : "Lawn square footage"}: {lawnAreaSqFt.toLocaleString()} sq ft</p>
-            <div className="grid gap-3 text-sm sm:grid-cols-2"><p><strong>{isEs ? "Frecuencia" : "Frequency"}:</strong> {frequencyLabel}</p><p><strong>{isEs ? "Día elegido" : "Chosen day"}:</strong> {store.requestedDate || (isEs ? "Seleccione una fecha" : "Choose a date")}</p><p><strong>{isEs ? "Estado de propiedad" : "Property state"}:</strong> {store.propertyOccupancy === "occupied" ? (isEs ? "Ocupada" : "Occupied") : (isEs ? "Vacante" : "Vacant")}</p><p><strong>{isEs ? "Zona de corte" : "Cut area"}:</strong> {store.areaSelection === "front_back" ? (isEs ? "Frente y trasera" : "Front and back") : store.areaSelection === "front_only" ? (isEs ? "Solo delantera" : "Front only") : (isEs ? "Solo trasera" : "Back only")}</p><p className="sm:col-span-2"><strong>{isEs ? "Trabajos adicionales" : "Additional services"}:</strong> {store.selectedServices.map((key) => { const service = SERVICES.find((item) => item.key === key); return service ? (isEs ? service.nameEs : service.nameEn) : key; }).join(", ")}</p><p><strong>{isEs ? "Cliente" : "Customer"}:</strong> {store.customerName}</p><p><strong>{isEs ? "Teléfono" : "Phone"}:</strong> {store.customerPhone}</p><p><strong>{isEs ? "Candado/portón" : "Lock/gate"}:</strong> {store.hasGateCode ? `${isEs ? "Sí" : "Yes"} · ${store.gateCode}` : (isEs ? "No" : "No")}</p><p><strong>{isEs ? "Notas" : "Notes"}:</strong> {store.additionalNotes || "—"}</p></div>
-            <div className="rounded-lg bg-slate-50 p-4"><p className="text-sm font-bold text-emerald-900">{isEs ? "Incluido en cada corte" : "Included with each mow"}</p><p className="mt-2 text-sm text-slate-700">Mow lawn · Line trim · Edge · Blow debris</p></div>
+            <div className="grid gap-3 text-sm sm:grid-cols-2"><p><strong>{isEs ? "Frecuencia" : "Frequency"}:</strong> {frequencyLabel}</p><p><strong>{isEs ? "Día elegido" : "Chosen day"}:</strong> {store.requestedDate || (isEs ? "Seleccione una fecha" : "Choose a date")}</p><p><strong>{isEs ? "Estado de propiedad" : "Property state"}:</strong> {store.propertyOccupancy === "occupied" ? (isEs ? "Ocupada" : "Occupied") : (isEs ? "Vacante" : "Vacant")}</p><p><strong>{isEs ? "Zona de corte" : "Mow area"}:</strong> {store.areaSelection === "front_back" ? (isEs ? "Frente y atrás" : "Front & Back") : store.areaSelection === "front_only" ? (isEs ? "Solo frente" : "Front Only") : (isEs ? "Solo atrás" : "Back Only")}</p></div>
+            <div className="rounded-lg bg-slate-50 p-4"><p className="text-sm font-bold text-emerald-900">{isEs ? "Servicios incluidos" : "Included services"}</p><div className="mt-2 grid gap-2 text-sm text-slate-700 sm:grid-cols-2">{["Mow Lawn", "Line Trim", "Edge", "Blow Debris", "24/7 Text Support"].map((item) => <span key={item} className="flex items-center gap-2"><CheckCircle2 className="size-4 text-emerald-600" />{item}</span>)}</div></div>
+            <div><p className="mb-2 text-sm font-bold text-emerald-900">{isEs ? "Servicios opcionales" : "Optional services"}</p><div className="grid gap-2 sm:grid-cols-2">{SERVICES.filter((service) => service.key !== "weekly_biweekly_lawn_service").map((service) => { const selected = store.selectedServices.includes(service.key); return <button key={service.key} type="button" aria-pressed={selected} onClick={() => store.toggleService(service.key)} className={`min-h-12 rounded-lg border px-3 py-2 text-left text-sm font-semibold transition ${selected ? "border-emerald-700 bg-emerald-50 text-emerald-900" : "border-slate-200 bg-white text-slate-700 hover:border-emerald-400"}`}>{selected ? "✓ " : ""}{isEs ? service.nameEs : service.nameEn}</button>; })}</div></div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div><Label htmlFor="quote-first-name">{isEs ? "Nombre *" : "First name *"}</Label><Input id="quote-first-name" required value={store.firstName} onChange={(event) => store.setAccountDetails({ firstName: event.target.value })} className="mt-2" /><FieldError>{errors.customerName}</FieldError></div>
+              <div><Label htmlFor="quote-last-name">{isEs ? "Apellido" : "Last name"}</Label><Input id="quote-last-name" value={store.lastName} onChange={(event) => store.setAccountDetails({ lastName: event.target.value })} className="mt-2" /></div>
+              <div><Label htmlFor="quote-email">Email</Label><Input id="quote-email" type="email" value={store.customerEmail} onChange={(event) => store.setPersonal({ customerEmail: event.target.value })} className="mt-2" placeholder="you@company.com" /></div>
+              <div><Label htmlFor="quote-customer-phone">{isEs ? "Teléfono *" : "Phone number *"}</Label><Input id="quote-customer-phone" required type="tel" value={store.customerPhone} onChange={(event) => store.setPersonal({ customerPhone: event.target.value })} className="mt-2" /><FieldError>{errors.customerPhone}</FieldError></div>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {[
+                ["isCellphone", isEs ? "¿Es celular?" : "Is it a cellphone?"],
+                ["isGrassOver6", isEs ? "¿El pasto mide más de 6 pulgadas?" : "Is your grass 6 inches or taller?"],
+                ["isGrassOver12", isEs ? "¿El pasto mide 12 pulgadas o más?" : "Is your grass 12 inches or taller?"],
+                ["hasCommunityGate", isEs ? "¿Hay portón de comunidad?" : "Community gate?"],
+                ["hasBackyardGate", isEs ? "¿Hay portón al patio?" : "Backyard gate?"],
+                ["hasPetsInBackyard", isEs ? "¿Hay perros en el patio?" : "Pets in backyard?"],
+              ].map(([key, label]) => <label key={key} className="flex items-center gap-3 rounded-lg border border-slate-200 bg-white p-3 text-sm font-semibold text-slate-800"><input type="checkbox" checked={Boolean(store[key as keyof QuoteStore])} onChange={(event) => store.setPersonal({ [key]: event.target.checked } as Partial<QuoteStore>)} className="size-4 accent-emerald-600" />{label}</label>)}
+            </div>
+            <fieldset><legend className="text-sm font-semibold text-slate-800">{isEs ? "¿Acceso con candado o portón? *" : "Lock or gate access? *"}</legend><div className="mt-2 flex gap-3">{(["yes", "no"] as const).map((answer) => <button key={answer} type="button" aria-pressed={gateAnswer === answer} onClick={() => { setGateAnswer(answer); store.setGate(answer === "yes", answer === "yes" ? store.gateCode : ""); setErrors((current) => ({ ...current, hasGateCode: "", gateCode: "" })); }} className={`rounded-lg border px-5 py-2 font-semibold ${gateAnswer === answer ? "border-emerald-700 bg-emerald-700 text-white" : "border-slate-300 bg-white text-slate-800"}`}>{answer === "yes" ? (isEs ? "Sí" : "Yes") : (isEs ? "No" : "No")}</button>)}</div><FieldError>{errors.hasGateCode}</FieldError>{store.hasGateCode && <div className="mt-3 max-w-sm"><Label htmlFor="quote-gate-code">{isEs ? "Código o número del candado *" : "Lock or gate code *"}</Label><Input id="quote-gate-code" required inputMode="numeric" value={store.gateCode} onChange={(event) => { store.setGate(true, event.target.value.replace(/[^\d]/g, "")); setErrors((current) => ({ ...current, gateCode: "" })); }} className="mt-2" /><FieldError>{errors.gateCode}</FieldError></div>}</fieldset>
+            <div><Label htmlFor="quote-notes">{isEs ? "Comentarios / notas de la obra" : "Work comments / notes"}</Label><Textarea id="quote-notes" rows={3} maxLength={2000} value={store.additionalNotes} onChange={(event) => store.setPersonal({ additionalNotes: event.target.value })} className="mt-2" /></div>
           </section>}
 
           {store.step === 7 && <section className="space-y-6">
