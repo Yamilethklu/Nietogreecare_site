@@ -438,12 +438,14 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
 }
 
 function MowingCalendar({ selected, city, isEs, onSelect, price }: { selected: string | null; city: string; isEs: boolean; onSelect: (date: string) => void; price: number | null }) {
+  const normalizeCityKey = (value: string) => value.toLocaleLowerCase("en-US").replace(/[^a-z]/g, "");
   const todayISO = () => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   };
   const [monthOffset, setMonthOffset] = React.useState(0);
   const [occupiedDates, setOccupiedDates] = React.useState<Set<string>>(new Set());
+  const [availabilityReady, setAvailabilityReady] = React.useState(true);
   const availabilityCacheRef = React.useRef<Record<string, string[]>>({});
   const now = new Date();
   const month = new Date(now.getFullYear(), now.getMonth() + monthOffset, 1);
@@ -451,15 +453,17 @@ function MowingCalendar({ selected, city, isEs, onSelect, price }: { selected: s
   const days = new Date(month.getFullYear(), month.getMonth() + 1, 0).getDate();
   const labels = isEs ? ["L", "M", "M", "J", "V", "S", "D"] : ["M", "T", "W", "T", "F", "S", "S"];
   const monthKey = `${month.getFullYear()}-${String(month.getMonth() + 1).padStart(2, "0")}`;
-  const normalizedCity = city.trim().toLocaleLowerCase("en-US");
+  const normalizedCity = normalizeCityKey(city.trim());
 
   React.useEffect(() => {
     let cancelled = false;
     const cachedDates = availabilityCacheRef.current[monthKey];
     if (cachedDates) {
+      setAvailabilityReady(true);
       setOccupiedDates(new Set(cachedDates));
       return () => { cancelled = true; };
     }
+    setAvailabilityReady(false);
     void fetch(`/api/availability?month=${monthKey}`, { cache: "no-store" })
       .then(async (response) => {
         const payload = (await response.json().catch(() => ({}))) as AvailabilityResponse;
@@ -468,11 +472,16 @@ function MowingCalendar({ selected, city, isEs, onSelect, price }: { selected: s
       })
       .then((dates) => {
         availabilityCacheRef.current[monthKey] = dates;
-        if (!cancelled) setOccupiedDates(new Set(dates));
+        if (!cancelled) {
+          setOccupiedDates(new Set(dates));
+          setAvailabilityReady(true);
+        }
       })
       .catch(() => {
         delete availabilityCacheRef.current[monthKey];
-        if (!cancelled) setOccupiedDates(new Set());
+        if (!cancelled) {
+          setAvailabilityReady(false);
+        }
       });
     return () => { cancelled = true; };
   }, [monthKey]);
@@ -493,11 +502,11 @@ function MowingCalendar({ selected, city, isEs, onSelect, price }: { selected: s
           const weekday = date.getDay();
           const isWeekend = weekday === 0;
           const isCovered = normalizedCity
-            ? getCoverageCitiesForWeekday(weekday).some((coveredCity) => coveredCity.toLocaleLowerCase("en-US") === normalizedCity)
+            ? getCoverageCitiesForWeekday(weekday).some((coveredCity) => normalizeCityKey(coveredCity) === normalizedCity)
             : false;
           const isOutOfZone = isWeekend || !isCovered;
           const isOccupied = occupiedDates.has(iso);
-          const disabled = iso < todayISO() || isOutOfZone || isOccupied;
+          const disabled = !availabilityReady || iso < todayISO() || isOutOfZone || isOccupied;
           const occupiedClass = isOccupied ? "border-red-300 bg-red-50 text-red-700 line-through" : "";
           const unavailableClass = !isOccupied && disabled ? "border-slate-100 bg-slate-50 text-slate-300" : "";
           const selectedClass = selected === iso && !disabled ? "border-green-500 bg-emerald-50 text-emerald-900" : "";
@@ -510,6 +519,7 @@ function MowingCalendar({ selected, city, isEs, onSelect, price }: { selected: s
       <div className="mt-4 space-y-1 text-xs text-slate-500">
         <p>{isEs ? "Días fuera de zona y fines de semana aparecen en gris." : "Out-of-zone days and weekends appear in gray."}</p>
         <p>{isEs ? "Días ocupados aparecen en rojo y tachados." : "Occupied days appear in red with strikethrough."}</p>
+        {!availabilityReady && <p className="font-semibold text-amber-700">{isEs ? "No se pudo cargar la disponibilidad. Intente nuevamente en unos segundos." : "Could not load availability. Please try again in a few seconds."}</p>}
       </div>
     </div>
   );
