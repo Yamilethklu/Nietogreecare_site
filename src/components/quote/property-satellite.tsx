@@ -3,7 +3,7 @@
 import * as React from "react";
 import { MapPin } from "lucide-react";
 
-import type { PolygonPoint } from "@/lib/types";
+import type { LawnGeoJsonGeometry, PolygonPoint } from "@/lib/types";
 import { GOOGLE_MAPS_API_KEY, loadGoogleMaps } from "@/lib/google-maps";
 
 type Props = {
@@ -13,7 +13,8 @@ type Props = {
   isEs: boolean;
   compact?: boolean;
   polygon?: PolygonPoint[][];
-  markerCenter?: PolygonPoint | null;
+  geometry?: LawnGeoJsonGeometry;
+  center?: PolygonPoint | null;
 };
 
 function getBounds(paths?: PolygonPoint[][]) {
@@ -39,11 +40,26 @@ function getCenter(paths?: PolygonPoint[][]): PolygonPoint | null {
   };
 }
 
-export function PropertySatellite({ address, latitude, longitude, isEs, compact = false, polygon, markerCenter }: Props) {
+function ringToPath(ring: number[][]): PolygonPoint[] {
+  return ring
+    .map(([lng, lat]) => ({ lat, lng }))
+    .filter((point) => Number.isFinite(point.lat) && Number.isFinite(point.lng));
+}
+
+function geometryToGooglePaths(geometry?: LawnGeoJsonGeometry): PolygonPoint[][][] {
+  if (!geometry) return [];
+  if (geometry.type === "Polygon") return [geometry.coordinates.map(ringToPath).filter((ring) => ring.length >= 3)];
+  return geometry.coordinates.map((polygon) => polygon.map(ringToPath).filter((ring) => ring.length >= 3)).filter((polygon) => polygon.length > 0);
+}
+
+export function PropertySatellite({ address, latitude, longitude, isEs, compact = false, polygon, geometry, center }: Props) {
   const container = React.useRef<HTMLDivElement>(null);
   const [available, setAvailable] = React.useState(false);
   const hasCoordinates = latitude !== null && longitude !== null && Number.isFinite(latitude) && Number.isFinite(longitude);
-  const lawnCenter = React.useMemo(() => markerCenter ?? getCenter(polygon), [markerCenter, polygon]);
+  const googlePaths = React.useMemo(() => geometryToGooglePaths(geometry), [geometry]);
+  const fallbackPaths = React.useMemo(() => polygon?.map((path) => [path]) ?? [], [polygon]);
+  const mapPaths = googlePaths.length ? googlePaths : fallbackPaths;
+  const lawnCenter = React.useMemo(() => center ?? getCenter(polygon), [center, polygon]);
   const lawnBounds = React.useMemo(() => getBounds(polygon), [polygon]);
 
   React.useEffect(() => {
@@ -61,11 +77,11 @@ export function PropertySatellite({ address, latitude, longitude, isEs, compact 
         fullscreenControl: false,
         gestureHandling: "cooperative",
       });
-      polygon?.forEach((path) => {
-        if (path.length >= 3) {
+      mapPaths.forEach((paths) => {
+        if (paths[0]?.length >= 3) {
           new window.google.maps.Polygon({
             map,
-            paths: path,
+            paths,
             strokeColor: "#00FF00",
             strokeOpacity: 0.95,
             strokeWeight: 2,
@@ -90,7 +106,7 @@ export function PropertySatellite({ address, latitude, longitude, isEs, compact 
       setAvailable(true);
     });
     return () => { cancelled = true; };
-  }, [address, hasCoordinates, latitude, longitude, lawnBounds, lawnCenter, polygon]);
+  }, [address, hasCoordinates, latitude, longitude, lawnBounds, lawnCenter, mapPaths]);
 
   return (
     <div className={`relative overflow-hidden rounded-2xl border-2 border-lime-400 bg-emerald-950 shadow-lg ${compact ? "min-h-56" : "min-h-72 sm:min-h-96"}`}>
