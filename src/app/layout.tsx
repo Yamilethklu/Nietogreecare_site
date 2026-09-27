@@ -1,5 +1,4 @@
 import type { Metadata, Viewport } from "next";
-import { Cinzel, Playfair_Display, Plus_Jakarta_Sans } from "next/font/google";
 import { cookies } from "next/headers";
 
 import { LanguageProvider } from "@/components/providers/language-provider";
@@ -11,28 +10,6 @@ import { normalizeLocale } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
 import "./globals.css";
-
-const playfair = Playfair_Display({
-  subsets: ["latin"],
-  display: "swap",
-  variable: "--font-display",
-  fallback: ["Georgia", "serif"],
-});
-
-const cinzel = Cinzel({
-  subsets: ["latin"],
-  display: "swap",
-  variable: "--font-serif",
-  weight: ["400", "600", "700"],
-  fallback: ["Georgia", "serif"],
-});
-
-const jakarta = Plus_Jakarta_Sans({
-  subsets: ["latin"],
-  display: "swap",
-  variable: "--font-sans",
-  fallback: ["Inter", "system-ui", "sans-serif"],
-});
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
 
@@ -89,7 +66,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const locale: Locale = normalizeLocale(cookieStore.get(LOCALE_COOKIE)?.value);
 
   return (
-    <html lang={locale} className={cn(playfair.variable, cinzel.variable, jakarta.variable)}>
+    <html lang={locale} className={cn("font-vars")}>
       <body className="min-h-dvh bg-white text-slate-900 antialiased">
         <LanguageProvider initialLocale={locale}>
           <ToastProvider>{children}<FloatingContact /></ToastProvider>

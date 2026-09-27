@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { fetchCarouselSlides } from "@/lib/gallery";
 
 /** Fotos publicadas por el negocio; excluye vídeos para mantener una composición estable. */
@@ -10,7 +11,7 @@ export async function PhotoShowcase({ heading, start = 0 }: { heading: string; s
       <h2 className="mb-7 font-display text-2xl font-bold sm:text-3xl">{heading}</h2>
       <div className={`grid gap-4 ${photos.length > 1 ? "sm:grid-cols-2 lg:grid-cols-3" : ""}`}>
         {photos.map((photo) => <figure key={photo.id} className="group relative overflow-hidden rounded-2xl border border-white/30 bg-emerald-900 shadow-xl">
-          <img src={photo.url} alt={photo.title || "Trabajo de jardinería de Nieto Green Care"} loading="lazy" className="h-56 w-full object-cover transition duration-500 group-hover:scale-105 sm:h-64" />
+          <Image src={photo.url} alt={photo.title || "Trabajo de jardinería de Nieto Green Care"} width={1200} height={768} className="h-56 w-full object-cover transition duration-500 group-hover:scale-105 sm:h-64" />
           {(photo.title || photo.location) && <figcaption className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-emerald-950/90 to-transparent px-4 pb-4 pt-10 text-sm font-semibold">{photo.title || photo.location}</figcaption>}
         </figure>)}
       </div>
