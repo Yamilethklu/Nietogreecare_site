@@ -31,6 +31,8 @@ type AddressSuggestion = {
 
 type LawnDetectionResponse = {
   ok?: boolean;
+  error?: string;
+  warning?: string;
   formattedAddress?: string;
   latitude?: number;
   longitude?: number;
@@ -45,6 +47,27 @@ type LawnDetectionResponse = {
 };
 
 const SQ_FT_PER_SQ_M = 10.7639;
+const NO_PARCEL_ERROR = "No hay datos catastrales para esta dirección";
+const LAWN_COMPUTE_ERROR = "No se pudo calcular el área del jardín";
+const INVALID_LAWN_ERROR = "El área del jardín no es válida";
+
+function resolveMeasurementError(error: string | undefined, isEs: boolean) {
+  switch (error) {
+    case NO_PARCEL_ERROR:
+      return isEs ? error : "No parcel data is available for this address.";
+    case LAWN_COMPUTE_ERROR:
+      return isEs ? error : "Could not calculate the lawn area.";
+    case INVALID_LAWN_ERROR:
+      return isEs ? error : "The lawn area is not valid.";
+    case "geocode_not_found":
+      return isEs ? "No se pudo geocodificar esta dirección." : "Could not geocode this address.";
+    case "lawn_detection_unavailable":
+    case "lawn_detection_failed":
+      return isEs ? LAWN_COMPUTE_ERROR : "Could not calculate the lawn area.";
+    default:
+      return error || (isEs ? LAWN_COMPUTE_ERROR : "Could not calculate the lawn area.");
+  }
+}
 
 function ringToPath(ring: number[][]): PolygonPoint[] {
   return ring
@@ -67,6 +90,7 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
   const [rates, setRates] = React.useState<MowRate[]>([]);
   const [sending, setSending] = React.useState(false);
   const [gateAnswer, setGateAnswer] = React.useState<"yes" | "no" | "">("");
+  const [measurementWarning, setMeasurementWarning] = React.useState("");
 
   React.useEffect(() => {
     void fetch("/api/lawn-rates", { cache: "no-store" })
@@ -105,10 +129,12 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
     if (store.step !== 2 || store.measurement || store.latitude == null || store.longitude == null) return;
     let cancelled = false;
     setErrors((current) => ({ ...current, measurement: "" }));
+    setMeasurementWarning("");
     void fetch(`/api/lawn-detect?address=${encodeURIComponent(store.formattedAddress || store.address)}`, { cache: "no-store" })
       .then(async (response) => {
-        if (!response.ok) throw new Error("lawn-detect");
-        return (await response.json()) as LawnDetectionResponse;
+        const payload = (await response.json().catch(() => ({}))) as LawnDetectionResponse;
+        if (!response.ok) throw new Error(resolveMeasurementError(payload.error, isEs));
+        return payload;
       })
       .then((payload) => {
         if (cancelled) return;
@@ -116,9 +142,10 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
         const areaSqFt = Number(payload.areaPies);
         const center = payload.centro && Number.isFinite(payload.centro.lat) && Number.isFinite(payload.centro.lng) ? payload.centro : null;
         if (!payload.ok || !polygons.length || !Number.isFinite(areaSqFt) || areaSqFt <= 0) {
+          setMeasurementWarning(payload.warning || "");
           setErrors((current) => ({
             ...current,
-            measurement: isEs ? "No se pudo calcular automáticamente el jardín con Regrid." : "Could not calculate the lawn automatically with Regrid.",
+            measurement: resolveMeasurementError(payload.error, isEs),
           }));
           return;
         }
@@ -132,13 +159,16 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
         const measurement = buildMeasurement(polygons[0], areaSqFt, 2, 19, polygons, undefined, payload.poligonoJardin);
         if (center) measurement.center = center;
         store.setMeasurement(measurement);
+        setMeasurementWarning(payload.warning || "");
       })
-      .catch(() => {
+      .catch((error: unknown) => {
         if (!cancelled) {
+          const message = error instanceof Error && error.message ? error.message : resolveMeasurementError(undefined, isEs);
           setErrors((current) => ({
             ...current,
-            measurement: isEs ? "No se pudo calcular automáticamente el jardín con Regrid." : "Could not calculate the lawn automatically with Regrid.",
+            measurement: message,
           }));
+          setMeasurementWarning("");
         }
       });
     return () => { cancelled = true; };
@@ -306,6 +336,7 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
             <PropertySatellite address={store.address} latitude={store.latitude} longitude={store.longitude} isEs={isEs} polygon={polygon} geometry={lawnGeometry} center={markerCenter} />
             <p className="font-bold text-emerald-900">{isEs ? "Área del jardín" : "Lawn area"}: {lawnAreaSqM.toLocaleString()} m² · {lawnAreaSqFt.toLocaleString()} ft²</p>
             <FieldError>{errors.measurement}</FieldError>
+            {measurementWarning && <div className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900">{measurementWarning}</div>}
             <div className="rounded-lg bg-emerald-50 p-4 text-sm font-semibold text-emerald-950">{price !== null ? `$${price.toFixed(2)} / ${store.mowFrequency === "weekly" ? (isEs ? "semanal" : "weekly") : (isEs ? "quincenal" : "bi-weekly")}` : (isEs ? "Calculando tarifa…" : "Calculating rate…")}</div>
           </section>}
 

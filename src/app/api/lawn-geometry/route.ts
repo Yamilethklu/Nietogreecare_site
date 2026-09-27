@@ -7,6 +7,11 @@ export const runtime = "nodejs";
 type AreaGeometry = Polygon | MultiPolygon;
 type AreaFeature = Feature<AreaGeometry>;
 
+const NO_PARCEL_ERROR = "No hay datos catastrales para esta dirección";
+const LAWN_COMPUTE_ERROR = "No se pudo calcular el área del jardín";
+const INVALID_LAWN_ERROR = "El área del jardín no es válida";
+const APPROXIMATE_WARNING = "Aviso: la huella de la casa no está disponible, el área es aproximada";
+
 function asFeature(value: any): AreaFeature | null {
   const geometry = value?.type === "Feature" ? value.geometry : value?.geometry ?? value;
   if ((geometry?.type !== "Polygon" && geometry?.type !== "MultiPolygon") || !geometry.coordinates?.length) return null;
@@ -23,6 +28,22 @@ function findParcelFeature(payload: any): AreaFeature | null {
   return candidates.map(asFeature).find((feature): feature is AreaFeature => Boolean(feature)) ?? asFeature(payload?.parcel);
 }
 
+function findBuildingFeature(payload: any): AreaFeature | null {
+  const feature = payload?.features?.[0] ?? payload?.parcels?.features?.[0] ?? payload?.data?.features?.[0] ?? payload?.parcel ?? null;
+  const properties = feature?.properties ?? feature?.parcel ?? feature ?? {};
+  const candidates = [
+    properties?.building_geometry,
+    properties?.building?.geometry,
+    properties?.buildings?.[0]?.geometry,
+    properties?.structures?.[0]?.geometry,
+    properties?.footprint,
+    properties?.building_footprint,
+    payload?.buildings?.features?.[0],
+    payload?.building,
+  ];
+  return candidates.map(asFeature).find((candidate): candidate is AreaFeature => Boolean(candidate)) ?? null;
+}
+
 function simulatedHouseFootprint(lat: number, lng: number): AreaFeature {
   const sideMeters = Math.sqrt(1200 * 0.09290304);
   const latDelta = sideMeters / 111320;
@@ -36,7 +57,7 @@ function simulatedHouseFootprint(lat: number, lng: number): AreaFeature {
   ]]) as AreaFeature;
 }
 
-async function getHouseFootprint(lat: number, lng: number, apiKey: string): Promise<{ feature: AreaFeature; simulated: boolean }> {
+async function getHouseFootprint(lat: number, lng: number, apiKey: string): Promise<{ feature: AreaFeature; simulated: boolean; warning?: string }> {
   if (apiKey) {
     const url = new URL("https://solar.googleapis.com/v1/buildingInsights:findClosest");
     url.searchParams.set("location.latitude", String(lat));
@@ -67,7 +88,7 @@ async function getHouseFootprint(lat: number, lng: number, apiKey: string): Prom
     }
   }
 
-  return { feature: simulatedHouseFootprint(lat, lng), simulated: true };
+  return { feature: simulatedHouseFootprint(lat, lng), simulated: true, warning: APPROXIMATE_WARNING };
 }
 
 export async function POST(request: Request) {
@@ -103,19 +124,21 @@ export async function POST(request: Request) {
     parcelUrl.searchParams.set("lon", String(lng));
     parcelUrl.searchParams.set("token", regridToken);
     const parcelResponse = await fetch(parcelUrl, { cache: "no-store" });
-    if (!parcelResponse.ok) return NextResponse.json({ error: "No hay datos catastrales para esta dirección." }, { status: 404 });
-    const parcel = findParcelFeature(await parcelResponse.json());
-    if (!parcel) return NextResponse.json({ error: "No hay datos catastrales para esta dirección." }, { status: 404 });
+    if (!parcelResponse.ok) return NextResponse.json({ error: NO_PARCEL_ERROR }, { status: 404 });
+    const regridPayload = await parcelResponse.json();
+    const parcel = findParcelFeature(regridPayload);
+    if (!parcel) return NextResponse.json({ error: NO_PARCEL_ERROR }, { status: 404 });
 
-    const house = await getHouseFootprint(lat, lng, googleKey);
+    const regridHouse = findBuildingFeature(regridPayload);
+    const house = regridHouse ? { feature: regridHouse, simulated: false } : await getHouseFootprint(lat, lng, googleKey);
     const jardin = turf.difference(turf.featureCollection([parcel, house.feature]));
-    if (!jardin) return NextResponse.json({ error: "No se pudo calcular el área del jardín." }, { status: 422 });
+    if (!jardin) return NextResponse.json({ error: LAWN_COMPUTE_ERROR, warning: house.warning }, { status: 422 });
 
     const areaMetros = turf.area(jardin);
     const areaPies = areaMetros * 10.7639;
     const centro = turf.center(jardin).geometry.coordinates;
     if (!Number.isFinite(areaMetros) || areaMetros <= 0) {
-      return NextResponse.json({ error: "No se pudo calcular el área del jardín." }, { status: 422 });
+      return NextResponse.json({ error: LAWN_COMPUTE_ERROR, warning: house.warning }, { status: 422 });
     }
 
     return NextResponse.json({
@@ -124,6 +147,7 @@ export async function POST(request: Request) {
       areaPies,
       centro: { lat: centro[1], lng: centro[0] },
       huellaCasaSimulada: house.simulated,
+      warning: house.warning,
     });
   } catch {
     return NextResponse.json({ error: "No se pudo obtener la geometría catastral de esta dirección." }, { status: 502 });

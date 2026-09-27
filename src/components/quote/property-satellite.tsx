@@ -59,12 +59,14 @@ export function PropertySatellite({ address, latitude, longitude, isEs, compact 
   const googlePaths = React.useMemo(() => geometryToGooglePaths(geometry), [geometry]);
   const fallbackPaths = React.useMemo(() => polygon?.map((path) => [path]) ?? [], [polygon]);
   const mapPaths = googlePaths.length ? googlePaths : fallbackPaths;
-  const lawnCenter = React.useMemo(() => center ?? getCenter(polygon), [center, polygon]);
-  const lawnBounds = React.useMemo(() => getBounds(polygon), [polygon]);
+  const flatPaths = React.useMemo(() => mapPaths.flat(), [mapPaths]);
+  const lawnCenter = React.useMemo(() => center ?? getCenter(flatPaths), [center, flatPaths]);
+  const lawnBounds = React.useMemo(() => getBounds(flatPaths), [flatPaths]);
 
   React.useEffect(() => {
     if (!hasCoordinates || !container.current) return;
     let cancelled = false;
+    setAvailable(false);
     void loadGoogleMaps().then((ready) => {
       if (cancelled || !ready || !container.current || !window.google?.maps) return;
       const position = { lat: latitude!, lng: longitude! };
@@ -96,7 +98,7 @@ export function PropertySatellite({ address, latitude, longitude, isEs, compact 
           { lat: lawnBounds.south, lng: lawnBounds.west },
           { lat: lawnBounds.north, lng: lawnBounds.east },
         );
-        map.fitBounds(bounds);
+        map.fitBounds(bounds, 48);
       }
       new window.google.maps.Marker({
         map,
