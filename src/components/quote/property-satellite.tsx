@@ -13,6 +13,7 @@ type Props = {
   isEs: boolean;
   compact?: boolean;
   polygon?: PolygonPoint[][];
+  parcelPolygons?: PolygonPoint[][];
   geometry?: LawnGeoJsonGeometry;
   center?: PolygonPoint | null;
   loadingText?: string;
@@ -54,16 +55,18 @@ function geometryToGooglePaths(geometry?: LawnGeoJsonGeometry): PolygonPoint[][]
   return geometry.coordinates.map((polygon) => polygon.map(ringToPath).filter((ring) => ring.length >= 3)).filter((polygon) => polygon.length > 0);
 }
 
-export function PropertySatellite({ address, latitude, longitude, isEs, compact = false, polygon, geometry, center, loadingText, showMarker = true }: Props) {
+export function PropertySatellite({ address, latitude, longitude, isEs, compact = false, polygon, parcelPolygons, geometry, center, loadingText, showMarker = true }: Props) {
   const container = React.useRef<HTMLDivElement>(null);
   const [available, setAvailable] = React.useState(false);
   const hasCoordinates = latitude !== null && longitude !== null && Number.isFinite(latitude) && Number.isFinite(longitude);
   const googlePaths = React.useMemo(() => geometryToGooglePaths(geometry), [geometry]);
+  const parcelPaths = React.useMemo(() => parcelPolygons?.map((path) => [path]).filter((paths) => paths[0]?.length >= 3) ?? [], [parcelPolygons]);
   const fallbackPaths = React.useMemo(() => polygon?.map((path) => [path]) ?? [], [polygon]);
   const mapPaths = googlePaths.length ? googlePaths : fallbackPaths;
   const flatPaths = React.useMemo(() => mapPaths.flat(), [mapPaths]);
-  const lawnCenter = React.useMemo(() => center ?? getCenter(flatPaths), [center, flatPaths]);
-  const lawnBounds = React.useMemo(() => getBounds(flatPaths), [flatPaths]);
+  const allFlatPaths = React.useMemo(() => [...parcelPaths.flat(), ...flatPaths], [parcelPaths, flatPaths]);
+  const lawnCenter = React.useMemo(() => center ?? getCenter(allFlatPaths), [center, allFlatPaths]);
+  const lawnBounds = React.useMemo(() => getBounds(allFlatPaths), [allFlatPaths]);
 
   React.useEffect(() => {
     if (!hasCoordinates || !container.current) return;
@@ -81,16 +84,30 @@ export function PropertySatellite({ address, latitude, longitude, isEs, compact 
         fullscreenControl: false,
         gestureHandling: "cooperative",
       });
+      parcelPaths.forEach((paths) => {
+        if (paths[0]?.length >= 3) {
+          new window.google.maps.Polygon({
+            map,
+            paths,
+            strokeColor: "#f8fafc",
+            strokeOpacity: 0.95,
+            strokeWeight: 2,
+            fillColor: "#f8fafc",
+            fillOpacity: 0.08,
+            clickable: false,
+          });
+        }
+      });
       mapPaths.forEach((paths) => {
         if (paths[0]?.length >= 3) {
           new window.google.maps.Polygon({
             map,
             paths,
-            strokeColor: "#16a34a",
+            strokeColor: "#14532d",
             strokeOpacity: 0.95,
             strokeWeight: 2,
-            fillColor: "#22c55e",
-            fillOpacity: 0.35,
+            fillColor: "#166534",
+            fillOpacity: 0.6,
             clickable: false,
           });
         }
@@ -112,7 +129,7 @@ export function PropertySatellite({ address, latitude, longitude, isEs, compact 
       setAvailable(true);
     });
     return () => { cancelled = true; };
-  }, [address, hasCoordinates, latitude, longitude, lawnBounds, lawnCenter, mapPaths, showMarker]);
+  }, [address, hasCoordinates, latitude, longitude, lawnBounds, lawnCenter, mapPaths, parcelPaths, showMarker]);
 
   return (
     <div className={`relative overflow-hidden rounded-2xl border-2 border-lime-400 bg-emerald-950 shadow-lg ${compact ? "min-h-56" : "min-h-72 sm:min-h-96"}`}>

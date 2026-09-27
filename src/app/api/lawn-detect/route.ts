@@ -251,6 +251,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json({
       ok: true,
+      poligonoParcela: parcel.geometry,
       poligonoJardin: jardin.geometry,
       areaMetros: areaSqM,
       areaPies: featureAreaSqFt(jardin),

@@ -57,6 +57,7 @@ export const measurementSchema = z.object({
   perimeterFt: z.number().min(0),
   polygon: z.array(polygonPointSchema).max(40).default([]),
   polygons: z.array(z.array(polygonPointSchema).min(3).max(40)).max(8).optional(),
+  parcelPolygons: z.array(z.array(polygonPointSchema).min(3).max(40)).max(8).optional(),
   gardenGeometry: gardenGeometrySchema.optional(),
   polygonPath: z.string().nullable().default(null),
   bounds: boundsSchema.nullable().default(null),

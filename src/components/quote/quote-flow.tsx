@@ -37,6 +37,7 @@ type LawnDetectionResponse = {
   formattedAddress?: string;
   latitude?: number;
   longitude?: number;
+  poligonoParcela?: LawnGeoJsonGeometry;
   poligonoJardin?: LawnGeoJsonGeometry;
   areaMetros?: number;
   areaPies?: number;
@@ -178,6 +179,7 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
       .then((payload) => {
         if (cancelled) return;
         const polygons = geoJsonGeometryToPolygons(payload.poligonoJardin);
+        const parcelPolygons = geoJsonGeometryToPolygons(payload.poligonoParcela);
         const areaSqFt = Number(payload.areaPies);
         const center = payload.centro && Number.isFinite(payload.centro.lat) && Number.isFinite(payload.centro.lng) ? payload.centro : null;
         if (!payload.ok || !polygons.length || !Number.isFinite(areaSqFt) || areaSqFt <= 0) {
@@ -195,7 +197,7 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
             longitude: payload.longitude,
           });
         }
-        const measurement = buildMeasurement(polygons[0], areaSqFt, 2, 19, polygons, undefined, payload.poligonoJardin);
+        const measurement = buildMeasurement(polygons[0], areaSqFt, 2, 19, polygons, parcelPolygons.length ? parcelPolygons : undefined, payload.poligonoJardin);
         if (center) measurement.center = center;
         store.setMeasurement(measurement);
         setMeasurementWarning(payload.warning || "");
@@ -470,7 +472,7 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
             {measurementLoading && <p className="rounded-lg bg-slate-100 px-4 py-3 text-sm font-semibold text-slate-700">{isEs ? "Analizando tu propiedad por satélite..." : "Analyzing your property by satellite..."}</p>}
             <div className="grid gap-5 border-b border-emerald-100 pb-5 sm:grid-cols-[1fr_1fr]">
               <div><h2 className="text-2xl font-extrabold text-emerald-950">{isEs ? "5. Resumen de cotización" : "5. Quote summary"}</h2><p className="mt-3 text-2xl font-bold text-emerald-800">{price !== null ? `$${price.toFixed(2)} / ${cadenceLabel}` : ""}</p><p className="mt-2 text-sm text-slate-600">{store.address}</p></div>
-              <PropertySatellite address={store.address} latitude={store.latitude} longitude={store.longitude} isEs={isEs} compact polygon={polygon} geometry={lawnGeometry} center={markerCenter} loadingText={isEs ? "Analizando tu propiedad por satélite..." : "Analyzing your property by satellite..."} showMarker={false} />
+              <PropertySatellite address={store.address} latitude={store.latitude} longitude={store.longitude} isEs={isEs} compact polygon={polygon} geometry={lawnGeometry} parcelPolygons={store.measurement?.parcelPolygons} center={markerCenter} loadingText={isEs ? "Analizando tu propiedad por satélite..." : "Analyzing your property by satellite..."} showMarker={false} />
             </div>
             <FieldError>{errors.measurement}</FieldError>
             {measurementWarning && <div className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900">{measurementWarning}</div>}
