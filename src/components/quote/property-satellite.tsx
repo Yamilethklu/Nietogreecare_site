@@ -75,7 +75,7 @@ export function PropertySatellite({ address, latitude, longitude, isEs, compact 
       const map = new window.google.maps.Map(container.current, {
         center: lawnCenter ?? position,
         zoom: 19,
-        mapTypeId: "hybrid",
+        mapTypeId: "satellite",
         streetViewControl: false,
         mapTypeControl: false,
         fullscreenControl: false,
