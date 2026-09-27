@@ -164,6 +164,7 @@ export function buildMeasurement(
   depthInches: number = DEFAULT_DEPTH_INCHES,
   zoom?: number | null,
   polygons?: PolygonPoint[][],
+  parcelPolygons?: PolygonPoint[][],
 ): QuoteMeasurement {
   const bounds = getBounds(polygon);
   const center = getCentroid(polygon);
@@ -175,6 +176,7 @@ export function buildMeasurement(
     perimeterFt: Math.round(polygonPerimeterFeet(polygon) * 100) / 100,
     polygon,
     polygons: polygons ?? [polygon],
+    parcelPolygons,
     polygonPath: polygon.length > 2 ? encodePolyline(polygon) : null,
     bounds,
     center,
