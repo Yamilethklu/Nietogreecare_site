@@ -13,7 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FieldError, Input, Label, Textarea } from "@/components/ui/input";
 import { BUSINESS, SERVICES, ZIP_CITY_MAP } from "@/lib/constants";
 import { matchMowRate, type MowRate } from "@/lib/instant-pricing";
-import { getCoverageCitiesForWeekday } from "@/lib/service-schedule";
+import { getCoverageCitiesForWeekday, getCoverageNoteLines } from "@/lib/service-schedule";
 import { formatZodErrors, phoneSchema, step1Schema } from "@/lib/validation";
 import type { LawnGeoJsonGeometry, PaymentMethod, PolygonPoint } from "@/lib/types";
 import { buildMeasurement, pickSubmissionFields, TOTAL_STEPS, useQuoteStore, type MowFrequency, type QuoteStore } from "@/store/quote-store";
@@ -86,19 +86,17 @@ function geoJsonGeometryToPolygons(geometry: LawnGeoJsonGeometry | undefined): P
   return geometry.coordinates.map((polygon) => ringToPath(polygon[0] ?? [])).filter((path) => path.length >= 3);
 }
 
-function getMowFrequencyLabel(mowFrequency: MowFrequency, isEs: boolean) {
-  return mowFrequency === "weekly"
-    ? (isEs ? "Atención continua" : "Continuous attention")
-    : (isEs ? "Servicio quincenal" : "Biweekly service");
-}
-
-function getCoverageNoteLines(isEs: boolean) {
-  const groups = [
-    { daysEs: "Lunes y Martes", daysEn: "Monday and Tuesday", weekday: 1 },
-    { daysEs: "Miércoles", daysEn: "Wednesday", weekday: 3 },
-    { daysEs: "Jueves y Viernes", daysEn: "Thursday and Friday", weekday: 4 },
-  ];
-  return groups.map(({ daysEs, daysEn, weekday }) => `${isEs ? daysEs : daysEn}: ${getCoverageCitiesForWeekday(weekday).join(", ")}.`);
+function getMowFrequencyLabels(mowFrequency: MowFrequency, isEs: boolean) {
+  if (mowFrequency === "weekly") {
+    return {
+      descriptive: isEs ? "Atención continua" : "Continuous attention",
+      cadence: isEs ? "Semanal" : "Weekly",
+    };
+  }
+  return {
+    descriptive: isEs ? "Servicio quincenal" : "Biweekly service",
+    cadence: isEs ? "Quincenal" : "Bi-weekly",
+  };
 }
 
 export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
@@ -220,7 +218,7 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
 
   const rate = matchMowRate(rates, store.measurement?.areaSqFt ?? 0, store.mowFrequency);
   const price = rate ? Number(rate.price) : null;
-  const frequencyLabel = getMowFrequencyLabel(store.mowFrequency, isEs);
+  const { descriptive: frequencyLabel, cadence: cadenceLabel } = getMowFrequencyLabels(store.mowFrequency, isEs);
   const coverageNoteLines = getCoverageNoteLines(isEs);
   const resolveCoordinates = async () => {
     const current = useQuoteStore.getState();
@@ -329,8 +327,8 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
         `${isEs ? "Folio" : "Reference"}: ${referenceCode}`,
         `${isEs ? "Dirección" : "Address"}: ${submitted.address}`,
         `${isEs ? "Área de césped" : "Lawn area"}: ${Math.round(submitted.measurement?.areaSqFt ?? 0).toLocaleString()} sq ft`,
-        `${isEs ? "Tarifa" : "Rate"}: $${Number(payload.data?.price ?? price).toFixed(2)} / ${getMowFrequencyLabel(submitted.mowFrequency, isEs)}`,
-        `${isEs ? "Frecuencia" : "Frequency"}: ${getMowFrequencyLabel(submitted.mowFrequency, isEs)}`,
+        `${isEs ? "Tarifa" : "Rate"}: $${Number(payload.data?.price ?? price).toFixed(2)} / ${getMowFrequencyLabels(submitted.mowFrequency, isEs).cadence}`,
+        `${isEs ? "Frecuencia" : "Frequency"}: ${getMowFrequencyLabels(submitted.mowFrequency, isEs).descriptive}`,
         `${isEs ? "Estado de propiedad" : "Property status"}: ${submitted.propertyOccupancy === "occupied" ? (isEs ? "Ocupada" : "Occupied") : (isEs ? "Vacante" : "Vacant")}`,
         `${isEs ? "Zona de corte" : "Mowing zone"}: ${submitted.areaSelection === "front_back" ? (isEs ? "Frente y trasera" : "Front and back") : submitted.areaSelection === "front_only" ? (isEs ? "Solo delantera" : "Front only") : (isEs ? "Solo trasera" : "Back only")}`,
         `${isEs ? "Trabajos" : "Jobs"}: ${jobNames.join(", ")}`,
@@ -342,11 +340,6 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
         submitted.additionalNotes.trim() ? `${isEs ? "Notas" : "Notes"}: ${submitted.additionalNotes.trim()}` : "",
       ].filter(Boolean).join("\n");
       const smsUrl = `${BUSINESS.smsHref}?body=${encodeURIComponent(smsBody)}`;
-      const smsWindow = window.open(smsUrl, "_blank", "noopener");
-      if (smsWindow) {
-        submitted.markSubmitted();
-        return;
-      }
       submitted.markSubmitted();
       window.location.href = smsUrl;
       return;
@@ -394,7 +387,7 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
             <p className="font-bold text-emerald-900">{isEs ? `Área de césped calculada automáticamente: ${lawnAreaSqM.toLocaleString()} m² (${lawnAreaSqFt.toLocaleString()} ft²)` : `Automatically calculated lawn area: ${lawnAreaSqM.toLocaleString()} m² (${lawnAreaSqFt.toLocaleString()} ft²)`}</p>
             <FieldError>{errors.measurement}</FieldError>
             {measurementWarning && <div className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900">{measurementWarning}</div>}
-            <div className="rounded-lg bg-emerald-50 p-4 text-sm font-semibold text-emerald-950">{price !== null ? `$${price.toFixed(2)} / ${frequencyLabel}` : (isEs ? "Calculando tarifa…" : "Calculating rate…")}</div>
+            <div className="rounded-lg bg-emerald-50 p-4 text-sm font-semibold text-emerald-950">{price !== null ? `$${price.toFixed(2)} / ${cadenceLabel}` : (isEs ? "Calculando tarifa…" : "Calculating rate…")}</div>
           </section>}
 
           {store.step === 3 && <section className="space-y-6">
@@ -452,7 +445,7 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
 
           {store.step === 6 && <section className="space-y-6">
             <div className="grid gap-5 border-b border-emerald-100 pb-5 sm:grid-cols-[1fr_1fr]">
-              <div><h2 className="text-2xl font-extrabold text-emerald-950">My Custom Lawn Mowing Plan</h2><p className="mt-3 text-2xl font-bold text-emerald-800">{price !== null ? `$${price.toFixed(2)} / ${frequencyLabel}` : ""}</p><p className="mt-2 text-sm text-slate-600">{store.address}</p></div>
+              <div><h2 className="text-2xl font-extrabold text-emerald-950">My Custom Lawn Mowing Plan</h2><p className="mt-3 text-2xl font-bold text-emerald-800">{price !== null ? `$${price.toFixed(2)} / ${cadenceLabel}` : ""}</p><p className="mt-2 text-sm text-slate-600">{store.address}</p></div>
               <PropertySatellite address={store.address} latitude={store.latitude} longitude={store.longitude} isEs={isEs} compact polygon={polygon} geometry={lawnGeometry} center={markerCenter} />
             </div>
             <p className="font-bold text-emerald-900">{isEs ? "Pies cuadrados de césped" : "Lawn square footage"}: {lawnAreaSqFt.toLocaleString()} sq ft</p>
@@ -581,8 +574,6 @@ function MowingCalendar({ selected, city, isEs, onSelect, price }: { selected: s
 
 function Confirmation({ isEs, store, price, onReset }: { isEs: boolean; store: QuoteStore; price: number | null; onReset: () => void }) {
   const smsBody = `${BUSINESS.name} - Folio ${store.referenceCode ?? ""}\n${store.address}\n${store.customerName} · ${store.customerPhone}`;
-  const frequencyLabel = store.mowFrequency === "weekly"
-    ? (isEs ? "Atención continua" : "Continuous attention")
-    : (isEs ? "Servicio quincenal" : "Biweekly service");
-  return <Card className="mx-auto max-w-2xl space-y-5 p-8 text-center"><CardContent className="space-y-5"><ShieldCheck className="mx-auto size-14 text-emerald-700" /><h1 className="text-2xl font-extrabold text-slate-950">{isEs ? "¡Muchas gracias por su preferencia! Su solicitud ha sido procesada." : "Thank you! Your request has been processed."}</h1><p className="text-sm text-slate-600">{isEs ? "La solicitud se guardó en Supabase. Si el SMS no se abrió automáticamente, use el botón de abajo para contactar al propietario." : "Your request was saved to Supabase. If the SMS app did not open automatically, use the button below to contact the owner."}</p><p className="text-xl font-bold text-emerald-800">{price !== null ? `$${price.toFixed(2)} / ${frequencyLabel}` : ""}</p><a href={`${BUSINESS.smsHref}?body=${encodeURIComponent(smsBody)}`} className="inline-flex items-center rounded-lg bg-emerald-700 px-4 py-3 font-bold text-white"><MessageSquare className="mr-2 size-4" />{isEs ? "Abrir SMS al propietario" : "Open owner SMS"}</a><div><Button variant="outline" onClick={onReset}><CheckCircle2 className="mr-2 size-4" />{isEs ? "Nueva cotización" : "New quote"}</Button></div></CardContent></Card>;
+  const { cadence: cadenceLabel } = getMowFrequencyLabels(store.mowFrequency, isEs);
+  return <Card className="mx-auto max-w-2xl space-y-5 p-8 text-center"><CardContent className="space-y-5"><ShieldCheck className="mx-auto size-14 text-emerald-700" /><h1 className="text-2xl font-extrabold text-slate-950">{isEs ? "¡Muchas gracias por su preferencia! Su solicitud ha sido procesada." : "Thank you! Your request has been processed."}</h1><p className="text-sm text-slate-600">{isEs ? "La solicitud se guardó en Supabase. Si el SMS no se abrió automáticamente, use el botón de abajo para contactar al propietario." : "Your request was saved to Supabase. If the SMS app did not open automatically, use the button below to contact the owner."}</p><p className="text-xl font-bold text-emerald-800">{price !== null ? `$${price.toFixed(2)} / ${cadenceLabel}` : ""}</p><a href={`${BUSINESS.smsHref}?body=${encodeURIComponent(smsBody)}`} className="inline-flex items-center rounded-lg bg-emerald-700 px-4 py-3 font-bold text-white"><MessageSquare className="mr-2 size-4" />{isEs ? "Abrir SMS al propietario" : "Open owner SMS"}</a><div><Button variant="outline" onClick={onReset}><CheckCircle2 className="mr-2 size-4" />{isEs ? "Nueva cotización" : "New quote"}</Button></div></CardContent></Card>;
 }

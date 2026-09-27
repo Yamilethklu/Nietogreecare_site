@@ -6,12 +6,25 @@ const COVERAGE_BY_WEEKDAY: Record<number, readonly string[]> = {
   5: ["Hutto", "Round Rock", "Georgetown", "Liberty Hill", "Leander"],
 };
 
+const COVERAGE_NOTE_GROUPS = [
+  { weekday: 1, daysEs: "Lunes y Martes", daysEn: "Monday and Tuesday" },
+  { weekday: 3, daysEs: "Miércoles", daysEn: "Wednesday" },
+  { weekday: 4, daysEs: "Jueves y Viernes", daysEn: "Thursday and Friday" },
+] as const;
+
 function normalizeCity(city: string): string {
   return city.trim().toLocaleLowerCase("en-US");
 }
 
 export function getCoverageCitiesForWeekday(weekday: number): readonly string[] {
   return COVERAGE_BY_WEEKDAY[weekday] ?? [];
+}
+
+export function getCoverageNoteLines(isEs: boolean): string[] {
+  return COVERAGE_NOTE_GROUPS.map(({ weekday, daysEs, daysEn }) => {
+    const dayLabel = isEs ? daysEs : daysEn;
+    return `${dayLabel}: ${getCoverageCitiesForWeekday(weekday).join(", ")}.`;
+  });
 }
 
 export function isDateCoveredForCity(dateKey: string, city: string): boolean {
