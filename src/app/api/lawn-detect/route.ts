@@ -13,6 +13,8 @@ const APPROXIMATE_WARNING = "Aviso: la huella de la casa no está disponible, el
 const LAWN_DETECTION_UNAVAILABLE = "lawn_detection_unavailable";
 const LAWN_DETECTION_FAILED = "lawn_detection_failed";
 const GEOCODE_NOT_FOUND = "geocode_not_found";
+const AREA_SELECTIONS = ["front_back", "front_only", "back_only"] as const;
+type AreaSelection = (typeof AREA_SELECTIONS)[number];
 
 function findBuildingFeature(payload: any): AreaFeature | null {
   const feature = payload?.features?.[0] ?? payload?.parcels?.features?.[0] ?? payload?.data?.features?.[0] ?? payload?.parcel ?? null;
@@ -88,6 +90,36 @@ function simulatedHouseFootprint(lat: number, lng: number): AreaFeature {
   ]]) as AreaFeature;
 }
 
+function selectMowArea(lawn: AreaFeature, parcel: AreaFeature, lat: number, lng: number, area: AreaSelection): AreaFeature | null {
+  if (area === "front_back") return lawn;
+  const [west, south, east, north] = turf.bbox(parcel as any);
+  const width = Math.abs(east - west);
+  const height = Math.abs(north - south);
+  const parcelCenter = turf.center(parcel as any).geometry.coordinates;
+  const splitLng = parcelCenter[0];
+  const splitLat = parcelCenter[1];
+  const useVerticalSplit = height >= width;
+  const addressIsSouthOrWest = useVerticalSplit ? lat <= splitLat : lng <= splitLng;
+  const frontIsLowerSide = addressIsSouthOrWest;
+  const wantFront = area === "front_only";
+  const useLowerSide = wantFront ? frontIsLowerSide : !frontIsLowerSide;
+  const clipBox = useVerticalSplit
+    ? useLowerSide
+      ? [west, south, east, splitLat]
+      : [west, splitLat, east, north]
+    : useLowerSide
+      ? [west, south, splitLng, north]
+      : [splitLng, south, east, north];
+  try {
+    const clipped = turf.bboxClip(lawn as any, clipBox as any);
+    const feature = asAreaFeature(clipped);
+    if (!feature || featureAreaSqM(feature) <= 0) return lawn;
+    return feature;
+  } catch {
+    return lawn;
+  }
+}
+
 async function getSolarHouseFootprint(lat: number, lng: number, apiKey: string): Promise<AreaFeature | null> {
   if (!apiKey) return null;
   const url = new URL("https://solar.googleapis.com/v1/buildingInsights:findClosest");
@@ -146,6 +178,8 @@ export async function GET(request: Request) {
   const address = params.get("address")?.trim() ?? "";
   const latParam = Number(params.get("lat"));
   const lngParam = Number(params.get("lng"));
+  const requestedArea = params.get("area");
+  const areaSelection: AreaSelection = AREA_SELECTIONS.includes(requestedArea as AreaSelection) ? requestedArea as AreaSelection : "front_back";
 
   if (!address && (!Number.isFinite(latParam) || !Number.isFinite(lngParam))) {
     return NextResponse.json({ ok: false, error: LAWN_DETECTION_UNAVAILABLE }, { status: 400 });
@@ -202,7 +236,8 @@ export async function GET(request: Request) {
       warning = APPROXIMATE_WARNING;
     }
 
-    const jardin = subtractFootprint(parcel, house);
+    const fullLawn = subtractFootprint(parcel, house);
+    const jardin = fullLawn ? selectMowArea(fullLawn, parcel, latitude, longitude, areaSelection) : null;
     if (!jardin?.geometry) {
       return NextResponse.json({ ok: false, error: LAWN_COMPUTE_ERROR, formattedAddress, latitude, longitude, warning }, { status: 422 });
     }
