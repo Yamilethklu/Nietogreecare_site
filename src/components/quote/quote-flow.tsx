@@ -380,23 +380,23 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
               <div>
                 <p className="text-sm font-semibold text-slate-800">{isEs ? "Frecuencia" : "Frequency"}</p>
                 <div className="mt-2 space-y-2">
-                  <button type="button" onClick={() => store.setLawnOptions({ mowFrequency: "weekly" })} className={`w-full rounded-lg border px-3 py-2 text-left text-sm font-semibold ${store.mowFrequency === "weekly" ? "border-emerald-700 bg-emerald-50 text-emerald-900" : "border-slate-200 bg-white text-slate-700"}`}>{isEs ? "Semanal" : "Weekly"}</button>
-                  <button type="button" onClick={() => store.setLawnOptions({ mowFrequency: "bi_weekly" })} className={`w-full rounded-lg border px-3 py-2 text-left text-sm font-semibold ${store.mowFrequency === "bi_weekly" ? "border-emerald-700 bg-emerald-50 text-emerald-900" : "border-slate-200 bg-white text-slate-700"}`}>{isEs ? "Quincenal" : "Bi-weekly"}</button>
+                  <button type="button" aria-pressed={store.mowFrequency === "weekly"} onClick={() => store.setLawnOptions({ mowFrequency: "weekly" })} className={`w-full rounded-lg border px-3 py-2 text-left text-sm font-semibold ${store.mowFrequency === "weekly" ? "border-emerald-700 bg-emerald-50 text-emerald-900" : "border-slate-200 bg-white text-slate-700"}`}>{isEs ? "Semanal" : "Weekly"}</button>
+                  <button type="button" aria-pressed={store.mowFrequency === "bi_weekly"} onClick={() => store.setLawnOptions({ mowFrequency: "bi_weekly" })} className={`w-full rounded-lg border px-3 py-2 text-left text-sm font-semibold ${store.mowFrequency === "bi_weekly" ? "border-emerald-700 bg-emerald-50 text-emerald-900" : "border-slate-200 bg-white text-slate-700"}`}>{isEs ? "Quincenal" : "Bi-weekly"}</button>
                 </div>
               </div>
               <div>
                 <p className="text-sm font-semibold text-slate-800">{isEs ? "Estado de la propiedad" : "Property state"}</p>
                 <div className="mt-2 space-y-2">
-                  <button type="button" onClick={() => store.setLawnOptions({ propertyOccupancy: "occupied" })} className={`w-full rounded-lg border px-3 py-2 text-left text-sm font-semibold ${store.propertyOccupancy === "occupied" ? "border-emerald-700 bg-emerald-50 text-emerald-900" : "border-slate-200 bg-white text-slate-700"}`}>{isEs ? "Ocupado" : "Occupied"}</button>
-                  <button type="button" onClick={() => store.setLawnOptions({ propertyOccupancy: "vacant" })} className={`w-full rounded-lg border px-3 py-2 text-left text-sm font-semibold ${store.propertyOccupancy === "vacant" ? "border-emerald-700 bg-emerald-50 text-emerald-900" : "border-slate-200 bg-white text-slate-700"}`}>{isEs ? "Vacante" : "Vacant"}</button>
+                  <button type="button" aria-pressed={store.propertyOccupancy === "occupied"} onClick={() => store.setLawnOptions({ propertyOccupancy: "occupied" })} className={`w-full rounded-lg border px-3 py-2 text-left text-sm font-semibold ${store.propertyOccupancy === "occupied" ? "border-emerald-700 bg-emerald-50 text-emerald-900" : "border-slate-200 bg-white text-slate-700"}`}>{isEs ? "Ocupado" : "Occupied"}</button>
+                  <button type="button" aria-pressed={store.propertyOccupancy === "vacant"} onClick={() => store.setLawnOptions({ propertyOccupancy: "vacant" })} className={`w-full rounded-lg border px-3 py-2 text-left text-sm font-semibold ${store.propertyOccupancy === "vacant" ? "border-emerald-700 bg-emerald-50 text-emerald-900" : "border-slate-200 bg-white text-slate-700"}`}>{isEs ? "Vacante" : "Vacant"}</button>
                 </div>
               </div>
               <div>
                 <p className="text-sm font-semibold text-slate-800">{isEs ? "Zona de corte" : "Cut area"}</p>
                 <div className="mt-2 space-y-2">
-                  <button type="button" onClick={() => store.setLawnOptions({ areaSelection: "front_back" })} className={`w-full rounded-lg border px-3 py-2 text-left text-sm font-semibold ${store.areaSelection === "front_back" ? "border-emerald-700 bg-emerald-50 text-emerald-900" : "border-slate-200 bg-white text-slate-700"}`}>{isEs ? "Frente y trasera" : "Front and back"}</button>
-                  <button type="button" onClick={() => store.setLawnOptions({ areaSelection: "front_only" })} className={`w-full rounded-lg border px-3 py-2 text-left text-sm font-semibold ${store.areaSelection === "front_only" ? "border-emerald-700 bg-emerald-50 text-emerald-900" : "border-slate-200 bg-white text-slate-700"}`}>{isEs ? "Solo delantera" : "Front only"}</button>
-                  <button type="button" onClick={() => store.setLawnOptions({ areaSelection: "back_only" })} className={`w-full rounded-lg border px-3 py-2 text-left text-sm font-semibold ${store.areaSelection === "back_only" ? "border-emerald-700 bg-emerald-50 text-emerald-900" : "border-slate-200 bg-white text-slate-700"}`}>{isEs ? "Solo trasera" : "Back only"}</button>
+                  <button type="button" aria-pressed={store.areaSelection === "front_back"} onClick={() => store.setLawnOptions({ areaSelection: "front_back" })} className={`w-full rounded-lg border px-3 py-2 text-left text-sm font-semibold ${store.areaSelection === "front_back" ? "border-emerald-700 bg-emerald-50 text-emerald-900" : "border-slate-200 bg-white text-slate-700"}`}>{isEs ? "Frente y trasera" : "Front and back"}</button>
+                  <button type="button" aria-pressed={store.areaSelection === "front_only"} onClick={() => store.setLawnOptions({ areaSelection: "front_only" })} className={`w-full rounded-lg border px-3 py-2 text-left text-sm font-semibold ${store.areaSelection === "front_only" ? "border-emerald-700 bg-emerald-50 text-emerald-900" : "border-slate-200 bg-white text-slate-700"}`}>{isEs ? "Solo delantera" : "Front only"}</button>
+                  <button type="button" aria-pressed={store.areaSelection === "back_only"} onClick={() => store.setLawnOptions({ areaSelection: "back_only" })} className={`w-full rounded-lg border px-3 py-2 text-left text-sm font-semibold ${store.areaSelection === "back_only" ? "border-emerald-700 bg-emerald-50 text-emerald-900" : "border-slate-200 bg-white text-slate-700"}`}>{isEs ? "Solo trasera" : "Back only"}</button>
                 </div>
               </div>
             </div>
@@ -457,6 +457,7 @@ function MowingCalendar({ selected, city, isEs, onSelect, price }: { selected: s
   const days = new Date(month.getFullYear(), month.getMonth() + 1, 0).getDate();
   const labels = isEs ? ["L", "M", "M", "J", "V", "S", "D"] : ["M", "T", "W", "T", "F", "S", "S"];
   const monthKey = `${month.getFullYear()}-${String(month.getMonth() + 1).padStart(2, "0")}`;
+  const cityQuery = city.trim();
   const normalizedCity = normalizeCityKey(city.trim());
   const availabilityKey = `${monthKey}:${normalizedCity || "unknown"}`;
 
@@ -469,7 +470,7 @@ function MowingCalendar({ selected, city, isEs, onSelect, price }: { selected: s
       return () => { cancelled = true; };
     }
     setAvailabilityReady(false);
-    void fetch(`/api/availability?month=${monthKey}&city=${encodeURIComponent(normalizedCity)}`, { cache: "no-store" })
+    void fetch(`/api/availability?month=${monthKey}&city=${encodeURIComponent(cityQuery)}`, { cache: "no-store" })
       .then(async (response) => {
         const payload = (await response.json().catch(() => ({}))) as AvailabilityResponse;
         if (!response.ok || !payload.ok) throw new Error("availability");
@@ -486,10 +487,11 @@ function MowingCalendar({ selected, city, isEs, onSelect, price }: { selected: s
         delete availabilityCacheRef.current[availabilityKey];
         if (!cancelled) {
           setAvailabilityReady(false);
+          setOccupiedDates(new Set());
         }
       });
     return () => { cancelled = true; };
-  }, [availabilityKey, monthKey, normalizedCity]);
+  }, [availabilityKey, cityQuery, monthKey]);
 
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-6" aria-label={isEs ? "Calendario de corte" : "Mowing calendar"}>
