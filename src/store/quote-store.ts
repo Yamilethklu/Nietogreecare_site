@@ -23,7 +23,7 @@ import { buildReferenceCode } from "@/lib/utils";
  * el recorte del area y los pasos completados, incluso si el cliente cierra el navegador.
  */
 
-export const TOTAL_STEPS = 7;
+export const TOTAL_STEPS = 8;
 export const DRAFT_STORAGE_KEY = "ngc-quote-draft-v4";
 
 export type ServiceFrequency = "ongoing" | "one_time";
