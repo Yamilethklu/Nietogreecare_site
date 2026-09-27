@@ -471,6 +471,7 @@ function MowingCalendar({ selected, city, isEs, onSelect, price }: { selected: s
         if (!cancelled) setOccupiedDates(new Set(dates));
       })
       .catch(() => {
+        delete availabilityCacheRef.current[monthKey];
         if (!cancelled) setOccupiedDates(new Set());
       });
     return () => { cancelled = true; };
@@ -490,7 +491,7 @@ function MowingCalendar({ selected, city, isEs, onSelect, price }: { selected: s
           const date = new Date(month.getFullYear(), month.getMonth(), index + 1);
           const iso = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
           const weekday = date.getDay();
-          const isWeekend = weekday === 0 || weekday === 6;
+          const isWeekend = weekday === 0;
           const isCovered = normalizedCity
             ? getCoverageCitiesForWeekday(weekday).some((coveredCity) => coveredCity.toLocaleLowerCase("en-US") === normalizedCity)
             : false;
