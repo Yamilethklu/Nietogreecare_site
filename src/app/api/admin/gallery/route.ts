@@ -16,6 +16,15 @@ const ALLOWED_GALLERY_MEDIA_TYPES = [
   "video/webm",
 ] as const;
 const MAX_GALLERY_MEDIA_BYTES = 50 * 1024 * 1024;
+const extensionForType: Record<string, string> = {
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp",
+  "image/avif": "avif",
+  "video/mp4": "mp4",
+  "video/quicktime": "mov",
+  "video/webm": "webm",
+};
 
 export async function GET() {
   const gate = await requireAdmin();
@@ -45,7 +54,8 @@ export async function POST(request: Request) {
   if (!(file instanceof File) || !ALLOWED_GALLERY_MEDIA_TYPES.includes(file.type as (typeof ALLOWED_GALLERY_MEDIA_TYPES)[number]) || file.size > MAX_GALLERY_MEDIA_BYTES) return NextResponse.json({ ok: false, error: "Seleccione una foto o video JPG, PNG, WEBP, AVIF, MP4, MOV o WEBM válido de máximo 50 MB." }, { status: 422 });
   const db = getSupabaseAdminClient();
   if (!db) return NextResponse.json({ ok: false, error: "Supabase no configurado." }, { status: 503 });
-  const path = `gallery/${Date.now()}-${slugify(file.name)}`;
+  const baseName = file.name.replace(/\.[^.]+$/, "");
+  const path = `gallery/${Date.now()}-${slugify(baseName)}.${extensionForType[file.type]}`;
   const upload = await db.storage.from(GALLERY_BUCKET).upload(path, Buffer.from(await file.arrayBuffer()), { contentType: file.type, upsert: false });
   if (upload.error) return NextResponse.json({ ok: false, error: upload.error.message }, { status: 500 });
   const item = galleryItemSchema.parse({ public_url: publicStorageUrl(GALLERY_BUCKET, path), storage_path: path, title: String(form?.get("title") || ""), description: String(form?.get("description") || ""), location: String(form?.get("location") || "") || null, service_key: String(form?.get("service_key") || "") || null, is_published: true, is_carousel: true });
