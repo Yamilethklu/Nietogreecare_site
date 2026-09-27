@@ -392,12 +392,12 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
           {store.step === 2 && <section className="space-y-5">
             <div><h2 className="text-xl font-bold text-slate-900">{isEs ? "2. Estimación y mapa satelital automático" : "2. Automatic estimate and satellite map"}</h2><p className="mt-1 text-sm text-slate-600">{isEs ? "El sistema calcula automáticamente el jardín, excluyendo la casa." : "The system automatically calculates the lawn area excluding the house."}</p></div>
             {measurementLoading && <p className="rounded-lg bg-slate-100 px-4 py-3 text-sm font-semibold text-slate-700">{isEs ? "Analizando tu propiedad por satélite..." : "Analyzing your property by satellite..."}</p>}
-            <PropertySatellite address={store.address} latitude={store.latitude} longitude={store.longitude} isEs={isEs} polygon={polygon} geometry={lawnGeometry} center={markerCenter} loadingText={isEs ? "Analizando tu propiedad por satélite..." : "Analyzing your property by satellite..."} showMarker={false} />
+            <PropertySatellite address={store.address} latitude={store.latitude} longitude={store.longitude} isEs={isEs} polygon={polygon} geometry={lawnGeometry} center={markerCenter} loadingText={isEs ? "Analizando tu propiedad por satélite..." : "Analyzing your property by satellite..."} showMarker />
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4">
                 <p className="text-sm font-semibold text-emerald-900">{isEs ? "Área utilizable" : "Usable area"}</p>
-                <p className="mt-2 text-2xl font-extrabold text-emerald-950">{lawnAreaSqFt.toLocaleString()} ft²</p>
-                <p className="text-sm text-emerald-900">{lawnAreaSqM.toLocaleString()} m²</p>
+                <p className="mt-2 text-2xl font-extrabold text-emerald-950">{lawnAreaSqM.toLocaleString(undefined, { maximumFractionDigits: 1 })} m²</p>
+                <p className="text-sm text-emerald-900">({lawnAreaSqFt.toLocaleString(undefined, { maximumFractionDigits: 1 })} ft²)</p>
               </div>
               <div className="rounded-lg border border-emerald-200 bg-white p-4">
                 <p className="text-sm font-semibold text-slate-700">{isEs ? "Tarifa estimada" : "Estimated rate"}</p>
