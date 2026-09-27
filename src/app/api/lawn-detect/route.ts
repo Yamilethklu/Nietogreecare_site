@@ -115,7 +115,7 @@ async function getSolarHouseFootprint(lat: number, lng: number, apiKey: string):
   }
 }
 
-async function getWilliamsonParcel(latitude: number, longitude: number): Promise<AreaFeature | null> {
+async function getWilliamsonParcel(latitude: number, longitude: number): Promise<{ parcel: AreaFeature; payload: unknown } | null> {
   const queryParcel = async (spatialRel: string) => {
     const parcelUrl = new URL("https://gis.wilco.org/arcgis/rest/services/public/county_wcad_parcels/MapServer/0/query");
     parcelUrl.searchParams.set("geometry", `${longitude},${latitude}`);
@@ -128,7 +128,8 @@ async function getWilliamsonParcel(latitude: number, longitude: number): Promise
     const parcelResponse = await fetch(parcelUrl, { cache: "no-store" });
     if (!parcelResponse.ok) return null;
     const parcelPayload = await parcelResponse.json();
-    return findAreaFeature(parcelPayload);
+    const parcel = findAreaFeature(parcelPayload);
+    return parcel ? { parcel, payload: parcelPayload } : null;
   };
 
   return (await queryParcel("esriSpatialRelWithin")) ?? queryParcel("esriSpatialRelIntersects");
@@ -171,12 +172,13 @@ export async function GET(request: Request) {
   }
 
   try {
-    const parcel = await getWilliamsonParcel(latitude, longitude);
-    if (!parcel) {
+    const parcelLookup = await getWilliamsonParcel(latitude, longitude);
+    if (!parcelLookup) {
       return NextResponse.json({ ok: false, error: NO_PARCEL_ERROR, formattedAddress, latitude, longitude }, { status: 404 });
     }
+    const { parcel, payload: parcelPayload } = parcelLookup;
 
-    let house: AreaFeature | null = null;
+    let house = findBuildingFeature(parcelPayload);
     let simulated = false;
     let warning: string | undefined;
 
