@@ -1,86 +1,39 @@
 import { NextResponse } from "next/server";
 import * as turf from "@turf/turf";
-
-import type { PolygonPoint } from "@/lib/types";
+import type { Feature, MultiPolygon, Polygon } from "geojson";
 
 export const runtime = "nodejs";
 
-type GeoJsonPolygon = {
-  type: "Polygon";
-  coordinates: number[][][];
-};
-
-type GeoJsonMultiPolygon = {
-  type: "MultiPolygon";
-  coordinates: number[][][][];
-};
-
-type GeoJsonGeometry = GeoJsonPolygon | GeoJsonMultiPolygon;
+type AreaGeometry = Polygon | MultiPolygon;
+type AreaFeature = Feature<AreaGeometry>;
 
 const GOOGLE_KEY = process.env.GOOGLE_MAPS_SERVER_API_KEY || process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "";
-const REGRID_TOKEN = process.env.REGRID_TOKEN || "";
+const REGRID_TOKEN = process.env.REGRID_TOKEN || process.env.REGRID_API_TOKEN || "";
 const SQ_M_TO_SQ_FT = 10.7639;
+const NO_PARCEL_ERROR = "No hay datos catastrales para esta dirección";
+const LAWN_COMPUTE_ERROR = "No se pudo calcular el área del jardín";
+const INVALID_LAWN_ERROR = "El área del jardín no es válida";
+const APPROXIMATE_WARNING = "Aviso: la huella de la casa no está disponible, el área es aproximada";
 
-function coordinatesToPath(ring: number[][]): PolygonPoint[] {
-  return ring.map(([lng, lat]) => ({ lat, lng })).filter((point) => Number.isFinite(point.lat) && Number.isFinite(point.lng));
+function asFeature(value: any): AreaFeature | null {
+  const geometry = value?.type === "Feature" ? value.geometry : value?.geometry ?? value;
+  if ((geometry?.type !== "Polygon" && geometry?.type !== "MultiPolygon") || !geometry.coordinates?.length) return null;
+  return turf.feature(geometry) as AreaFeature;
 }
 
-function geometryToPolygons(geometry: GeoJsonGeometry | null | undefined): PolygonPoint[][] {
-  if (!geometry) return [];
-  if (geometry.type === "Polygon") return [coordinatesToPath(geometry.coordinates[0] ?? [])].filter((path) => path.length >= 3);
-  return geometry.coordinates.map((polygon) => coordinatesToPath(polygon[0] ?? [])).filter((path) => path.length >= 3);
-}
-
-function polygonAreaFromCoordinates(coordinates: number[][][]): number {
-  return turf.area(turf.polygon(coordinates as any) as any);
-}
-
-function toSinglePolygon(geometry: GeoJsonGeometry | null | undefined): GeoJsonPolygon | null {
-  if (!geometry) return null;
-  if (geometry.type === "Polygon") return geometry;
-  const polygon = geometry.coordinates
-    .filter((coordinates) => coordinates?.[0]?.length >= 4)
-    .sort((a, b) => polygonAreaFromCoordinates(b) - polygonAreaFromCoordinates(a))[0];
-  return polygon ? { type: "Polygon", coordinates: polygon } : null;
-}
-
-function getGeometry(payload: any): GeoJsonGeometry | null {
+function findParcelFeature(payload: any): AreaFeature | null {
   const candidates = [
-    payload?.features?.[0]?.geometry,
-    payload?.parcels?.features?.[0]?.geometry,
-    payload?.results?.[0]?.geometry,
-    payload?.data?.features?.[0]?.geometry,
+    ...(Array.isArray(payload?.features) ? payload.features : []),
+    ...(Array.isArray(payload?.parcels?.features) ? payload.parcels.features : []),
+    ...(Array.isArray(payload?.data?.features) ? payload.data.features : []),
+    ...(Array.isArray(payload?.parcels) ? payload.parcels : []),
   ];
-  return candidates.find((geometry) => geometry?.type === "Polygon" || geometry?.type === "MultiPolygon") ?? null;
+  return candidates.map(asFeature).find((feature): feature is AreaFeature => Boolean(feature)) ?? asFeature(payload?.parcel);
 }
 
-async function getSolarBuildingGeometry(lat: number, lng: number, apiKey: string): Promise<GeoJsonPolygon | null> {
-  const url = `https://solar.googleapis.com/v1/buildingInsights:findClosest?location.latitude=${lat}&location.longitude=${lng}&key=${apiKey}`;
-  try {
-    const res = await fetch(url, { cache: "no-store" });
-    if (!res.ok) return null;
-    const data = await res.json();
-    const bounds = data?.buildingBounds;
-    if (!bounds?.southwest || !bounds?.northeast) return null;
-    const sw = bounds.southwest;
-    const ne = bounds.northeast;
-    const ring = [
-      [sw.longitude, sw.latitude],
-      [ne.longitude, sw.latitude],
-      [ne.longitude, ne.latitude],
-      [sw.longitude, ne.latitude],
-      [sw.longitude, sw.latitude],
-    ];
-    if (!ring.every(([lon, lat]) => Number.isFinite(lon) && Number.isFinite(lat))) return null;
-    return { type: "Polygon", coordinates: [ring] };
-  } catch {
-    return null;
-  }
-}
-
-function getBuildingGeometry(payload: any): GeoJsonGeometry | null {
-  const firstFeature = payload?.features?.[0] ?? payload?.parcels?.features?.[0] ?? payload?.results?.[0] ?? payload?.data?.features?.[0];
-  const properties = firstFeature?.properties ?? firstFeature?.parcel ?? firstFeature ?? {};
+function findBuildingFeature(payload: any): AreaFeature | null {
+  const feature = payload?.features?.[0] ?? payload?.parcels?.features?.[0] ?? payload?.data?.features?.[0] ?? payload?.parcel ?? null;
+  const properties = feature?.properties ?? feature?.parcel ?? feature ?? {};
   const candidates = [
     properties?.building_geometry,
     properties?.building?.geometry,
@@ -88,25 +41,56 @@ function getBuildingGeometry(payload: any): GeoJsonGeometry | null {
     properties?.structures?.[0]?.geometry,
     properties?.footprint,
     properties?.building_footprint,
-    payload?.buildings?.features?.[0]?.geometry,
+    payload?.buildings?.features?.[0],
+    payload?.building,
   ];
-  return candidates.find((geometry) => geometry?.type === "Polygon" || geometry?.type === "MultiPolygon") ?? null;
+  return candidates.map(asFeature).find((candidate): candidate is AreaFeature => Boolean(candidate)) ?? null;
 }
 
-function rectangleFootprint(latitude: number, longitude: number): GeoJsonPolygon {
-  const feetPerLatitudeDegree = 364000;
-  const feetToLat = (feet: number) => feet / feetPerLatitudeDegree;
-  const feetToLng = (feet: number) => feet / (feetPerLatitudeDegree * Math.cos((latitude * Math.PI) / 180));
-  const halfWidth = 32;
-  const halfDepth = 42;
-  const ring = [
-    [longitude - feetToLng(halfWidth), latitude - feetToLat(halfDepth)],
-    [longitude + feetToLng(halfWidth), latitude - feetToLat(halfDepth)],
-    [longitude + feetToLng(halfWidth), latitude + feetToLat(halfDepth)],
-    [longitude - feetToLng(halfWidth), latitude + feetToLat(halfDepth)],
-    [longitude - feetToLng(halfWidth), latitude - feetToLat(halfDepth)],
-  ];
-  return { type: "Polygon", coordinates: [ring] };
+function simulatedHouseFootprint(lat: number, lng: number): AreaFeature {
+  const sideMeters = Math.sqrt(1200 * 0.09290304);
+  const latDelta = sideMeters / 111320;
+  const lngDelta = sideMeters / (111320 * Math.cos((lat * Math.PI) / 180));
+  return turf.polygon([[
+    [lng - lngDelta / 2, lat - latDelta / 2],
+    [lng + lngDelta / 2, lat - latDelta / 2],
+    [lng + lngDelta / 2, lat + latDelta / 2],
+    [lng - lngDelta / 2, lat + latDelta / 2],
+    [lng - lngDelta / 2, lat - latDelta / 2],
+  ]]) as AreaFeature;
+}
+
+async function getSolarHouseFootprint(lat: number, lng: number, apiKey: string): Promise<AreaFeature | null> {
+  if (!apiKey) return null;
+  const url = new URL("https://solar.googleapis.com/v1/buildingInsights:findClosest");
+  url.searchParams.set("location.latitude", String(lat));
+  url.searchParams.set("location.longitude", String(lng));
+  url.searchParams.set("requiredQuality", "HIGH");
+  url.searchParams.set("key", apiKey);
+
+  try {
+    const res = await fetch(url, { cache: "no-store" });
+    if (!res.ok) return null;
+    const data = await res.json();
+    const segments = data?.solarPotential?.roofSegmentStats ?? [];
+    const features = segments.flatMap((segment: any) => {
+      const vertices = segment?.polygon?.vertices;
+      if (!Array.isArray(vertices) || vertices.length < 3) return [];
+      const ring = vertices.map((vertex: any) => [Number(vertex.longitude), Number(vertex.latitude)]);
+      if (ring.some((position: number[]) => !Number.isFinite(position[0]) || !Number.isFinite(position[1]))) return [];
+      if (ring[0][0] !== ring.at(-1)?.[0] || ring[0][1] !== ring.at(-1)?.[1]) ring.push(ring[0]);
+      try {
+        return [turf.polygon([ring])];
+      } catch {
+        return [];
+      }
+    });
+    if (!features.length) return null;
+    const combined = features.length === 1 ? features[0] : turf.union(turf.featureCollection(features));
+    return combined ? (combined as AreaFeature) : null;
+  } catch {
+    return null;
+  }
 }
 
 export async function GET(request: Request) {
@@ -127,14 +111,16 @@ export async function GET(request: Request) {
   const location = result?.geometry?.location;
 
   if (!location || !Number.isFinite(location.lat) || !Number.isFinite(location.lng)) {
-    return NextResponse.json({ ok: false, error: "geocode_not_found" }, { status: 404 });
+    return NextResponse.json({ ok: false, error: "Google Maps no pudo geocodificar esta dirección." }, { status: 404 });
   }
 
   const latitude = Number(location.lat);
   const longitude = Number(location.lng);
   const formattedAddress = String(result.formatted_address ?? address);
 
-  if (!REGRID_TOKEN) return NextResponse.json({ ok: false, error: "missing_regrid_token", formattedAddress, latitude, longitude }, { status: 500 });
+  if (!REGRID_TOKEN) {
+    return NextResponse.json({ ok: false, error: "missing_regrid_token", formattedAddress, latitude, longitude }, { status: 500 });
+  }
 
   try {
     const regridUrl = new URL("https://app.regrid.com/api/v2/parcels");
@@ -143,30 +129,39 @@ export async function GET(request: Request) {
     regridUrl.searchParams.set("token", REGRID_TOKEN);
 
     const regridResponse = await fetch(regridUrl, { cache: "no-store" });
+    if (!regridResponse.ok) {
+      return NextResponse.json({ ok: false, error: NO_PARCEL_ERROR, formattedAddress, latitude, longitude }, { status: 404 });
+    }
+
     const regrid = await regridResponse.json();
-    const parcelGeometry = toSinglePolygon(getGeometry(regrid));
-    const buildingGeometry = toSinglePolygon(getBuildingGeometry(regrid));
+    const parcel = findParcelFeature(regrid);
+    if (!parcel) {
+      return NextResponse.json({ ok: false, error: NO_PARCEL_ERROR, formattedAddress, latitude, longitude }, { status: 404 });
+    }
 
-    if (!parcelGeometry) return NextResponse.json({ ok: false, error: "parcel_not_found", formattedAddress, latitude, longitude }, { status: 404 });
-
-    let houseGeometry = buildingGeometry;
+    let house = findBuildingFeature(regrid);
     let simulated = false;
-    if (!houseGeometry) {
-      houseGeometry = await getSolarBuildingGeometry(latitude, longitude, GOOGLE_KEY);
-      if (!houseGeometry) {
-        houseGeometry = rectangleFootprint(latitude, longitude);
+    let warning: string | undefined;
+
+    if (!house) {
+      house = await getSolarHouseFootprint(latitude, longitude, GOOGLE_KEY);
+      if (!house) {
+        house = simulatedHouseFootprint(latitude, longitude);
         simulated = true;
+        warning = APPROXIMATE_WARNING;
       }
     }
 
-    const parcel = turf.feature(parcelGeometry as any);
-    const house = turf.feature(houseGeometry as any);
-    const jardin = turf.difference(turf.featureCollection([parcel as any, house as any]) as any);
-    if (!jardin?.geometry) return NextResponse.json({ ok: false, error: "lawn_difference_failed", formattedAddress, latitude, longitude }, { status: 422 });
-    const geometry = jardin.geometry as GeoJsonGeometry;
+    const jardin = turf.difference(turf.featureCollection([parcel, house]) as any);
+    if (!jardin?.geometry) {
+      return NextResponse.json({ ok: false, error: LAWN_COMPUTE_ERROR, formattedAddress, latitude, longitude, warning }, { status: 422 });
+    }
+
     const areaSqM = turf.area(jardin as any);
-    const polygons = geometryToPolygons(geometry);
-    if (!polygons.length || areaSqM <= 0) return NextResponse.json({ ok: false, error: "lawn_area_empty", formattedAddress, latitude, longitude }, { status: 422 });
+    if (!Number.isFinite(areaSqM) || areaSqM <= 0) {
+      return NextResponse.json({ ok: false, error: INVALID_LAWN_ERROR, formattedAddress, latitude, longitude, warning }, { status: 422 });
+    }
+
     const centroPoint = turf.center(jardin as any);
     const centro = {
       lat: centroPoint.geometry.coordinates[1],
@@ -175,16 +170,17 @@ export async function GET(request: Request) {
 
     return NextResponse.json({
       ok: true,
-      poligonoJardin: geometry,
+      poligonoJardin: jardin.geometry,
       areaMetros: areaSqM,
       areaPies: areaSqM * SQ_M_TO_SQ_FT,
       centro,
       huellaCasaSimulada: simulated,
+      warning,
       formattedAddress,
       latitude,
       longitude,
     });
   } catch {
-    return NextResponse.json({ ok: false, error: "lawn_detection_failed", formattedAddress, latitude, longitude }, { status: 500 });
+    return NextResponse.json({ ok: false, error: LAWN_COMPUTE_ERROR, formattedAddress, latitude, longitude }, { status: 500 });
   }
 }

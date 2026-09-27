@@ -31,6 +31,8 @@ type AddressSuggestion = {
 
 type LawnDetectionResponse = {
   ok?: boolean;
+  error?: string;
+  warning?: string;
   formattedAddress?: string;
   latitude?: number;
   longitude?: number;
@@ -67,6 +69,7 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
   const [rates, setRates] = React.useState<MowRate[]>([]);
   const [sending, setSending] = React.useState(false);
   const [gateAnswer, setGateAnswer] = React.useState<"yes" | "no" | "">("");
+  const [measurementWarning, setMeasurementWarning] = React.useState("");
 
   React.useEffect(() => {
     void fetch("/api/lawn-rates", { cache: "no-store" })
@@ -105,10 +108,12 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
     if (store.step !== 2 || store.measurement || store.latitude == null || store.longitude == null) return;
     let cancelled = false;
     setErrors((current) => ({ ...current, measurement: "" }));
+    setMeasurementWarning("");
     void fetch(`/api/lawn-detect?address=${encodeURIComponent(store.formattedAddress || store.address)}`, { cache: "no-store" })
       .then(async (response) => {
-        if (!response.ok) throw new Error("lawn-detect");
-        return (await response.json()) as LawnDetectionResponse;
+        const payload = (await response.json().catch(() => ({}))) as LawnDetectionResponse;
+        if (!response.ok) throw new Error(payload.error || (isEs ? "No se pudo calcular el área del jardín" : "Could not calculate the lawn area."));
+        return payload;
       })
       .then((payload) => {
         if (cancelled) return;
@@ -118,7 +123,7 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
         if (!payload.ok || !polygons.length || !Number.isFinite(areaSqFt) || areaSqFt <= 0) {
           setErrors((current) => ({
             ...current,
-            measurement: isEs ? "No se pudo calcular automáticamente el jardín con Regrid." : "Could not calculate the lawn automatically with Regrid.",
+            measurement: payload.error || "No se pudo calcular el área del jardín",
           }));
           return;
         }
@@ -132,13 +137,16 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
         const measurement = buildMeasurement(polygons[0], areaSqFt, 2, 19, polygons, undefined, payload.poligonoJardin);
         if (center) measurement.center = center;
         store.setMeasurement(measurement);
+        setMeasurementWarning(payload.warning || "");
       })
-      .catch(() => {
+      .catch((error: unknown) => {
         if (!cancelled) {
+          const message = error instanceof Error && error.message ? error.message : "No se pudo calcular el área del jardín";
           setErrors((current) => ({
             ...current,
-            measurement: isEs ? "No se pudo calcular automáticamente el jardín con Regrid." : "Could not calculate the lawn automatically with Regrid.",
+            measurement: message,
           }));
+          setMeasurementWarning("");
         }
       });
     return () => { cancelled = true; };
@@ -306,6 +314,7 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
             <PropertySatellite address={store.address} latitude={store.latitude} longitude={store.longitude} isEs={isEs} polygon={polygon} geometry={lawnGeometry} center={markerCenter} />
             <p className="font-bold text-emerald-900">{isEs ? "Área del jardín" : "Lawn area"}: {lawnAreaSqM.toLocaleString()} m² · {lawnAreaSqFt.toLocaleString()} ft²</p>
             <FieldError>{errors.measurement}</FieldError>
+            {measurementWarning && <div className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900">{measurementWarning}</div>}
             <div className="rounded-lg bg-emerald-50 p-4 text-sm font-semibold text-emerald-950">{price !== null ? `$${price.toFixed(2)} / ${store.mowFrequency === "weekly" ? (isEs ? "semanal" : "weekly") : (isEs ? "quincenal" : "bi-weekly")}` : (isEs ? "Calculando tarifa…" : "Calculating rate…")}</div>
           </section>}
 
