@@ -405,7 +405,7 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
               <div><h2 className="text-2xl font-extrabold text-emerald-950">My Custom Lawn Mowing Plan</h2><p className="mt-3 text-2xl font-bold text-emerald-800">{price !== null ? `$${price.toFixed(2)} / ${store.mowFrequency === "weekly" ? (isEs ? "semanal" : "weekly") : (isEs ? "quincenal" : "bi-weekly")}` : ""}</p><p className="mt-2 text-sm text-slate-600">{store.address}</p></div>
               <PropertySatellite address={store.address} latitude={store.latitude} longitude={store.longitude} isEs={isEs} compact polygon={polygon} geometry={lawnGeometry} center={markerCenter} />
             </div>
-            <p className="font-bold text-emerald-900">{isEs ? "Lawn square footage" : "Lawn square footage"}: {lawnAreaSqFt.toLocaleString()} sq ft</p>
+            <p className="font-bold text-emerald-900">{isEs ? "Pies cuadrados de césped" : "Lawn square footage"}: {lawnAreaSqFt.toLocaleString()} sq ft</p>
             <div className="grid gap-3 text-sm sm:grid-cols-2"><p><strong>{isEs ? "Frecuencia" : "Frequency"}:</strong> {store.mowFrequency === "weekly" ? (isEs ? "Semanal" : "Weekly") : (isEs ? "Quincenal" : "Bi-weekly")}</p><p><strong>{isEs ? "Día elegido" : "Chosen day"}:</strong> {store.requestedDate || (isEs ? "Seleccione una fecha" : "Choose a date")}</p><p><strong>{isEs ? "Estado de propiedad" : "Property state"}:</strong> {store.propertyOccupancy === "occupied" ? (isEs ? "Ocupada" : "Occupied") : (isEs ? "Vacante" : "Vacant")}</p><p><strong>{isEs ? "Zona de corte" : "Cut area"}:</strong> {store.areaSelection === "front_back" ? (isEs ? "Frente y trasera" : "Front and back") : store.areaSelection === "front_only" ? (isEs ? "Solo delantera" : "Front only") : (isEs ? "Solo trasera" : "Back only")}</p><p className="sm:col-span-2"><strong>{isEs ? "Trabajos adicionales" : "Additional services"}:</strong> {store.selectedServices.map((key) => { const service = SERVICES.find((item) => item.key === key); return service ? (isEs ? service.nameEs : service.nameEn) : key; }).join(", ")}</p><p><strong>{isEs ? "Cliente" : "Customer"}:</strong> {store.customerName}</p><p><strong>{isEs ? "Teléfono" : "Phone"}:</strong> {store.customerPhone}</p><p><strong>{isEs ? "Candado/portón" : "Lock/gate"}:</strong> {store.hasGateCode ? `${isEs ? "Sí" : "Yes"} · ${store.gateCode}` : (isEs ? "No" : "No")}</p><p><strong>{isEs ? "Notas" : "Notes"}:</strong> {store.additionalNotes || "—"}</p></div>
             <div className="rounded-lg bg-slate-50 p-4"><p className="text-sm font-bold text-emerald-900">{isEs ? "Incluido en cada corte" : "Included with each mow"}</p><p className="mt-2 text-sm text-slate-700">Mow lawn · Line trim · Edge · Blow debris</p></div>
           </section>}
@@ -419,7 +419,7 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
               </select>
               <div className="mt-3 flex flex-wrap gap-3"><a href={BUSINESS.venmoUrl} target="_blank" rel="noreferrer" className="rounded-lg border border-slate-200 bg-white px-3 py-2 font-semibold text-slate-900">Venmo · https://venmo.com/u/gxrciaa</a><a href={BUSINESS.cashAppUrl} target="_blank" rel="noreferrer" className="rounded-lg border border-slate-200 bg-white px-3 py-2 font-semibold text-slate-900">Cash App · $NietoGreenCare</a><span className="rounded-lg border border-slate-200 bg-white px-3 py-2 font-semibold text-slate-900">Zelle · 737 314 4215</span></div>
             </div>
-            <div className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-900">NOTA IMPORTANTE: Siempre que envíe su pago, asegúrese de poner su dirección en la nota del pago.</div>
+            <div className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-900">{isEs ? "NOTA IMPORTANTE: Siempre que envíe su pago, asegúrese de poner su dirección en la nota del pago." : "IMPORTANT NOTE: When you send your payment, make sure to include your address in the payment note."}</div>
             <p className="text-sm text-slate-600">{isEs ? "Al confirmar, se guarda la solicitud en Supabase y se abre el SMS nativo para enviar el resumen completo al propietario." : "On confirm, your request is saved to Supabase and the native SMS app opens with the full summary for the owner."}</p>
           </section>}
 
@@ -482,7 +482,7 @@ function MowingCalendar({ selected, city, isEs, onSelect, price }: { selected: s
           const isWeekend = weekday === 0 || weekday === 6;
           const isCovered = normalizedCity
             ? getCoverageCitiesForWeekday(weekday).some((coveredCity) => coveredCity.toLocaleLowerCase("en-US") === normalizedCity)
-            : weekday >= 1 && weekday <= 5;
+            : false;
           const isOutOfZone = isWeekend || !isCovered;
           const isOccupied = occupiedDates.has(iso);
           const disabled = iso < todayISO() || isOutOfZone || isOccupied;
