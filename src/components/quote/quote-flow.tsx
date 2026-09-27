@@ -123,7 +123,7 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
         if (!payload.ok || !polygons.length || !Number.isFinite(areaSqFt) || areaSqFt <= 0) {
           setErrors((current) => ({
             ...current,
-            measurement: payload.error || "No se pudo calcular el área del jardín",
+            measurement: payload.error || (isEs ? "No se pudo calcular el área del jardín" : "Could not calculate the lawn area."),
           }));
           return;
         }

@@ -119,7 +119,7 @@ export async function GET(request: Request) {
   const formattedAddress = String(result.formatted_address ?? address);
 
   if (!REGRID_TOKEN) {
-    return NextResponse.json({ ok: false, error: "missing_regrid_token", formattedAddress, latitude, longitude }, { status: 500 });
+    return NextResponse.json({ ok: false, error: LAWN_COMPUTE_ERROR, formattedAddress, latitude, longitude }, { status: 500 });
   }
 
   try {
