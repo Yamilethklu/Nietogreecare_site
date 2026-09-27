@@ -29,6 +29,17 @@ export async function GET() {
 export async function POST(request: Request) {
   const gate = await requireAdmin();
   if (gate.response) return gate.response;
+  if (request.headers.get("content-type")?.includes("application/json")) {
+    const body = await request.json().catch(() => null);
+    const storagePath = typeof body?.storage_path === "string" ? body.storage_path : "";
+    const db = getSupabaseAdminClient();
+    if (!db) return NextResponse.json({ ok: false, error: "Supabase no configurado." }, { status: 503 });
+    if (!storagePath.startsWith("gallery/")) return NextResponse.json({ ok: false, error: "Archivo inválido." }, { status: 422 });
+    const item = galleryItemSchema.parse({ public_url: publicStorageUrl(GALLERY_BUCKET, storagePath), storage_path: storagePath, title: String(body?.title || ""), description: String(body?.description || ""), location: String(body?.location || "") || null, service_key: String(body?.service_key || "") || null, is_published: true, is_carousel: true });
+    const { data, error } = await db.from("gallery").insert(item).select().single();
+    if (error) { await db.storage.from(GALLERY_BUCKET).remove([storagePath]); return NextResponse.json({ ok: false, error: error.message }, { status: 500 }); }
+    return NextResponse.json({ ok: true, data }, { status: 201 });
+  }
   const form = await request.formData().catch(() => null);
   const file = form?.get("file");
   if (!(file instanceof File) || !ALLOWED_GALLERY_MEDIA_TYPES.includes(file.type as (typeof ALLOWED_GALLERY_MEDIA_TYPES)[number]) || file.size > MAX_GALLERY_MEDIA_BYTES) return NextResponse.json({ ok: false, error: "Seleccione una foto o video JPG, PNG, WEBP, AVIF, MP4, MOV o WEBM válido de máximo 50 MB." }, { status: 422 });
