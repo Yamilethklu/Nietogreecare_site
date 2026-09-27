@@ -10,6 +10,7 @@ export const runtime='nodejs';
 const uuid=z.string().uuid();
 const fail=(message:string,status=422)=>NextResponse.json({ok:false,error:message},{status});
 async function authorized(){const gate=await requireAdmin();return {response:gate.response,db:getSupabaseAdminClient()};}
+const isMissingOpsTable=(message?:string)=>Boolean(message&&(/schema cache/i.test(message)||/could not find the table/i.test(message)||/does not exist/i.test(message))&&/(crew_members|service_plans|work_orders|work_invoices)/i.test(message));
 export async function GET(){const {response,db}=await authorized();if(response)return response;if(!db)return fail('Base de datos no configurada.',503);
  const [crew,plans,orders,invoices,leads]=await Promise.all([
   db.from('crew_members').select('*').order('full_name'),
@@ -19,6 +20,7 @@ export async function GET(){const {response,db}=await authorized();if(response)r
   db.from('leads').select('id,reference_code,customer_name,customer_phone,customer_email,address,city,zip_code,final_price,requested_date,details,additional_notes,has_gate_code,gate_code').order('created_at',{ascending:false}).limit(1000)
  ]);
  const err=[crew,plans,orders,invoices,leads].find(x=>x.error)?.error;
+ if(err&&isMissingOpsTable(err.message))return NextResponse.json({ok:true,data:{crew:[],plans:[],orders:[],invoices:[],leads:leads.data??[]},warning:'La agenda de casas y trabajos todavía no está activada en Supabase. El panel principal puede usarse normalmente.'},{headers:{'Cache-Control':'no-store'}});
  if(err)return fail('La agenda aún no está disponible en la base de datos: '+err.message,503);
  return NextResponse.json({ok:true,data:{crew:crew.data??[],plans:plans.data??[],orders:orders.data??[],invoices:invoices.data??[],leads:leads.data??[]}},{headers:{'Cache-Control':'no-store'}});
 }
