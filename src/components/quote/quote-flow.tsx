@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { ArrowLeft, CheckCircle2, MessageSquare, Send, ShieldCheck } from "lucide-react";
+import { ArrowLeft, CheckCircle2, ChevronLeft, ChevronRight, MessageSquare, Send, ShieldCheck } from "lucide-react";
 
 import { useLanguage } from "@/components/providers/language-provider";
 import { useToast } from "@/components/providers/toast-provider";
@@ -14,6 +14,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FieldError, Input, Label, Textarea } from "@/components/ui/input";
 import { BUSINESS, SERVICES, ZIP_CITY_MAP } from "@/lib/constants";
 import { matchMowRate, type MowRate } from "@/lib/instant-pricing";
+import { getCoverageCitiesForWeekday } from "@/lib/service-schedule";
 import { formatZodErrors, phoneSchema, step1Schema } from "@/lib/validation";
 import type { LawnGeoJsonGeometry, PaymentMethod, PolygonPoint } from "@/lib/types";
 import { buildMeasurement, pickSubmissionFields, TOTAL_STEPS, useQuoteStore, type MowFrequency, type QuoteStore } from "@/store/quote-store";
@@ -44,6 +45,11 @@ type LawnDetectionResponse = {
   polygons?: PolygonPoint[][];
   areaSqM?: number;
   areaSqFt?: number;
+};
+
+type AvailabilityResponse = {
+  ok?: boolean;
+  occupiedDates?: string[];
 };
 
 const SQ_FT_PER_SQ_M = 10.7639;
@@ -288,6 +294,14 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
       setErrors({ measurement: isEs ? "No se pudo estimar el área de la propiedad." : "Could not estimate the property area." });
       return;
     }
+    if (current.step === 6 && !current.city.trim()) {
+      setErrors({ requestedDate: isEs ? "No se pudo determinar la ciudad. Regrese al paso 1 y confirme su dirección y código postal." : "Could not determine the city. Go back to Step 1 and confirm your address and ZIP code." });
+      return;
+    }
+    if (current.step === 6 && !current.requestedDate) {
+      setErrors({ requestedDate: isEs ? "Seleccione el día preferido para el corte." : "Choose your preferred service date." });
+      return;
+    }
     setErrors({});
     current.goNext();
   };
@@ -325,6 +339,7 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
         `${isEs ? "Estado de propiedad" : "Property status"}: ${submitted.propertyOccupancy === "occupied" ? (isEs ? "Ocupada" : "Occupied") : (isEs ? "Vacante" : "Vacant")}`,
         `${isEs ? "Zona de corte" : "Mowing zone"}: ${submitted.areaSelection === "front_back" ? (isEs ? "Frente y trasera" : "Front and back") : submitted.areaSelection === "front_only" ? (isEs ? "Solo delantera" : "Front only") : (isEs ? "Solo trasera" : "Back only")}`,
         `${isEs ? "Trabajos" : "Jobs"}: ${jobNames.join(", ")}`,
+        `${isEs ? "Día preferido" : "Preferred day"}: ${submitted.requestedDate}`,
         `${isEs ? "Cliente" : "Customer"}: ${submitted.customerName}`,
         `${isEs ? "Teléfono" : "Phone"}: ${submitted.customerPhone}`,
         `${isEs ? "Candado/portón" : "Lock/gate"}: ${submitted.hasGateCode ? `${isEs ? "Sí" : "Yes"} (${submitted.gateCode})` : (isEs ? "No" : "No")}`,
@@ -434,7 +449,7 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
                 <button type="button" aria-pressed={store.isGrassOver12} onClick={() => store.setPersonal({ isGrassOver12: true })} className={`rounded-lg border px-5 py-2 font-semibold ${store.isGrassOver12 ? "border-emerald-700 bg-emerald-700 text-white" : "border-slate-300 bg-white text-slate-800"}`}>{isEs ? "Sí" : "Yes"}</button>
                 <button type="button" aria-pressed={!store.isGrassOver12} onClick={() => store.setPersonal({ isGrassOver12: false })} className={`rounded-lg border px-5 py-2 font-semibold ${!store.isGrassOver12 ? "border-emerald-700 bg-emerald-700 text-white" : "border-slate-300 bg-white text-slate-800"}`}>{isEs ? "No" : "No"}</button>
               </div>
-              {store.isGrassOver12 && <p className="mt-3 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900">{isEs ? "Nota: este servicio puede tener costo extra. El dueño agregará el precio desde el panel de control." : "Note: this service may have an extra cost. The owner will add the price from the admin panel."}</p>}
+              {store.isGrassOver12 && <p className="mt-3 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900">{isEs ? "Nota: este servicio puede tener costo extra." : "Note: this service may have an extra cost."}</p>}
             </fieldset>
             <div><p className="mb-2 text-sm font-bold text-emerald-900">{isEs ? "Servicios a requerir" : "Requested services"}</p><div className="grid gap-2 sm:grid-cols-2">{SERVICES.map((service) => { const selected = store.selectedServices.includes(service.key); return <button key={service.key} type="button" aria-pressed={selected} onClick={() => store.toggleService(service.key)} className={`min-h-12 rounded-lg border px-3 py-2 text-left text-sm font-semibold transition ${selected ? "border-emerald-700 bg-emerald-50 text-emerald-900" : "border-slate-200 bg-white text-slate-700 hover:border-emerald-400"}`}>{selected ? "✓ " : ""}{isEs ? service.nameEs : service.nameEn}</button>; })}</div></div>
           </section>}
@@ -471,7 +486,18 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
           </section>}
 
           {store.step === 6 && <section className="space-y-6">
-            <div><h2 className="text-xl font-bold text-slate-900">{isEs ? "6. Métodos de pago" : "6. Payment methods"}</h2></div>
+            <div><h2 className="text-xl font-bold text-slate-900">{isEs ? "6. Calendario de servicio" : "6. Service calendar"}</h2><p className="mt-1 text-sm text-slate-600">{isEs ? `Ciudad detectada: ${store.city || "Sin ciudad"}` : `Detected city: ${store.city || "No city"}`}</p></div>
+            <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-950">
+              <p><strong>{isEs ? "Lunes y Martes" : "Monday and Tuesday"}:</strong> Liberty Hill, Georgetown</p>
+              <p><strong>{isEs ? "Miércoles" : "Wednesday"}:</strong> Leander, Cedar Park, Georgetown, Liberty Hill</p>
+              <p><strong>{isEs ? "Jueves y Viernes" : "Thursday and Friday"}:</strong> Hutto, Round Rock, Georgetown, Liberty Hill, Leander</p>
+            </div>
+            {store.city.trim() ? <MowingCalendar selected={store.requestedDate} city={store.city} isEs={isEs} onSelect={(date) => store.setSchedule(date, store.requestedTimeWindow ?? "08:00 - 18:00")} price={price} /> : <div className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900">{isEs ? "Primero confirme una dirección con ciudad válida en el Paso 1 para habilitar el calendario." : "Please confirm an address with a valid city in Step 1 to unlock the calendar."}</div>}
+            <FieldError>{errors.requestedDate}</FieldError>
+          </section>}
+
+          {store.step === 7 && <section className="space-y-6">
+            <div><h2 className="text-xl font-bold text-slate-900">{isEs ? "7. Métodos de pago" : "7. Payment methods"}</h2></div>
             <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4">
               <h3 className="font-bold text-emerald-950">{isEs ? "Métodos de pago" : "Payment options"}</h3>
               <select value={store.paymentMethod} onChange={(event) => store.setPaymentMethod(event.target.value as PaymentMethod)} className="mt-3 min-h-11 w-full max-w-sm rounded-lg border border-slate-300 bg-white px-3 text-slate-900">
@@ -482,7 +508,7 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
             <div className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-900">{isEs ? "NOTA IMPORTANTE: Siempre que envíe su pago, asegúrese de poner su dirección en la nota del pago." : "IMPORTANT NOTE: Whenever you send your payment, make sure to put your address in the payment note."}</div>
           </section>}
 
-          {store.step === 7 && <section className="space-y-6 text-center">
+          {store.step === 8 && <section className="space-y-6 text-center">
             <ShieldCheck className="mx-auto size-14 text-emerald-700" />
             <div><h2 className="text-2xl font-extrabold text-slate-950">{isEs ? "¡Gracias por su preferencia!" : "Thank you for choosing us!"}</h2><p className="mt-2 text-slate-600">{isEs ? "Revise su cotización y envíela directo al propietario para confirmar los detalles." : "Review your quote and send it directly to the owner to confirm the details."}</p></div>
             <div className="mx-auto max-w-md rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-left text-sm text-slate-800">
@@ -508,4 +534,100 @@ function Confirmation({ isEs, store, price, onReset }: { isEs: boolean; store: Q
   const smsBody = `${BUSINESS.name} - Folio ${store.referenceCode ?? ""}\n${store.address}\n${store.customerName} · ${store.customerPhone}`;
   const { cadence: cadenceLabel } = getMowFrequencyLabels(store.mowFrequency, isEs);
   return <Card className="mx-auto max-w-2xl space-y-5 p-8 text-center"><CardContent className="space-y-5"><ShieldCheck className="mx-auto size-14 text-emerald-700" /><h1 className="text-2xl font-extrabold text-slate-950">{isEs ? "¡Muchas gracias por su preferencia! Su solicitud ha sido procesada." : "Thank you! Your request has been processed."}</h1><p className="text-sm text-slate-600">{isEs ? "La solicitud se guardó en Supabase. Si el SMS no se abrió automáticamente, use el botón de abajo para contactar al propietario." : "Your request was saved to Supabase. If the SMS app did not open automatically, use the button below to contact the owner."}</p><p className="text-xl font-bold text-emerald-800">{price !== null ? `$${price.toFixed(2)} / ${cadenceLabel}` : ""}</p><a href={`${BUSINESS.smsHref}?body=${encodeURIComponent(smsBody)}`} className="inline-flex items-center rounded-lg bg-emerald-700 px-4 py-3 font-bold text-white"><MessageSquare className="mr-2 size-4" />{isEs ? "Abrir SMS al propietario" : "Open owner SMS"}</a><div><Button variant="outline" onClick={onReset}><CheckCircle2 className="mr-2 size-4" />{isEs ? "Nueva cotización" : "New quote"}</Button></div></CardContent></Card>;
+}
+
+function MowingCalendar({ selected, city, isEs, onSelect, price }: { selected: string | null; city: string; isEs: boolean; onSelect: (date: string) => void; price: number | null }) {
+  const normalizeCityKey = (value: string) => value.toLocaleLowerCase("en-US").replace(/[^a-z]/g, "");
+  const todayISO = () => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  };
+  const [monthOffset, setMonthOffset] = React.useState(0);
+  const [occupiedDates, setOccupiedDates] = React.useState<Set<string>>(new Set());
+  const [availabilityReady, setAvailabilityReady] = React.useState(true);
+  const availabilityCacheRef = React.useRef<Record<string, string[]>>({});
+  const now = new Date();
+  const month = new Date(now.getFullYear(), now.getMonth() + monthOffset, 1);
+  const firstDay = (month.getDay() + 6) % 7;
+  const days = new Date(month.getFullYear(), month.getMonth() + 1, 0).getDate();
+  const labels = isEs ? ["L", "M", "M", "J", "V", "S", "D"] : ["M", "T", "W", "T", "F", "S", "S"];
+  const monthKey = `${month.getFullYear()}-${String(month.getMonth() + 1).padStart(2, "0")}`;
+  const cityQuery = city.trim();
+  const normalizedCity = normalizeCityKey(city.trim());
+  const availabilityKey = `${monthKey}:${normalizedCity || "unknown"}`;
+
+  React.useEffect(() => {
+    let cancelled = false;
+    const cachedDates = availabilityCacheRef.current[availabilityKey];
+    if (cachedDates) {
+      setAvailabilityReady(true);
+      setOccupiedDates(new Set(cachedDates));
+      return () => { cancelled = true; };
+    }
+    setAvailabilityReady(false);
+    void fetch(`/api/availability?month=${monthKey}&city=${encodeURIComponent(cityQuery)}`, { cache: "no-store" })
+      .then(async (response) => {
+        const payload = (await response.json().catch(() => ({}))) as AvailabilityResponse;
+        if (!response.ok || !payload.ok) throw new Error("availability");
+        return payload.occupiedDates ?? [];
+      })
+      .then((dates) => {
+        availabilityCacheRef.current[availabilityKey] = dates;
+        if (!cancelled) {
+          setOccupiedDates(new Set(dates));
+          setAvailabilityReady(true);
+        }
+      })
+      .catch(() => {
+        delete availabilityCacheRef.current[availabilityKey];
+        if (!cancelled) {
+          setAvailabilityReady(false);
+          setOccupiedDates(new Set());
+        }
+      });
+    return () => { cancelled = true; };
+  }, [availabilityKey, cityQuery, monthKey]);
+
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-6" aria-label={isEs ? "Calendario de corte" : "Mowing calendar"}>
+      <div className="mb-5 flex items-center justify-between gap-3">
+        <button type="button" disabled={monthOffset === 0} onClick={() => setMonthOffset((offset) => offset - 1)} className="rounded-lg border border-slate-200 p-2 text-slate-700 disabled:opacity-30" aria-label={isEs ? "Mes anterior" : "Previous month"}><ChevronLeft className="size-5" /></button>
+        <strong className="text-sm capitalize text-slate-900">{month.toLocaleDateString(isEs ? "es-MX" : "en-US", { month: "long", year: "numeric" })}</strong>
+        <button type="button" disabled={monthOffset === 3} onClick={() => setMonthOffset((offset) => offset + 1)} className="rounded-lg border border-slate-200 p-2 text-slate-700 disabled:opacity-30" aria-label={isEs ? "Mes siguiente" : "Next month"}><ChevronRight className="size-5" /></button>
+      </div>
+      <div className="grid grid-cols-7 gap-1 text-center sm:gap-2">
+        {labels.map((label, index) => <span key={index} className="pb-1 text-xs font-bold text-slate-500">{label}</span>)}
+        {Array.from({ length: firstDay }, (_, index) => <span key={`empty-${index}`} />)}
+        {Array.from({ length: days }, (_, index) => {
+          const date = new Date(month.getFullYear(), month.getMonth(), index + 1);
+          const iso = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+          const weekday = date.getDay();
+          const isWeekend = weekday === 0 || weekday === 6;
+          const isCovered = normalizedCity
+            ? getCoverageCitiesForWeekday(weekday).some((coveredCity) => normalizeCityKey(coveredCity) === normalizedCity)
+            : false;
+          const isOutOfZone = isWeekend || !isCovered;
+          const isOccupied = occupiedDates.has(iso);
+          const disabled = iso < todayISO() || isOutOfZone || (availabilityReady && isOccupied);
+          const occupiedClass = isOccupied ? "border-red-300 bg-red-50 text-red-700 line-through" : "";
+          const unavailableClass = !isOccupied && disabled ? "border-slate-100 bg-slate-50 text-slate-300" : "";
+          const selectedClass = selected === iso && !disabled ? "border-green-500 bg-emerald-50 text-emerald-900 ring-2 ring-emerald-200" : "";
+          const normalClass = !selectedClass && !occupiedClass && !unavailableClass ? "border-slate-100 text-slate-900 hover:border-emerald-300" : "";
+          const dayStatusLabel = isOccupied
+            ? (isEs ? "ocupado" : "occupied")
+            : isOutOfZone
+              ? (isEs ? "fuera de zona" : "out of zone")
+              : (isEs ? "disponible" : "available");
+          return <button key={iso} type="button" disabled={disabled} onClick={() => onSelect(iso)} aria-pressed={!disabled && selected === iso ? true : undefined} aria-label={`${date.toLocaleDateString(isEs ? "es-MX" : "en-US", { dateStyle: "long" })} · ${dayStatusLabel}`} className={`min-h-14 rounded-lg border px-1 py-2 text-xs sm:min-h-16 ${selectedClass || occupiedClass || unavailableClass || normalClass} disabled:cursor-not-allowed`}>
+            <span className="block font-semibold">{index + 1}</span>{isOccupied ? <span className="block text-[10px] font-bold">{isEs ? "Ocupado" : "Occupied"}</span> : isOutOfZone ? <span className="block text-[10px] font-bold">{isEs ? "Fuera" : "Out"}</span> : null}{!disabled && price !== null && <span className="block text-[10px] font-bold text-emerald-700">${price.toFixed(0)}</span>}
+          </button>;
+        })}
+      </div>
+      <div className="mt-4 space-y-1 text-xs text-slate-500">
+        <p>{isEs ? "Días fuera de zona y fines de semana aparecen en gris." : "Out-of-zone days and weekends appear in gray."}</p>
+        <p>{isEs ? "Días ocupados aparecen en rojo y tachados." : "Occupied days appear in red with strikethrough."}</p>
+        {!availabilityReady && <p className="font-semibold text-amber-700">{isEs ? "No se pudo cargar la disponibilidad. Intente nuevamente en unos segundos." : "Could not load availability. Please try again in a few seconds."}</p>}
+      </div>
+    </div>
+  );
 }
