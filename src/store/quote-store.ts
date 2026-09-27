@@ -23,7 +23,7 @@ import { buildReferenceCode } from "@/lib/utils";
  * el recorte del area y los pasos completados, incluso si el cliente cierra el navegador.
  */
 
-export const TOTAL_STEPS = 4;
+export const TOTAL_STEPS = 7;
 export const DRAFT_STORAGE_KEY = "ngc-quote-draft-v3";
 
 export type ServiceFrequency = "ongoing" | "one_time";
@@ -74,6 +74,7 @@ export type QuoteStateFields = {
   // Compatibilidad y campos generales
   measurement: QuoteMeasurement | null;
   hasGateCode: boolean;
+  gateQuestionAnswered: boolean;
   gateCode: string;
   selectedServices: string[];
   details: string;
@@ -143,11 +144,12 @@ const initialFields: QuoteStateFields = {
 
   measurement: null,
   hasGateCode: false,
+  gateQuestionAnswered: false,
   gateCode: "",
-  selectedServices: ["weekly_biweekly_lawn_service"],
+  selectedServices: [],
   details: "",
   additionalNotes: "",
-  paymentMethod: "cash",
+  paymentMethod: "venmo",
   cashLocation: "",
   referenceCode: null,
   updatedAt: "",
@@ -289,6 +291,7 @@ export const useQuoteStore = create<QuoteStore>()(
       setGate: (hasGateCode, gateCode = "") =>
         set({
           hasGateCode,
+          gateQuestionAnswered: true,
           gateCode: hasGateCode ? gateCode : "",
           updatedAt: new Date().toISOString(),
         }),
@@ -349,6 +352,7 @@ export const useQuoteStore = create<QuoteStore>()(
           additionalNotes: typeof persisted.additionalNotes === "string" ? persisted.additionalNotes : "",
           gateCode: typeof persisted.gateCode === "string" ? persisted.gateCode : "",
           hasGateCode: Boolean(persisted.hasGateCode),
+          gateQuestionAnswered: Boolean(persisted.gateQuestionAnswered),
           submitted: Boolean(persisted.submitted),
         };
       },
@@ -362,7 +366,7 @@ export function pickSubmissionFields(state: QuoteStore) {
 
   const surveyDetails = [
     "Servicio: corte de yarda con tarifa calculada por área",
-    `Frecuencia: ${state.serviceFrequency === "ongoing" ? "Ongoing" : "One-time"}`,
+    `Frecuencia: ${state.mowFrequency === "weekly" ? "Atención continua" : "Servicio quincenal"}`,
     `Ocupación: ${state.propertyOccupancy === "occupied" ? "Occupied" : "Vacant"}`,
     `Corte: ${state.mowFrequency === "weekly" ? "Weekly" : "Bi-Weekly"}`,
     `Área: ${state.areaSelection === "front_back" ? "Front & Back" : state.areaSelection === "front_only" ? "Front Only" : "Back Only"}`,
@@ -392,6 +396,7 @@ export function pickSubmissionFields(state: QuoteStore) {
     depthInches: 2,
     polygon: state.measurement?.polygon ?? [],
     polygons: state.measurement?.polygons ?? (state.measurement?.polygon ? [state.measurement.polygon] : []),
+    gardenGeometry: state.measurement?.gardenGeometry,
     polygonPath: state.measurement?.polygonPath ?? null,
     snapshotUrl: null,
     mapBounds: state.measurement?.bounds ?? null,

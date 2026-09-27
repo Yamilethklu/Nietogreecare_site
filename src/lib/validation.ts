@@ -35,6 +35,13 @@ export const polygonPointSchema = z.object({
   lng: z.number().min(-180).max(180),
 });
 
+const gardenPositionSchema = z.array(z.number()).length(2);
+const gardenRingSchema = z.array(gardenPositionSchema).min(4);
+export const gardenGeometrySchema = z.union([
+  z.object({ type: z.literal("Polygon"), coordinates: z.array(gardenRingSchema).min(1) }),
+  z.object({ type: z.literal("MultiPolygon"), coordinates: z.array(z.array(gardenRingSchema).min(1)).min(1) }),
+]);
+
 export const boundsSchema = z.object({
   north: z.number(),
   south: z.number(),
@@ -50,6 +57,7 @@ export const measurementSchema = z.object({
   perimeterFt: z.number().min(0),
   polygon: z.array(polygonPointSchema).max(40).default([]),
   polygons: z.array(z.array(polygonPointSchema).min(3).max(40)).max(8).optional(),
+  gardenGeometry: gardenGeometrySchema.optional(),
   polygonPath: z.string().nullable().default(null),
   bounds: boundsSchema.nullable().default(null),
   center: polygonPointSchema.nullable().default(null),
@@ -118,7 +126,8 @@ export const leadSubmissionSchema = z
     estimatedCubicYards: z.number().min(0).default(0),
     depthInches: z.number().min(0).max(24).default(2),
     polygon: z.array(polygonPointSchema).max(40).default([]),
-  polygons: z.array(z.array(polygonPointSchema).min(3).max(40)).max(8).optional(),
+    polygons: z.array(z.array(polygonPointSchema).min(3).max(40)).max(8).optional(),
+    gardenGeometry: gardenGeometrySchema.optional(),
     polygonPath: z.string().nullable().default(null),
     snapshotUrl: z.string().nullable().default(null),
     mapBounds: boundsSchema.nullable().default(null),
@@ -143,7 +152,7 @@ export const leadSubmissionSchema = z
     }),
   })
   .refine((data) => data.paymentMethod !== "cash" || data.cashLocation.length > 2, { message: "Indique dónde dejará el efectivo.", path: ["cashLocation"] })
-  .refine((data) => data.polygon.length >= 3, { message: "Marque el área del césped.", path: ["polygon"] })
+  .refine((data) => Boolean(data.gardenGeometry) || data.polygon.length >= 3, { message: "Marque el área del césped.", path: ["polygon"] })
   .refine((data) => !data.hasGateCode || data.gateCode.length > 0, {
     message: "Indique la contrasena del porton.",
     path: ["gateCode"],

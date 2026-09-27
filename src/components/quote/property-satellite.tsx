@@ -3,44 +3,16 @@
 import * as React from "react";
 import { MapPin } from "lucide-react";
 
-import type { PolygonPoint } from "@/lib/types";
-import { GOOGLE_MAPS_API_KEY, loadGoogleMaps } from "@/lib/google-maps";
+import type { GardenGeometry, PolygonPoint } from "@/lib/types";
+import { loadGoogleMaps } from "@/lib/google-maps";
 
-type Props = {
-  address: string;
-  latitude: number | null;
-  longitude: number | null;
-  isEs: boolean;
-  compact?: boolean;
-  polygon?: PolygonPoint[][];
-};
+type Props = { address: string; latitude: number | null; longitude: number | null; isEs: boolean; compact?: boolean; geometry?: GardenGeometry; center?: PolygonPoint | null };
 
-function getBounds(paths?: PolygonPoint[][]) {
-  const points = paths?.flat().filter((point) => Number.isFinite(point.lat) && Number.isFinite(point.lng)) ?? [];
-  if (points.length < 3) return null;
-  return points.reduce(
-    (acc, point) => ({
-      north: Math.max(acc.north, point.lat),
-      south: Math.min(acc.south, point.lat),
-      east: Math.max(acc.east, point.lng),
-      west: Math.min(acc.west, point.lng),
-    }),
-    { north: -90, south: 90, east: -180, west: 180 },
-  );
-}
-
-function getCenter(paths?: PolygonPoint[][]): PolygonPoint | null {
-  const points = paths?.flat().filter((point) => Number.isFinite(point.lat) && Number.isFinite(point.lng)) ?? [];
-  if (!points.length) return null;
-  return {
-    lat: points.reduce((total, point) => total + point.lat, 0) / points.length,
-    lng: points.reduce((total, point) => total + point.lng, 0) / points.length,
-  };
-}
-
-export function PropertySatellite({ address, latitude, longitude, isEs, compact = false, polygon }: Props) {
+export function PropertySatellite({ address, latitude, longitude, isEs, compact = false, geometry, center }: Props) {
   const container = React.useRef<HTMLDivElement>(null);
+  const overlays = React.useRef<any[]>([]);
   const [available, setAvailable] = React.useState(false);
+  const [mapError, setMapError] = React.useState(false);
   const hasCoordinates = latitude !== null && longitude !== null && Number.isFinite(latitude) && Number.isFinite(longitude);
   const lawnCenter = React.useMemo(() => getCenter(polygon), [polygon]);
   const lawnBounds = React.useMemo(() => getBounds(polygon), [polygon]);
@@ -48,11 +20,17 @@ export function PropertySatellite({ address, latitude, longitude, isEs, compact 
   React.useEffect(() => {
     if (!hasCoordinates || !container.current) return;
     let cancelled = false;
+    setAvailable(false);
+    setMapError(false);
     void loadGoogleMaps().then((ready) => {
-      if (cancelled || !ready || !container.current || !window.google?.maps) return;
+      if (cancelled) return;
+      if (!ready || !container.current || !window.google?.maps) {
+        setMapError(true);
+        return;
+      }
       const position = { lat: latitude!, lng: longitude! };
       const map = new window.google.maps.Map(container.current, {
-        center: lawnCenter ?? position,
+        center: center ?? position,
         zoom: 19,
         mapTypeId: "satellite",
         streetViewControl: false,
@@ -60,41 +38,43 @@ export function PropertySatellite({ address, latitude, longitude, isEs, compact 
         fullscreenControl: false,
         gestureHandling: "cooperative",
       });
-      polygon?.forEach((path) => {
-        if (path.length >= 3) {
-          new window.google.maps.Polygon({
+      if (geometry) {
+        const components = geometry.type === "Polygon" ? [geometry.coordinates] : geometry.coordinates;
+        const bounds = new window.google.maps.LatLngBounds();
+        components.forEach((component) => {
+          const paths = component.map((ring) => ring.map(([lng, lat]) => ({ lat, lng })));
+          paths.flat().forEach((point) => bounds.extend(point));
+          overlays.current.push(new window.google.maps.Polygon({
             map,
-            paths: path,
+            paths,
             strokeColor: "#00FF00",
-            strokeOpacity: 0.95,
-            strokeWeight: 3,
+            strokeWeight: 2,
             fillColor: "#00FF00",
             fillOpacity: 0.35,
             clickable: false,
-          });
-        }
-      });
-      if (lawnBounds) {
-        const bounds = new window.google.maps.LatLngBounds(
-          { lat: lawnBounds.south, lng: lawnBounds.west },
-          { lat: lawnBounds.north, lng: lawnBounds.east },
-        );
-        map.fitBounds(bounds);
+          }));
+        });
+        if (!bounds.isEmpty()) map.fitBounds(bounds);
       }
-      new window.google.maps.Marker({
+      overlays.current.push(new window.google.maps.Marker({
         map,
-        position: lawnCenter ?? position,
+        position: center ?? position,
+        title: address,
         icon: "https://maps.google.com/mapfiles/ms/icons/red-dot.png",
-      });
+      }));
       setAvailable(true);
     });
-    return () => { cancelled = true; };
-  }, [address, hasCoordinates, latitude, longitude, lawnBounds, lawnCenter, polygon]);
+    return () => {
+      cancelled = true;
+      overlays.current.forEach((overlay) => overlay.setMap(null));
+      overlays.current = [];
+    };
+  }, [address, center, geometry, hasCoordinates, latitude, longitude]);
 
   return (
     <div className={`relative overflow-hidden rounded-2xl border-2 border-lime-400 bg-emerald-950 shadow-lg ${compact ? "min-h-56" : "min-h-72 sm:min-h-96"}`}>
       {!hasCoordinates && <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-6 text-center text-white"><MapPin className="size-9 text-lime-400" /><p className="font-semibold">{isEs ? "Selecciona una dirección sugerida para ubicar el trabajo en el satélite." : "Select a suggested address to locate the job on satellite view."}</p></div>}
-      {hasCoordinates && !available && <div className="absolute inset-0 grid place-items-center p-6 text-center text-sm font-semibold text-white">{GOOGLE_MAPS_API_KEY ? (isEs ? "Cargando mapa satelital..." : "Loading satellite map...") : (isEs ? "Falta la clave de Google Maps para mostrar el satélite." : "Google Maps key is missing for satellite view.")}</div>}
+      {hasCoordinates && !available && <div className="absolute inset-0 grid place-items-center p-6 text-center text-sm font-semibold text-white">{mapError ? (isEs ? "No se pudo cargar Google Maps." : "Google Maps could not load.") : (isEs ? "Cargando mapa satelital interactivo…" : "Loading interactive satellite map…")}</div>}
       <div ref={container} className={`absolute inset-0 ${available ? "opacity-100" : "pointer-events-none opacity-0"}`} aria-label={isEs ? "Mapa satelital de la propiedad" : "Property satellite map"} />
       {hasCoordinates && <div className="pointer-events-none absolute bottom-3 left-3 right-3 flex items-center gap-2 rounded-xl bg-white/95 px-3 py-2 text-xs font-semibold text-slate-900 shadow"><MapPin className="size-4 shrink-0 text-green-600" /><span className="truncate">{address}</span></div>}
     </div>
