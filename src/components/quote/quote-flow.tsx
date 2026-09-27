@@ -10,10 +10,10 @@ import { PropertySatellite } from "@/components/quote/property-satellite";
 import { Step1Address, Step1AddressHint } from "@/components/quote/step-1-address";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Select } from "@/components/ui/controls";
 import { FieldError, Input, Label, Textarea } from "@/components/ui/input";
-import { BUSINESS, SERVICES, TIME_WINDOWS, ZIP_CITY_MAP } from "@/lib/constants";
+import { BUSINESS, SERVICES, ZIP_CITY_MAP } from "@/lib/constants";
 import { matchMowRate, type MowRate } from "@/lib/instant-pricing";
+import { getCoverageCitiesForWeekday } from "@/lib/service-schedule";
 import { formatZodErrors, step1Schema, step7Schema } from "@/lib/validation";
 import type { LawnGeoJsonGeometry, PaymentMethod, PolygonPoint } from "@/lib/types";
 import { buildMeasurement, pickSubmissionFields, TOTAL_STEPS, useQuoteStore, type QuoteStore } from "@/store/quote-store";
@@ -44,6 +44,11 @@ type LawnDetectionResponse = {
   polygons?: PolygonPoint[][];
   areaSqM?: number;
   areaSqFt?: number;
+};
+
+type AvailabilityResponse = {
+  ok?: boolean;
+  occupiedDates?: string[];
 };
 
 const SQ_FT_PER_SQ_M = 10.7639;
@@ -91,6 +96,7 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
   const [sending, setSending] = React.useState(false);
   const [gateAnswer, setGateAnswer] = React.useState<"yes" | "no" | "">("");
   const [measurementWarning, setMeasurementWarning] = React.useState("");
+  const [measurementLoading, setMeasurementLoading] = React.useState(false);
 
   React.useEffect(() => {
     void fetch("/api/lawn-rates", { cache: "no-store" })
@@ -126,10 +132,15 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
   }, []);
 
   React.useEffect(() => {
+    if (store.paymentMethod === "cash") store.setPaymentMethod("venmo");
+  }, [store.paymentMethod, store.setPaymentMethod]);
+
+  React.useEffect(() => {
     if (store.step !== 2 || store.measurement || store.latitude == null || store.longitude == null) return;
     let cancelled = false;
     setErrors((current) => ({ ...current, measurement: "" }));
     setMeasurementWarning("");
+    setMeasurementLoading(true);
     void fetch(`/api/lawn-detect?address=${encodeURIComponent(store.formattedAddress || store.address)}`, { cache: "no-store" })
       .then(async (response) => {
         const payload = (await response.json().catch(() => ({}))) as LawnDetectionResponse;
@@ -170,6 +181,9 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
           }));
           setMeasurementWarning("");
         }
+      })
+      .finally(() => {
+        if (!cancelled) setMeasurementLoading(false);
       });
     return () => { cancelled = true; };
   }, [
@@ -186,11 +200,6 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
 
   const rate = matchMowRate(rates, store.measurement?.areaSqFt ?? 0, store.mowFrequency);
   const price = rate ? Number(rate.price) : null;
-  const minDate = React.useMemo(() => {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-  }, []);
-
   const resolveCoordinates = async () => {
     const current = useQuoteStore.getState();
     if (current.latitude != null && current.longitude != null) return true;
@@ -243,6 +252,14 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
         return;
       }
     }
+    if (current.step === 5 && !current.city.trim()) {
+      setErrors({ requestedDate: isEs ? "No se pudo determinar la ciudad. Regrese al paso 1 y confirme su dirección y código postal." : "Could not determine the city. Go back to Step 1 and confirm your address and ZIP code." });
+      return;
+    }
+    if (current.step === 5 && !current.requestedDate) {
+      setErrors({ requestedDate: isEs ? "Seleccione el día preferido para el corte." : "Choose your preferred service date." });
+      return;
+    }
     setErrors({});
     current.goNext();
   };
@@ -255,10 +272,6 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
     }
     if (!current.requestedDate) {
       setErrors({ requestedDate: isEs ? "Seleccione el día preferido para el corte." : "Choose your preferred service date." });
-      return;
-    }
-    if (current.paymentMethod === "cash" && current.cashLocation.trim().length < 3) {
-      setErrors({ cashLocation: isEs ? "Indique dónde dejará el efectivo." : "Tell us where you will leave cash." });
       return;
     }
     setSending(true);
@@ -284,11 +297,15 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
         `Dirección: ${submitted.address}`,
         `Área de césped: ${Math.round(submitted.measurement?.areaSqFt ?? 0).toLocaleString()} sq ft`,
         `Tarifa: $${Number(payload.data?.price ?? price).toFixed(2)} / ${submitted.mowFrequency === "weekly" ? "weekly" : "bi-weekly"}`,
+        `Frecuencia: ${submitted.mowFrequency === "weekly" ? (isEs ? "Semanal" : "Weekly") : (isEs ? "Quincenal" : "Bi-weekly")}`,
+        `Estado de propiedad: ${submitted.propertyOccupancy === "occupied" ? (isEs ? "Ocupada" : "Occupied") : (isEs ? "Vacante" : "Vacant")}`,
+        `Zona de corte: ${submitted.areaSelection === "front_back" ? (isEs ? "Frente y trasera" : "Front and back") : submitted.areaSelection === "front_only" ? (isEs ? "Solo delantera" : "Front only") : (isEs ? "Solo trasera" : "Back only")}`,
         `Trabajos: ${jobNames.join(", ")}`,
         `Día preferido: ${submitted.requestedDate}`,
         `Cliente: ${submitted.customerName}`,
         `Teléfono: ${submitted.customerPhone}`,
         `Candado/portón: ${submitted.hasGateCode ? `Sí (${submitted.gateCode})` : "No"}`,
+        `Pago: ${submitted.paymentMethod === "venmo" ? "Venmo" : submitted.paymentMethod === "cash_app" ? "Cash App" : "Zelle"}`,
         submitted.additionalNotes.trim() ? `Notas: ${submitted.additionalNotes.trim()}` : "",
       ].filter(Boolean).join("\n");
       const smsUrl = `${BUSINESS.smsHref}?body=${encodeURIComponent(smsBody)}`;
@@ -319,7 +336,7 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
             <CardTitle className="text-2xl font-bold text-slate-950">{isEs ? "Cotización instantánea de césped" : "Instant Lawn Quote"}</CardTitle>
             <span className="rounded-full bg-emerald-100 px-3 py-1 text-sm font-bold text-emerald-900">{isEs ? `Paso ${store.step} de ${TOTAL_STEPS}` : `Step ${store.step} of ${TOTAL_STEPS}`}</span>
           </div>
-          <div className="grid grid-cols-4 gap-2" aria-label={isEs ? "Progreso de cotización" : "Quote progress"}>
+          <div className="grid grid-cols-7 gap-2" aria-label={isEs ? "Progreso de cotización" : "Quote progress"}>
             {Array.from({ length: TOTAL_STEPS }, (_, index) => <span key={index} className={`h-2 rounded-full ${index + 1 <= store.step ? "bg-emerald-500" : "bg-slate-200"}`} />)}
           </div>
         </CardHeader>
@@ -332,8 +349,9 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
           </section>}
 
           {store.step === 2 && <section className="space-y-5">
-            <div><h2 className="text-xl font-bold text-slate-900">{isEs ? "2. Medición satelital automática" : "2. Automatic satellite measurement"}</h2><p className="mt-1 text-sm text-slate-600">{isEs ? "El sistema calcula automáticamente el jardín con Regrid y Turf, excluyendo la casa." : "The system automatically calculates the lawn with Regrid and Turf, excluding the house."}</p></div>
-            <PropertySatellite address={store.address} latitude={store.latitude} longitude={store.longitude} isEs={isEs} polygon={polygon} geometry={lawnGeometry} center={markerCenter} />
+            <div><h2 className="text-xl font-bold text-slate-900">{isEs ? "2. Estimación y mapa satelital automático" : "2. Automatic estimate and satellite map"}</h2><p className="mt-1 text-sm text-slate-600">{isEs ? "El sistema calcula automáticamente el jardín, excluyendo la casa." : "The system automatically calculates the lawn area excluding the house."}</p></div>
+            {measurementLoading && <p className="rounded-lg bg-slate-100 px-4 py-3 text-sm font-semibold text-slate-700">{isEs ? "Analizando tu propiedad por satélite..." : "Analyzing your property by satellite..."}</p>}
+            <PropertySatellite address={store.address} latitude={store.latitude} longitude={store.longitude} isEs={isEs} polygon={polygon} geometry={lawnGeometry} center={markerCenter} loadingText={isEs ? "Analizando tu propiedad por satélite..." : "Analyzing your property by satellite..."} />
             <p className="font-bold text-emerald-900">{isEs ? "Área del jardín" : "Lawn area"}: {lawnAreaSqM.toLocaleString()} m² · {lawnAreaSqFt.toLocaleString()} ft²</p>
             <FieldError>{errors.measurement}</FieldError>
             {measurementWarning && <div className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900">{measurementWarning}</div>}
@@ -355,58 +373,67 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
           </section>}
 
           {store.step === 4 && <section className="space-y-6">
+            <div>
+              <h2 className="text-xl font-bold text-slate-900">{isEs ? "4. Opciones de servicio y frecuencia" : "4. Service options and frequency"}</h2>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-3">
+              <div>
+                <p className="text-sm font-semibold text-slate-800">{isEs ? "Frecuencia" : "Frequency"}</p>
+                <div className="mt-2 space-y-2">
+                  <button type="button" aria-pressed={store.mowFrequency === "weekly"} onClick={() => store.setLawnOptions({ mowFrequency: "weekly" })} className={`w-full rounded-lg border px-3 py-2 text-left text-sm font-semibold ${store.mowFrequency === "weekly" ? "border-emerald-700 bg-emerald-50 text-emerald-900" : "border-slate-200 bg-white text-slate-700"}`}>{isEs ? "Semanal" : "Weekly"}</button>
+                  <button type="button" aria-pressed={store.mowFrequency === "bi_weekly"} onClick={() => store.setLawnOptions({ mowFrequency: "bi_weekly" })} className={`w-full rounded-lg border px-3 py-2 text-left text-sm font-semibold ${store.mowFrequency === "bi_weekly" ? "border-emerald-700 bg-emerald-50 text-emerald-900" : "border-slate-200 bg-white text-slate-700"}`}>{isEs ? "Quincenal" : "Bi-weekly"}</button>
+                </div>
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-slate-800">{isEs ? "Estado de la propiedad" : "Property state"}</p>
+                <div className="mt-2 space-y-2">
+                  <button type="button" aria-pressed={store.propertyOccupancy === "occupied"} onClick={() => store.setLawnOptions({ propertyOccupancy: "occupied" })} className={`w-full rounded-lg border px-3 py-2 text-left text-sm font-semibold ${store.propertyOccupancy === "occupied" ? "border-emerald-700 bg-emerald-50 text-emerald-900" : "border-slate-200 bg-white text-slate-700"}`}>{isEs ? "Ocupado" : "Occupied"}</button>
+                  <button type="button" aria-pressed={store.propertyOccupancy === "vacant"} onClick={() => store.setLawnOptions({ propertyOccupancy: "vacant" })} className={`w-full rounded-lg border px-3 py-2 text-left text-sm font-semibold ${store.propertyOccupancy === "vacant" ? "border-emerald-700 bg-emerald-50 text-emerald-900" : "border-slate-200 bg-white text-slate-700"}`}>{isEs ? "Vacante" : "Vacant"}</button>
+                </div>
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-slate-800">{isEs ? "Zona de corte" : "Cut area"}</p>
+                <div className="mt-2 space-y-2">
+                  <button type="button" aria-pressed={store.areaSelection === "front_back"} onClick={() => store.setLawnOptions({ areaSelection: "front_back" })} className={`w-full rounded-lg border px-3 py-2 text-left text-sm font-semibold ${store.areaSelection === "front_back" ? "border-emerald-700 bg-emerald-50 text-emerald-900" : "border-slate-200 bg-white text-slate-700"}`}>{isEs ? "Frente y trasera" : "Front and back"}</button>
+                  <button type="button" aria-pressed={store.areaSelection === "front_only"} onClick={() => store.setLawnOptions({ areaSelection: "front_only" })} className={`w-full rounded-lg border px-3 py-2 text-left text-sm font-semibold ${store.areaSelection === "front_only" ? "border-emerald-700 bg-emerald-50 text-emerald-900" : "border-slate-200 bg-white text-slate-700"}`}>{isEs ? "Solo delantera" : "Front only"}</button>
+                  <button type="button" aria-pressed={store.areaSelection === "back_only"} onClick={() => store.setLawnOptions({ areaSelection: "back_only" })} className={`w-full rounded-lg border px-3 py-2 text-left text-sm font-semibold ${store.areaSelection === "back_only" ? "border-emerald-700 bg-emerald-50 text-emerald-900" : "border-slate-200 bg-white text-slate-700"}`}>{isEs ? "Solo trasera" : "Back only"}</button>
+                </div>
+              </div>
+            </div>
+          </section>}
+
+          {store.step === 5 && <section className="space-y-6">
+            <div><h2 className="text-xl font-bold text-slate-900">{isEs ? "5. Calendario y cobertura por ciudad" : "5. Calendar and city coverage"}</h2><p className="mt-1 text-sm text-slate-600">{isEs ? `Ciudad detectada: ${store.city || "Sin ciudad"} · Seleccione un día disponible.` : `Detected city: ${store.city || "No city"} · Select an available day.`}</p></div>
+            {store.city.trim() ? <MowingCalendar selected={store.requestedDate} city={store.city} isEs={isEs} onSelect={(date) => store.setSchedule(date, store.requestedTimeWindow ?? "08:00 - 18:00")} price={price} /> : <div className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900">{isEs ? "Primero confirme una dirección con ciudad válida en el Paso 1 para habilitar el calendario." : "Please confirm an address with a valid city in Step 1 to unlock the calendar."}</div>}
+            <FieldError>{errors.requestedDate}</FieldError>
+          </section>}
+
+          {store.step === 6 && <section className="space-y-6">
             <div className="grid gap-5 border-b border-emerald-100 pb-5 sm:grid-cols-[1fr_1fr]">
               <div><h2 className="text-2xl font-extrabold text-emerald-950">My Custom Lawn Mowing Plan</h2><p className="mt-3 text-2xl font-bold text-emerald-800">{price !== null ? `$${price.toFixed(2)} / ${store.mowFrequency === "weekly" ? (isEs ? "semanal" : "weekly") : (isEs ? "quincenal" : "bi-weekly")}` : ""}</p><p className="mt-2 text-sm text-slate-600">{store.address}</p></div>
               <PropertySatellite address={store.address} latitude={store.latitude} longitude={store.longitude} isEs={isEs} compact polygon={polygon} geometry={lawnGeometry} center={markerCenter} />
             </div>
-            <p className="font-bold text-emerald-900">{isEs ? "Área del jardín" : "Lawn area"}: {lawnAreaSqM.toLocaleString()} m² · {lawnAreaSqFt.toLocaleString()} ft²</p>
-            <div className="grid gap-3 text-sm sm:grid-cols-2"><p><strong>{isEs ? "Frecuencia" : "Frequency"}:</strong> {store.mowFrequency === "weekly" ? (isEs ? "Semanal" : "Weekly") : (isEs ? "Quincenal" : "Bi-weekly")}</p><p><strong>{isEs ? "Día preferido" : "Preferred service day"}:</strong> {store.requestedDate || (isEs ? "Seleccione una fecha" : "Choose a date")}</p><p className="sm:col-span-2"><strong>{isEs ? "Trabajos" : "Services"}:</strong> {store.selectedServices.map((key) => { const service = SERVICES.find((item) => item.key === key); return service ? (isEs ? service.nameEs : service.nameEn) : key; }).join(", ")}</p><p><strong>{isEs ? "Cliente" : "Customer"}:</strong> {store.customerName}</p><p><strong>{isEs ? "Teléfono" : "Phone"}:</strong> {store.customerPhone}</p><p><strong>{isEs ? "Candado/portón" : "Lock/gate"}:</strong> {store.hasGateCode ? `${isEs ? "Sí" : "Yes"} · ${store.gateCode}` : (isEs ? "No" : "No")}</p><p><strong>{isEs ? "Notas" : "Notes"}:</strong> {store.additionalNotes || "—"}</p></div>
+            <p className="font-bold text-emerald-900">{isEs ? "Pies cuadrados de césped" : "Lawn square footage"}: {lawnAreaSqFt.toLocaleString()} sq ft</p>
+            <div className="grid gap-3 text-sm sm:grid-cols-2"><p><strong>{isEs ? "Frecuencia" : "Frequency"}:</strong> {store.mowFrequency === "weekly" ? (isEs ? "Semanal" : "Weekly") : (isEs ? "Quincenal" : "Bi-weekly")}</p><p><strong>{isEs ? "Día elegido" : "Chosen day"}:</strong> {store.requestedDate || (isEs ? "Seleccione una fecha" : "Choose a date")}</p><p><strong>{isEs ? "Estado de propiedad" : "Property state"}:</strong> {store.propertyOccupancy === "occupied" ? (isEs ? "Ocupada" : "Occupied") : (isEs ? "Vacante" : "Vacant")}</p><p><strong>{isEs ? "Zona de corte" : "Cut area"}:</strong> {store.areaSelection === "front_back" ? (isEs ? "Frente y trasera" : "Front and back") : store.areaSelection === "front_only" ? (isEs ? "Solo delantera" : "Front only") : (isEs ? "Solo trasera" : "Back only")}</p><p className="sm:col-span-2"><strong>{isEs ? "Trabajos adicionales" : "Additional services"}:</strong> {store.selectedServices.map((key) => { const service = SERVICES.find((item) => item.key === key); return service ? (isEs ? service.nameEs : service.nameEn) : key; }).join(", ")}</p><p><strong>{isEs ? "Cliente" : "Customer"}:</strong> {store.customerName}</p><p><strong>{isEs ? "Teléfono" : "Phone"}:</strong> {store.customerPhone}</p><p><strong>{isEs ? "Candado/portón" : "Lock/gate"}:</strong> {store.hasGateCode ? `${isEs ? "Sí" : "Yes"} · ${store.gateCode}` : (isEs ? "No" : "No")}</p><p><strong>{isEs ? "Notas" : "Notes"}:</strong> {store.additionalNotes || "—"}</p></div>
             <div className="rounded-lg bg-slate-50 p-4"><p className="text-sm font-bold text-emerald-900">{isEs ? "Incluido en cada corte" : "Included with each mow"}</p><p className="mt-2 text-sm text-slate-700">Mow lawn · Line trim · Edge · Blow debris</p></div>
-            <MowingCalendar selected={store.requestedDate} isEs={isEs} onSelect={store.setSchedule} price={price} />
-            <div>
-              <Label htmlFor="quote-service-date">{isEs ? "Fecha preferida *" : "Preferred Date *"}</Label>
-              <Input
-                id="quote-service-date"
-                type="date"
-                min={minDate}
-                value={store.requestedDate ?? ""}
-                onChange={(event) => {
-                  const value = event.target.value;
-                  if (value && new Date(`${value}T12:00:00`).getDay() !== 0) store.setSchedule(value, store.requestedTimeWindow ?? "");
-                }}
-                className="mt-2 text-lg font-bold"
-              />
-              <FieldError>{errors.requestedDate}</FieldError>
-            </div>
-            <div>
-              <Label>{isEs ? "Horario preferido" : "Preferred Time Window"}</Label>
-              <Select
-                value={store.requestedTimeWindow ?? "08:00 - 18:00"}
-                onChange={(event) => store.setSchedule(store.requestedDate ?? minDate, event.target.value)}
-                className="mt-2"
-              >
-                <option value="08:00 - 18:00">{isEs ? "Flexible (Todo el día)" : "Flexible (All Day)"}</option>
-                {TIME_WINDOWS.map((time) => (
-                  <option key={time} value={time}>
-                    {time}
-                  </option>
-                ))}
-              </Select>
-            </div>
+          </section>}
+
+          {store.step === 7 && <section className="space-y-6">
+            <div><h2 className="text-xl font-bold text-slate-900">{isEs ? "7. Pago y confirmación" : "7. Payment and confirmation"}</h2></div>
             <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4">
-              <h3 className="font-bold text-emerald-950">{isEs ? "Método de pago" : "Payment method"}</h3>
+              <h3 className="font-bold text-emerald-950">{isEs ? "Métodos de pago" : "Payment options"}</h3>
               <select value={store.paymentMethod} onChange={(event) => store.setPaymentMethod(event.target.value as PaymentMethod)} className="mt-3 min-h-11 w-full max-w-sm rounded-lg border border-slate-300 bg-white px-3 text-slate-900">
-                <option value="cash">{isEs ? "Efectivo" : "Cash"}</option><option value="cash_app">Cash App</option><option value="venmo">Venmo</option><option value="zelle">Zelle</option>
+                <option value="venmo">Venmo</option><option value="cash_app">Cash App</option><option value="zelle">Zelle</option>
               </select>
-              {store.paymentMethod === "cash" && <div className="mt-3 max-w-sm"><Label htmlFor="quote-cash-location">{isEs ? "¿Dónde dejará el efectivo? *" : "Where will you leave cash? *"}</Label><Input id="quote-cash-location" value={store.cashLocation} onChange={(event) => store.setPersonal({ cashLocation: event.target.value })} className="mt-2" /><FieldError>{errors.cashLocation}</FieldError></div>}
-              <div className="mt-3 flex flex-wrap gap-3"><a href={BUSINESS.venmoUrl} target="_blank" rel="noreferrer" className="rounded-lg border border-slate-200 bg-white px-3 py-2 font-semibold text-slate-900">Venmo · {BUSINESS.venmoHandle}</a><a href={BUSINESS.cashAppUrl} target="_blank" rel="noreferrer" className="rounded-lg border border-slate-200 bg-white px-3 py-2 font-semibold text-slate-900">Cash App · {BUSINESS.cashAppTag}</a></div>
+              <div className="mt-3 flex flex-wrap gap-3"><a href={BUSINESS.venmoUrl} target="_blank" rel="noreferrer" className="rounded-lg border border-slate-200 bg-white px-3 py-2 font-semibold text-slate-900">Venmo · {BUSINESS.venmoUrl}</a><a href={BUSINESS.cashAppUrl} target="_blank" rel="noreferrer" className="rounded-lg border border-slate-200 bg-white px-3 py-2 font-semibold text-slate-900">Cash App · {BUSINESS.cashAppTag}</a><span className="rounded-lg border border-slate-200 bg-white px-3 py-2 font-semibold text-slate-900">Zelle · {BUSINESS.zellePhoneDisplay}</span></div>
             </div>
-            <p className="text-sm text-slate-600">{isEs ? "Gracias por elegir Nieto Green Care LLC. Al confirmar, guardaremos su solicitud y abriremos un SMS para el propietario." : "Thank you for choosing Nieto Green Care LLC. Confirming saves your request and opens a text to the owner."}</p>
+            <div className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-900">{isEs ? "NOTA IMPORTANTE: Siempre que envíe su pago, asegúrese de poner su dirección en la nota del pago." : "IMPORTANT NOTE: When you send your payment, make sure to include your address in the payment note."}</div>
+            <p className="text-sm text-slate-600">{isEs ? "Al confirmar, se guarda la solicitud en Supabase y se abre el SMS nativo para enviar el resumen completo al propietario." : "On confirm, your request is saved to Supabase and the native SMS app opens with the full summary for the owner."}</p>
           </section>}
 
           <div className="flex justify-between gap-3 border-t border-slate-200 pt-5">
             {store.step > 1 ? <Button type="button" variant="outline" onClick={store.goBack}>{isEs ? "Anterior" : "Back"}</Button> : <span />}
-            {store.step < TOTAL_STEPS ? <Button type="button" onClick={() => void next()} className="bg-emerald-700 font-bold hover:bg-emerald-800">{isEs ? "Continuar" : "Continue"}</Button> : <Button type="button" onClick={() => void submit()} disabled={sending} className="bg-emerald-700 font-bold hover:bg-emerald-800"><Send className="mr-2 size-4" />{sending ? (isEs ? "Enviando…" : "Sending…") : (isEs ? "CONFIRMAR Y ENVIAR SMS" : "CONFIRM & TEXT OWNER")}</Button>}
+            {store.step < TOTAL_STEPS ? <Button type="button" onClick={() => void next()} className="bg-emerald-700 font-bold hover:bg-emerald-800">{store.step === 1 ? (isEs ? "Siguiente" : "Next") : (isEs ? "Continuar" : "Continue")}</Button> : <Button type="button" onClick={() => void submit()} disabled={sending} className="bg-emerald-700 font-bold hover:bg-emerald-800"><Send className="mr-2 size-4" />{sending ? (isEs ? "Enviando…" : "Sending…") : (isEs ? "CONFIRMAR Y ENVIAR SMS" : "CONFIRM & TEXT OWNER")}</Button>}
           </div>
         </CardContent>
       </Card>
@@ -414,17 +441,57 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
   );
 }
 
-function MowingCalendar({ selected, isEs, onSelect, price }: { selected: string | null; isEs: boolean; onSelect: (date: string) => void; price: number | null }) {
+function MowingCalendar({ selected, city, isEs, onSelect, price }: { selected: string | null; city: string; isEs: boolean; onSelect: (date: string) => void; price: number | null }) {
+  const normalizeCityKey = (value: string) => value.toLocaleLowerCase("en-US").replace(/[^a-z]/g, "");
   const todayISO = () => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   };
   const [monthOffset, setMonthOffset] = React.useState(0);
+  const [occupiedDates, setOccupiedDates] = React.useState<Set<string>>(new Set());
+  const [availabilityReady, setAvailabilityReady] = React.useState(true);
+  const availabilityCacheRef = React.useRef<Record<string, string[]>>({});
   const now = new Date();
   const month = new Date(now.getFullYear(), now.getMonth() + monthOffset, 1);
   const firstDay = (month.getDay() + 6) % 7;
   const days = new Date(month.getFullYear(), month.getMonth() + 1, 0).getDate();
   const labels = isEs ? ["L", "M", "M", "J", "V", "S", "D"] : ["M", "T", "W", "T", "F", "S", "S"];
+  const monthKey = `${month.getFullYear()}-${String(month.getMonth() + 1).padStart(2, "0")}`;
+  const cityQuery = city.trim();
+  const normalizedCity = normalizeCityKey(city.trim());
+  const availabilityKey = `${monthKey}:${normalizedCity || "unknown"}`;
+
+  React.useEffect(() => {
+    let cancelled = false;
+    const cachedDates = availabilityCacheRef.current[availabilityKey];
+    if (cachedDates) {
+      setAvailabilityReady(true);
+      setOccupiedDates(new Set(cachedDates));
+      return () => { cancelled = true; };
+    }
+    setAvailabilityReady(false);
+    void fetch(`/api/availability?month=${monthKey}&city=${encodeURIComponent(cityQuery)}`, { cache: "no-store" })
+      .then(async (response) => {
+        const payload = (await response.json().catch(() => ({}))) as AvailabilityResponse;
+        if (!response.ok || !payload.ok) throw new Error("availability");
+        return payload.occupiedDates ?? [];
+      })
+      .then((dates) => {
+        availabilityCacheRef.current[availabilityKey] = dates;
+        if (!cancelled) {
+          setOccupiedDates(new Set(dates));
+          setAvailabilityReady(true);
+        }
+      })
+      .catch(() => {
+        delete availabilityCacheRef.current[availabilityKey];
+        if (!cancelled) {
+          setAvailabilityReady(false);
+          setOccupiedDates(new Set());
+        }
+      });
+    return () => { cancelled = true; };
+  }, [availabilityKey, cityQuery, monthKey]);
 
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-6" aria-label={isEs ? "Calendario de corte" : "Mowing calendar"}>
@@ -439,18 +506,38 @@ function MowingCalendar({ selected, isEs, onSelect, price }: { selected: string 
         {Array.from({ length: days }, (_, index) => {
           const date = new Date(month.getFullYear(), month.getMonth(), index + 1);
           const iso = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
-          const disabled = iso < todayISO() || date.getDay() === 0;
-          return <button key={iso} type="button" disabled={disabled} onClick={() => onSelect(iso)} aria-pressed={selected === iso} aria-label={date.toLocaleDateString(isEs ? "es-MX" : "en-US", { dateStyle: "long" })} className={`min-h-14 rounded-lg border px-1 py-2 text-xs sm:min-h-16 ${selected === iso ? "border-green-500 bg-emerald-50 text-emerald-900" : "border-slate-100 text-slate-900 hover:border-emerald-300"} disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-300`}>
-            <span className="block font-semibold">{index + 1}</span>{!disabled && price !== null && <span className="block text-[10px] font-bold text-emerald-700">${price.toFixed(0)}</span>}
+          const weekday = date.getDay();
+          const isWeekend = weekday === 0;
+          const isCovered = normalizedCity
+            ? getCoverageCitiesForWeekday(weekday).some((coveredCity) => normalizeCityKey(coveredCity) === normalizedCity)
+            : false;
+          const isOutOfZone = isWeekend || !isCovered;
+          const isOccupied = occupiedDates.has(iso);
+          const disabled = iso < todayISO() || isOutOfZone || (availabilityReady && isOccupied);
+          const occupiedClass = isOccupied ? "border-red-300 bg-red-50 text-red-700 line-through" : "";
+          const unavailableClass = !isOccupied && disabled ? "border-slate-100 bg-slate-50 text-slate-300" : "";
+          const selectedClass = selected === iso && !disabled ? "border-green-500 bg-emerald-50 text-emerald-900" : "";
+          const normalClass = !selectedClass && !occupiedClass && !unavailableClass ? "border-slate-100 text-slate-900 hover:border-emerald-300" : "";
+          const dayStatusLabel = isOccupied
+            ? (isEs ? "ocupado" : "occupied")
+            : isOutOfZone
+              ? (isEs ? "fuera de zona" : "out of zone")
+              : (isEs ? "disponible" : "available");
+          return <button key={iso} type="button" disabled={disabled} onClick={() => onSelect(iso)} aria-pressed={!disabled && selected === iso ? true : undefined} aria-label={`${date.toLocaleDateString(isEs ? "es-MX" : "en-US", { dateStyle: "long" })} · ${dayStatusLabel}`} className={`min-h-14 rounded-lg border px-1 py-2 text-xs sm:min-h-16 ${selectedClass || occupiedClass || unavailableClass || normalClass} disabled:cursor-not-allowed`}>
+            <span className="block font-semibold">{index + 1}</span>{isOccupied ? <span className="block text-[10px] font-bold">{isEs ? "Ocupado" : "Occupied"}</span> : isOutOfZone ? <span className="block text-[10px] font-bold">{isEs ? "Fuera" : "Out"}</span> : null}{!disabled && price !== null && <span className="block text-[10px] font-bold text-emerald-700">${price.toFixed(0)}</span>}
           </button>;
         })}
       </div>
-      <p className="mt-4 text-xs text-slate-500">{isEs ? "Elige tu fecha preferida; te contactaremos para confirmar disponibilidad." : "Choose your preferred date; we will contact you to confirm availability."}</p>
+      <div className="mt-4 space-y-1 text-xs text-slate-500">
+        <p>{isEs ? "Días fuera de zona y fines de semana aparecen en gris." : "Out-of-zone days and weekends appear in gray."}</p>
+        <p>{isEs ? "Días ocupados aparecen en rojo y tachados." : "Occupied days appear in red with strikethrough."}</p>
+        {!availabilityReady && <p className="font-semibold text-amber-700">{isEs ? "No se pudo cargar la disponibilidad. Intente nuevamente en unos segundos." : "Could not load availability. Please try again in a few seconds."}</p>}
+      </div>
     </div>
   );
 }
 
 function Confirmation({ isEs, store, price, onReset }: { isEs: boolean; store: QuoteStore; price: number | null; onReset: () => void }) {
   const smsBody = `${BUSINESS.name} - Folio ${store.referenceCode ?? ""}\n${store.address}\n${store.customerName} · ${store.customerPhone}`;
-  return <Card className="mx-auto max-w-2xl space-y-5 p-8 text-center"><CardContent className="space-y-5"><ShieldCheck className="mx-auto size-14 text-emerald-700" /><h1 className="text-2xl font-extrabold text-slate-950">{isEs ? "¡Gracias por su preferencia!" : "Thank you for choosing us!"}</h1><p className="text-sm text-slate-600">{isEs ? "La solicitud se guardó. Envíe el mensaje para contactar al propietario." : "Your request was saved. Send the text to contact the owner."}</p><p className="text-xl font-bold text-emerald-800">{price !== null ? `$${price.toFixed(2)} / ${store.mowFrequency === "weekly" ? "weekly" : "bi-weekly"}` : ""}</p><a href={`${BUSINESS.smsHref}?body=${encodeURIComponent(smsBody)}`} className="inline-flex items-center rounded-lg bg-emerald-700 px-4 py-3 font-bold text-white"><MessageSquare className="mr-2 size-4" />{isEs ? "Enviar SMS al propietario" : "Text the owner"}</a><div><Button variant="outline" onClick={onReset}><CheckCircle2 className="mr-2 size-4" />{isEs ? "Nueva cotización" : "New quote"}</Button></div></CardContent></Card>;
+  return <Card className="mx-auto max-w-2xl space-y-5 p-8 text-center"><CardContent className="space-y-5"><ShieldCheck className="mx-auto size-14 text-emerald-700" /><h1 className="text-2xl font-extrabold text-slate-950">{isEs ? "¡Muchas gracias por su preferencia! Su solicitud ha sido procesada." : "Thank you! Your request has been processed."}</h1><p className="text-sm text-slate-600">{isEs ? "La solicitud se guardó. Envíe el mensaje para contactar al propietario." : "Your request was saved. Send the text to contact the owner."}</p><p className="text-xl font-bold text-emerald-800">{price !== null ? `$${price.toFixed(2)} / ${store.mowFrequency === "weekly" ? "weekly" : "bi-weekly"}` : ""}</p><a href={`${BUSINESS.smsHref}?body=${encodeURIComponent(smsBody)}`} className="inline-flex items-center rounded-lg bg-emerald-700 px-4 py-3 font-bold text-white"><MessageSquare className="mr-2 size-4" />{isEs ? "Enviar SMS al propietario" : "Text the owner"}</a><div><Button variant="outline" onClick={onReset}><CheckCircle2 className="mr-2 size-4" />{isEs ? "Nueva cotización" : "New quote"}</Button></div></CardContent></Card>;
 }

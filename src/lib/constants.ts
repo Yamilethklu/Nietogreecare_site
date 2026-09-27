@@ -27,12 +27,13 @@ export const BUSINESS = {
   serviceAreaLabelEs: "Liberty Hill, Cedar Park, Leander, Georgetown, Hutto, Round Rock y Jarrell",
   hoursEs: "Lunes a Sabado · 7:00 AM - 7:00 PM",
   hoursEn: "Monday to Saturday · 7:00 AM - 7:00 PM",
-  cashAppTag: "$JaimeNietoMorales",
-  cashAppUrl: "https://cash.app/$JaimeNietoMorales",
-  venmoHandle: "@gxrciaa_",
-  venmoUrl: "https://venmo.com/u/gxrciaa_",
+  cashAppTag: "$NietoGreenCare",
+  cashAppUrl: "https://cash.app/$NietoGreenCare",
+  venmoHandle: "@gxrciaa",
+  venmoUrl: "https://venmo.com/u/gxrciaa",
   zelleName: "Nieto Green Care LLC",
-  zellePhone: "737-314-4215",
+  zellePhone: "7373144215",
+  zellePhoneDisplay: "737 314 4215",
 } as const;
 
 /** Abre el cliente SMS nativo con el texto de cotización solicitado. */
