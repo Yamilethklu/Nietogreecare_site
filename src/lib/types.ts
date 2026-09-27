@@ -6,8 +6,7 @@ export type LeadStatus = "pending" | "scheduled" | "completed" | "cancelled";
 export type PaymentMethod = "cash" | "cash_app" | "venmo" | "zelle" | "transfer" | "on_completion";
 
 export type PolygonPoint = { lat: number; lng: number };
-
-export type GardenGeometry =
+export type LawnGeoJsonGeometry =
   | { type: "Polygon"; coordinates: number[][][] }
   | { type: "MultiPolygon"; coordinates: number[][][][] };
 
@@ -27,9 +26,7 @@ export type QuoteMeasurement = {
   polygon: PolygonPoint[];
   polygons?: PolygonPoint[][];
   parcelPolygons?: PolygonPoint[][];
-  gardenGeometry?: GardenGeometry;
-  areaSqM?: number;
-  simulatedHouseFootprint?: boolean;
+  lawnGeometry?: LawnGeoJsonGeometry;
   polygonPath: string | null;
   bounds: MapBounds | null;
   center: PolygonPoint | null;
@@ -78,7 +75,7 @@ export interface Lead {
   area_sq_yd: number | string;
   estimated_cubic_yards: number | string;
   depth_inches: number | string;
-  polygon: PolygonPoint[] | GardenGeometry | null;
+  polygon: PolygonPoint[] | null;
   polygon_path: string | null;
   snapshot_url: string | null;
   map_bounds: MapBounds | null;
