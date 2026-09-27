@@ -24,7 +24,7 @@ import { buildReferenceCode } from "@/lib/utils";
  */
 
 export const TOTAL_STEPS = 7;
-export const DRAFT_STORAGE_KEY = "ngc-quote-draft-v3";
+export const DRAFT_STORAGE_KEY = "ngc-quote-draft-v4";
 
 export type ServiceFrequency = "ongoing" | "one_time";
 export type PropertyOccupancy = "occupied" | "vacant";

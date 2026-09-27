@@ -458,37 +458,38 @@ function MowingCalendar({ selected, city, isEs, onSelect, price }: { selected: s
   const labels = isEs ? ["L", "M", "M", "J", "V", "S", "D"] : ["M", "T", "W", "T", "F", "S", "S"];
   const monthKey = `${month.getFullYear()}-${String(month.getMonth() + 1).padStart(2, "0")}`;
   const normalizedCity = normalizeCityKey(city.trim());
+  const availabilityKey = `${monthKey}:${normalizedCity || "unknown"}`;
 
   React.useEffect(() => {
     let cancelled = false;
-    const cachedDates = availabilityCacheRef.current[monthKey];
+    const cachedDates = availabilityCacheRef.current[availabilityKey];
     if (cachedDates) {
       setAvailabilityReady(true);
       setOccupiedDates(new Set(cachedDates));
       return () => { cancelled = true; };
     }
     setAvailabilityReady(false);
-    void fetch(`/api/availability?month=${monthKey}`, { cache: "no-store" })
+    void fetch(`/api/availability?month=${monthKey}&city=${encodeURIComponent(normalizedCity)}`, { cache: "no-store" })
       .then(async (response) => {
         const payload = (await response.json().catch(() => ({}))) as AvailabilityResponse;
         if (!response.ok || !payload.ok) throw new Error("availability");
         return payload.occupiedDates ?? [];
       })
       .then((dates) => {
-        availabilityCacheRef.current[monthKey] = dates;
+        availabilityCacheRef.current[availabilityKey] = dates;
         if (!cancelled) {
           setOccupiedDates(new Set(dates));
           setAvailabilityReady(true);
         }
       })
       .catch(() => {
-        delete availabilityCacheRef.current[monthKey];
+        delete availabilityCacheRef.current[availabilityKey];
         if (!cancelled) {
           setAvailabilityReady(false);
         }
       });
     return () => { cancelled = true; };
-  }, [monthKey]);
+  }, [availabilityKey, monthKey, normalizedCity]);
 
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-6" aria-label={isEs ? "Calendario de corte" : "Mowing calendar"}>
@@ -520,7 +521,7 @@ function MowingCalendar({ selected, city, isEs, onSelect, price }: { selected: s
             : isOutOfZone
               ? (isEs ? "fuera de zona" : "out of zone")
               : (isEs ? "disponible" : "available");
-          return <button key={iso} type="button" disabled={disabled} onClick={() => onSelect(iso)} aria-pressed={selected === iso} aria-label={`${date.toLocaleDateString(isEs ? "es-MX" : "en-US", { dateStyle: "long" })} · ${dayStatusLabel}`} className={`min-h-14 rounded-lg border px-1 py-2 text-xs sm:min-h-16 ${selectedClass || occupiedClass || unavailableClass || normalClass} disabled:cursor-not-allowed`}>
+          return <button key={iso} type="button" disabled={disabled} onClick={() => onSelect(iso)} aria-pressed={!disabled && selected === iso ? true : undefined} aria-label={`${date.toLocaleDateString(isEs ? "es-MX" : "en-US", { dateStyle: "long" })} · ${dayStatusLabel}`} className={`min-h-14 rounded-lg border px-1 py-2 text-xs sm:min-h-16 ${selectedClass || occupiedClass || unavailableClass || normalClass} disabled:cursor-not-allowed`}>
             <span className="block font-semibold">{index + 1}</span>{isOccupied ? <span className="block text-[10px] font-bold">{isEs ? "Ocupado" : "Occupied"}</span> : isOutOfZone ? <span className="block text-[10px] font-bold">{isEs ? "Fuera" : "Out"}</span> : null}{!disabled && price !== null && <span className="block text-[10px] font-bold text-emerald-700">${price.toFixed(0)}</span>}
           </button>;
         })}
