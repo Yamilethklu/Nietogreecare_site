@@ -105,3 +105,43 @@ test("subtractFootprint preserves multipolygon results when the footprint splits
   assert.ok(usable);
   assert.equal(usable.geometry.type, "MultiPolygon");
 });
+
+test("subtractFootprint keeps the parcel unchanged when the building is outside it", () => {
+  const parcel = findAreaFeature({
+    type: "Feature",
+    geometry: {
+      type: "Polygon",
+      coordinates: [[
+        [-97.7, 30.5],
+        [-97.699, 30.5],
+        [-97.699, 30.501],
+        [-97.7, 30.501],
+        [-97.7, 30.5],
+      ]],
+    },
+    properties: {},
+  });
+  const building = findAreaFeature({
+    type: "Feature",
+    geometry: {
+      type: "Polygon",
+      coordinates: [[
+        [-97.6985, 30.5015],
+        [-97.698, 30.5015],
+        [-97.698, 30.502],
+        [-97.6985, 30.502],
+        [-97.6985, 30.5015],
+      ]],
+    },
+    properties: {},
+  });
+
+  assert.ok(parcel);
+  assert.ok(building);
+
+  const usable = subtractFootprint(parcel, building);
+
+  assert.ok(usable);
+  assert.equal(usable.geometry.type, "Polygon");
+  assert.equal(featureAreaSqFt(usable), featureAreaSqFt(parcel));
+});
