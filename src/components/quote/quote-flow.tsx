@@ -12,9 +12,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FieldError, Input, Label, Textarea } from "@/components/ui/input";
 import { BUSINESS, SERVICES, ZIP_CITY_MAP } from "@/lib/constants";
+import { polygonAreaSquareFeet } from "@/lib/geo";
 import { matchMowRate, type MowRate } from "@/lib/instant-pricing";
 import { formatZodErrors, step1Schema, step7Schema } from "@/lib/validation";
-import type { PaymentMethod } from "@/lib/types";
+import type { PaymentMethod, PolygonPoint } from "@/lib/types";
 import { buildMeasurement, pickSubmissionFields, TOTAL_STEPS, useQuoteStore, type QuoteStore } from "@/store/quote-store";
 
 type AddressSuggestion = {
@@ -28,16 +29,47 @@ type AddressSuggestion = {
   longitude: number;
 };
 
-function estimatePolygon(latitude: number, longitude: number, areaSqFt: number) {
-  const sideFeet = Math.sqrt(areaSqFt);
-  const latitudeDelta = sideFeet / 364000;
-  const longitudeDelta = sideFeet / (364000 * Math.cos((latitude * Math.PI) / 180));
+const FEET_PER_LATITUDE_DEGREE = 364000;
+
+function feetToLatitude(feet: number) {
+  return feet / FEET_PER_LATITUDE_DEGREE;
+}
+
+function feetToLongitude(feet: number, latitude: number) {
+  return feet / (FEET_PER_LATITUDE_DEGREE * Math.cos((latitude * Math.PI) / 180));
+}
+
+function rectangleFromFeet(
+  latitude: number,
+  longitude: number,
+  southFeet: number,
+  westFeet: number,
+  northFeet: number,
+  eastFeet: number,
+): PolygonPoint[] {
   return [
-    { lat: latitude - latitudeDelta / 2, lng: longitude - longitudeDelta / 2 },
-    { lat: latitude - latitudeDelta / 2, lng: longitude + longitudeDelta / 2 },
-    { lat: latitude + latitudeDelta / 2, lng: longitude + longitudeDelta / 2 },
-    { lat: latitude + latitudeDelta / 2, lng: longitude - longitudeDelta / 2 },
+    { lat: latitude + feetToLatitude(southFeet), lng: longitude + feetToLongitude(westFeet, latitude) },
+    { lat: latitude + feetToLatitude(southFeet), lng: longitude + feetToLongitude(eastFeet, latitude) },
+    { lat: latitude + feetToLatitude(northFeet), lng: longitude + feetToLongitude(eastFeet, latitude) },
+    { lat: latitude + feetToLatitude(northFeet), lng: longitude + feetToLongitude(westFeet, latitude) },
   ];
+}
+
+function estimateLawnAreas(latitude: number, longitude: number, targetAreaSqFt: number) {
+  const scale = Math.max(0.7, Math.min(2.2, Math.sqrt(targetAreaSqFt / 3200)));
+  const lotHalfWidth = 62 * scale;
+  const lotHalfDepth = 76 * scale;
+  const houseHalfWidth = 30 * scale;
+  const drivewayHalfWidth = 12 * scale;
+  const polygons = [
+    rectangleFromFeet(latitude, longitude, 28 * scale, -lotHalfWidth, lotHalfDepth, lotHalfWidth),
+    rectangleFromFeet(latitude, longitude, -lotHalfDepth, -lotHalfWidth, -34 * scale, -drivewayHalfWidth),
+    rectangleFromFeet(latitude, longitude, -lotHalfDepth, drivewayHalfWidth, -34 * scale, lotHalfWidth),
+    rectangleFromFeet(latitude, longitude, -34 * scale, -lotHalfWidth, 24 * scale, -houseHalfWidth),
+    rectangleFromFeet(latitude, longitude, -34 * scale, houseHalfWidth, 24 * scale, lotHalfWidth),
+  ];
+  const area = polygons.reduce((total, polygon) => total + polygonAreaSquareFeet(polygon), 0);
+  return { polygons, area };
 }
 
 export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
@@ -90,8 +122,8 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
 
   React.useEffect(() => {
     if (store.step !== 2 || store.measurement || store.latitude == null || store.longitude == null) return;
-    const polygon = estimatePolygon(store.latitude, store.longitude, 2500);
-    store.setMeasurement(buildMeasurement(polygon, 2500, 2, 19, [polygon]));
+    const estimate = estimateLawnAreas(store.latitude, store.longitude, 2500);
+    store.setMeasurement(buildMeasurement(estimate.polygons[0], estimate.area, 2, 19, estimate.polygons));
   }, [store.latitude, store.longitude, store.measurement, store.setMeasurement, store.step]);
 
   const rate = matchMowRate(rates, store.measurement?.areaSqFt ?? 0, store.mowFrequency);
@@ -158,8 +190,8 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
     const area = Number(value);
     const current = useQuoteStore.getState();
     if (!Number.isFinite(area) || area < 500 || area > 250000 || current.latitude == null || current.longitude == null) return;
-    const polygon = estimatePolygon(current.latitude, current.longitude, area);
-    current.setMeasurement(buildMeasurement(polygon, area, 2, 19, [polygon]));
+    const estimate = estimateLawnAreas(current.latitude, current.longitude, area);
+    current.setMeasurement(buildMeasurement(estimate.polygons[0], estimate.area, 2, 19, estimate.polygons));
   };
 
   const submit = async () => {
