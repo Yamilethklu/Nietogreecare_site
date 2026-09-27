@@ -385,8 +385,9 @@ export function pickSubmissionFields(state: QuoteStore) {
     `Portón comunidad: ${state.hasCommunityGate ? "Sí" : "No"}`,
     `Portón patio trasero: ${state.hasBackyardGate ? "Sí" : "No"}`,
     `Mascotas patio trasero: ${state.hasPetsInBackyard ? "Sí" : "No"}`,
+    state.details.trim() ? `Trabajo no listado: ${state.details.trim()}` : "",
     `Pago elegido: ${state.paymentMethod}; ubicación de efectivo: ${state.cashLocation || "N/A"}`,
-  ].join(" | ");
+  ].filter(Boolean).join(" | ");
 
   return {
     referenceCode: state.referenceCode,
@@ -417,7 +418,7 @@ export function pickSubmissionFields(state: QuoteStore) {
     customerPhone: state.customerPhone,
     customerEmail: state.customerEmail,
     details: surveyDetails,
-    additionalNotes: state.additionalNotes || "",
+    additionalNotes: [state.additionalNotes, state.details ? `Trabajo no listado: ${state.details}` : ""].filter(Boolean).join("\n"),
     paymentMethod: state.paymentMethod,
     cashLocation: state.cashLocation,
     quoteOptions: {
