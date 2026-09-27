@@ -146,12 +146,12 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
 
   React.useEffect(() => {
     if (store.paymentMethod === "cash") store.setPaymentMethod("venmo");
-  }, [store.paymentMethod, store.setPaymentMethod]);
+  }, [store, store.paymentMethod, store.setPaymentMethod]);
 
   React.useEffect(() => {
     if (gateAnswer || (!store.hasGateCode && !store.requestedDate && store.step <= 5)) return;
     setGateAnswer(store.hasGateCode ? "yes" : "no");
-  }, [gateAnswer, store.hasGateCode, store.requestedDate, store.step]);
+  }, [gateAnswer, store, store.hasGateCode, store.requestedDate, store.step]);
 
   React.useEffect(() => {
     if (store.step !== 2 || store.measurement || store.latitude == null || store.longitude == null) return;
@@ -205,6 +205,7 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
       });
     return () => { cancelled = true; };
   }, [
+    store,
     store.address,
     store.formattedAddress,
     store.latitude,

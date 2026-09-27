@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Image from "next/image";
 import QRCode from "qrcode";
 import { Download, LoaderCircle, QrCode } from "lucide-react";
 
@@ -57,7 +58,7 @@ export function QuoteQrCard() {
       </CardHeader>
       <CardContent className="flex flex-col items-center p-6 text-center sm:p-8">
         <div className="rounded-2xl bg-white p-4 shadow-[0_0_0_1px_rgba(201,162,39,0.35)]">
-          {preview ? <img src={preview} alt="Código QR para el cotizador de Nieto Green Care LLC" className="size-64 sm:size-72" /> : <div className="grid size-64 place-items-center text-[#1B4332] sm:size-72"><LoaderCircle className="size-8 animate-spin" /></div>}
+          {preview ? <Image src={preview} alt="Código QR para el cotizador de Nieto Green Care LLC" width={288} height={288} unoptimized className="size-64 sm:size-72" /> : <div className="grid size-64 place-items-center text-[#1B4332] sm:size-72"><LoaderCircle className="size-8 animate-spin" /></div>}
         </div>
         <p className="mt-5 text-sm font-medium text-white">Escanee para solicitar una cotización</p>
         <p className="mt-1 break-all text-xs text-ink-400">{QUOTE_URL}</p>

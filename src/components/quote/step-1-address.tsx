@@ -200,6 +200,7 @@ export function Step1Address({ error, isEs }: AddressAutocompleteProps) {
                 key={suggestion.id}
                 type="button"
                 role="option"
+                aria-selected={false}
                 onMouseDown={(event) => event.preventDefault()}
                 onClick={() => selectSuggestion(suggestion)}
                 className="w-full rounded-lg px-3 py-2.5 text-left transition hover:bg-emerald-50 focus-visible:bg-emerald-50 focus-visible:outline-none"
