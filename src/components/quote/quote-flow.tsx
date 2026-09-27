@@ -16,7 +16,7 @@ import { matchMowRate, type MowRate } from "@/lib/instant-pricing";
 import { getCoverageCitiesForWeekday } from "@/lib/service-schedule";
 import { formatZodErrors, phoneSchema, step1Schema } from "@/lib/validation";
 import type { LawnGeoJsonGeometry, PaymentMethod, PolygonPoint } from "@/lib/types";
-import { buildMeasurement, pickSubmissionFields, TOTAL_STEPS, useQuoteStore, type QuoteStore } from "@/store/quote-store";
+import { buildMeasurement, pickSubmissionFields, TOTAL_STEPS, useQuoteStore, type MowFrequency, type QuoteStore } from "@/store/quote-store";
 
 type AddressSuggestion = {
   id: string;
@@ -84,6 +84,21 @@ function geoJsonGeometryToPolygons(geometry: LawnGeoJsonGeometry | undefined): P
   if (!geometry) return [];
   if (geometry.type === "Polygon") return [ringToPath(geometry.coordinates[0] ?? [])].filter((path) => path.length >= 3);
   return geometry.coordinates.map((polygon) => ringToPath(polygon[0] ?? [])).filter((path) => path.length >= 3);
+}
+
+function getMowFrequencyLabel(mowFrequency: MowFrequency, isEs: boolean) {
+  return mowFrequency === "weekly"
+    ? (isEs ? "Atención continua" : "Continuous attention")
+    : (isEs ? "Servicio quincenal" : "Biweekly service");
+}
+
+function getCoverageNoteLines(isEs: boolean) {
+  const groups = [
+    { daysEs: "Lunes y Martes", daysEn: "Monday and Tuesday", weekday: 1 },
+    { daysEs: "Miércoles", daysEn: "Wednesday", weekday: 3 },
+    { daysEs: "Jueves y Viernes", daysEn: "Thursday and Friday", weekday: 4 },
+  ];
+  return groups.map(({ daysEs, daysEn, weekday }) => `${isEs ? daysEs : daysEn}: ${getCoverageCitiesForWeekday(weekday).join(", ")}.`);
 }
 
 export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
@@ -205,9 +220,8 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
 
   const rate = matchMowRate(rates, store.measurement?.areaSqFt ?? 0, store.mowFrequency);
   const price = rate ? Number(rate.price) : null;
-  const frequencyLabel = store.mowFrequency === "weekly"
-    ? (isEs ? "Atención continua" : "Continuous attention")
-    : (isEs ? "Servicio quincenal" : "Biweekly service");
+  const frequencyLabel = getMowFrequencyLabel(store.mowFrequency, isEs);
+  const coverageNoteLines = getCoverageNoteLines(isEs);
   const resolveCoordinates = async () => {
     const current = useQuoteStore.getState();
     if (current.latitude != null && current.longitude != null) return true;
@@ -254,7 +268,7 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
     if (current.step === 3) {
       const nextErrors: Record<string, string> = {};
       if (current.customerName.trim().length < 2) nextErrors.customerName = isEs ? "Ingrese su nombre completo." : "Enter your full name.";
-      if (!phoneSchema.safeParse(current.customerPhone).success) nextErrors.customerPhone = isEs ? "Ingrese un telefono valido de 10 digitos." : "Enter a valid 10-digit phone number.";
+      if (!phoneSchema.safeParse(current.customerPhone).success) nextErrors.customerPhone = isEs ? "Ingrese un teléfono válido de 10 dígitos." : "Enter a valid 10-digit phone number.";
       if (Object.keys(nextErrors).length > 0) {
         setErrors(nextErrors);
         toast({ title: isEs ? "Complete los datos requeridos" : "Complete the required details", variant: "error" });
@@ -312,25 +326,30 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
       });
       const smsBody = [
         `${BUSINESS.name} - ${isEs ? "Cotización instantánea" : "Instant quote"}`,
-        `Folio: ${referenceCode}`,
-        `Dirección: ${submitted.address}`,
-        `Área de césped: ${Math.round(submitted.measurement?.areaSqFt ?? 0).toLocaleString()} sq ft`,
-        `Tarifa: $${Number(payload.data?.price ?? price).toFixed(2)} / ${submitted.mowFrequency === "weekly" ? (isEs ? "Atención continua" : "Continuous attention") : (isEs ? "Servicio quincenal" : "Biweekly service")}`,
-        `Frecuencia: ${submitted.mowFrequency === "weekly" ? (isEs ? "Atención continua" : "Continuous attention") : (isEs ? "Servicio quincenal" : "Biweekly service")}`,
-        `Estado de propiedad: ${submitted.propertyOccupancy === "occupied" ? (isEs ? "Ocupada" : "Occupied") : (isEs ? "Vacante" : "Vacant")}`,
-        `Zona de corte: ${submitted.areaSelection === "front_back" ? (isEs ? "Frente y trasera" : "Front and back") : submitted.areaSelection === "front_only" ? (isEs ? "Solo delantera" : "Front only") : (isEs ? "Solo trasera" : "Back only")}`,
-        `Trabajos: ${jobNames.join(", ")}`,
-        `Día preferido: ${submitted.requestedDate}`,
-        `Cliente: ${submitted.customerName}`,
-        `Teléfono: ${submitted.customerPhone}`,
-        `Candado/portón: ${submitted.hasGateCode ? `Sí (${submitted.gateCode})` : "No"}`,
-        `Pago: ${submitted.paymentMethod === "venmo" ? "Venmo" : submitted.paymentMethod === "cash_app" ? "Cash App" : "Zelle"}`,
-        submitted.additionalNotes.trim() ? `Notas: ${submitted.additionalNotes.trim()}` : "",
+        `${isEs ? "Folio" : "Reference"}: ${referenceCode}`,
+        `${isEs ? "Dirección" : "Address"}: ${submitted.address}`,
+        `${isEs ? "Área de césped" : "Lawn area"}: ${Math.round(submitted.measurement?.areaSqFt ?? 0).toLocaleString()} sq ft`,
+        `${isEs ? "Tarifa" : "Rate"}: $${Number(payload.data?.price ?? price).toFixed(2)} / ${getMowFrequencyLabel(submitted.mowFrequency, isEs)}`,
+        `${isEs ? "Frecuencia" : "Frequency"}: ${getMowFrequencyLabel(submitted.mowFrequency, isEs)}`,
+        `${isEs ? "Estado de propiedad" : "Property status"}: ${submitted.propertyOccupancy === "occupied" ? (isEs ? "Ocupada" : "Occupied") : (isEs ? "Vacante" : "Vacant")}`,
+        `${isEs ? "Zona de corte" : "Mowing zone"}: ${submitted.areaSelection === "front_back" ? (isEs ? "Frente y trasera" : "Front and back") : submitted.areaSelection === "front_only" ? (isEs ? "Solo delantera" : "Front only") : (isEs ? "Solo trasera" : "Back only")}`,
+        `${isEs ? "Trabajos" : "Jobs"}: ${jobNames.join(", ")}`,
+        `${isEs ? "Día preferido" : "Preferred day"}: ${submitted.requestedDate}`,
+        `${isEs ? "Cliente" : "Customer"}: ${submitted.customerName}`,
+        `${isEs ? "Teléfono" : "Phone"}: ${submitted.customerPhone}`,
+        `${isEs ? "Candado/portón" : "Lock/gate"}: ${submitted.hasGateCode ? `${isEs ? "Sí" : "Yes"} (${submitted.gateCode})` : "No"}`,
+        `${isEs ? "Pago" : "Payment"}: ${submitted.paymentMethod === "venmo" ? "Venmo" : submitted.paymentMethod === "cash_app" ? "Cash App" : "Zelle"}`,
+        submitted.additionalNotes.trim() ? `${isEs ? "Notas" : "Notes"}: ${submitted.additionalNotes.trim()}` : "",
       ].filter(Boolean).join("\n");
-      submitted.markSubmitted();
       const smsUrl = `${BUSINESS.smsHref}?body=${encodeURIComponent(smsBody)}`;
       const smsWindow = window.open(smsUrl, "_blank", "noopener");
-      if (!smsWindow) window.location.href = smsUrl;
+      if (smsWindow) {
+        submitted.markSubmitted();
+        return;
+      }
+      submitted.markSubmitted();
+      window.location.href = smsUrl;
+      return;
     } catch (error) {
       toast({ title: error instanceof Error ? error.message : (isEs ? "Error al enviar" : "Could not submit"), variant: "error" });
     } finally {
@@ -424,9 +443,7 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
           {store.step === 5 && <section className="space-y-6">
             <div><h2 className="text-xl font-bold text-slate-900">{isEs ? "5. Calendario y cobertura por ciudad" : "5. Calendar and city coverage"}</h2><p className="mt-1 text-sm text-slate-600">{isEs ? `Ciudad detectada: ${store.city || "Sin ciudad"} · Seleccione un día disponible.` : `Detected city: ${store.city || "No city"} · Select an available day.`}</p></div>
             <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-950">
-              <p>Lunes y Martes: Liberty Hill, Georgetown.</p>
-              <p>Miércoles: Leander, Cedar Park, Georgetown, Liberty Hill.</p>
-              <p>Jueves y Viernes: Hutto, Round Rock, Georgetown, Liberty Hill, Leander.</p>
+              {coverageNoteLines.map((line) => <p key={line}>{line}</p>)}
             </div>
             {store.city.trim() ? <MowingCalendar selected={store.requestedDate} city={store.city} isEs={isEs} onSelect={(date) => store.setSchedule(date, store.requestedTimeWindow ?? "08:00 - 18:00")} price={price} /> : <div className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900">{isEs ? "Primero confirme una dirección con ciudad válida en el Paso 1 para habilitar el calendario." : "Please confirm an address with a valid city in Step 1 to unlock the calendar."}</div>}
             <fieldset><legend className="text-sm font-semibold text-slate-800">{isEs ? "¿Acceso con candado o portón? *" : "Lock or gate access? *"}</legend><div className="mt-2 flex gap-3">{(["yes", "no"] as const).map((answer) => <button key={answer} type="button" aria-pressed={gateAnswer === answer} onClick={() => { setGateAnswer(answer); store.setGate(answer === "yes", answer === "yes" ? store.gateCode : ""); setErrors((current) => ({ ...current, hasGateCode: "", gateCode: "" })); }} className={`rounded-lg border px-5 py-2 font-semibold ${gateAnswer === answer ? "border-emerald-700 bg-emerald-700 text-white" : "border-slate-300 bg-white text-slate-800"}`}>{answer === "yes" ? (isEs ? "Sí" : "Yes") : (isEs ? "No" : "No")}</button>)}</div><FieldError>{errors.hasGateCode}</FieldError>{store.hasGateCode && <div className="mt-3 max-w-sm"><Label htmlFor="quote-gate-code">{isEs ? "Código o número del candado *" : "Lock or gate code *"}</Label><Input id="quote-gate-code" required inputMode="numeric" value={store.gateCode} onChange={(event) => { store.setGate(true, event.target.value.replace(/[^\d]/g, "")); setErrors((current) => ({ ...current, gateCode: "" })); }} className="mt-2" /><FieldError>{errors.gateCode}</FieldError></div>}</fieldset>
@@ -452,8 +469,8 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
               </select>
               <div className="mt-3 flex flex-wrap gap-3"><a href={BUSINESS.venmoUrl} target="_blank" rel="noreferrer" className="rounded-lg border border-slate-200 bg-white px-3 py-2 font-semibold text-slate-900">Venmo · {BUSINESS.venmoUrl}</a><a href={BUSINESS.cashAppUrl} target="_blank" rel="noreferrer" className="rounded-lg border border-slate-200 bg-white px-3 py-2 font-semibold text-slate-900">Cash App · {BUSINESS.cashAppTag}</a><span className="rounded-lg border border-slate-200 bg-white px-3 py-2 font-semibold text-slate-900">Zelle · {BUSINESS.zellePhoneDisplay}</span></div>
             </div>
-            <div className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-900">NOTA IMPORTANTE: Siempre que envíe su pago, asegúrese de poner su dirección en la nota del pago.</div>
-            <p className="text-sm text-slate-600">{isEs ? "Al confirmar, se guarda la solicitud en Supabase y se prepara el SMS consolidado para el propietario." : "When you confirm, your request is saved to Supabase and the consolidated SMS for the owner is prepared."}</p>
+            <div className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-900">{isEs ? "NOTA IMPORTANTE: Siempre que envíe su pago, asegúrese de poner su dirección en la nota del pago." : "IMPORTANT NOTE: Whenever you send your payment, make sure to put your address in the payment note."}</div>
+            <p className="text-sm text-slate-600">{isEs ? "Al confirmar, se guarda la solicitud en Supabase y se abre el SMS consolidado para el propietario." : "When you confirm, your request is saved to Supabase and the consolidated SMS for the owner opens."}</p>
           </section>}
 
           <div className="flex justify-between gap-3 border-t border-slate-200 pt-5">
@@ -564,5 +581,8 @@ function MowingCalendar({ selected, city, isEs, onSelect, price }: { selected: s
 
 function Confirmation({ isEs, store, price, onReset }: { isEs: boolean; store: QuoteStore; price: number | null; onReset: () => void }) {
   const smsBody = `${BUSINESS.name} - Folio ${store.referenceCode ?? ""}\n${store.address}\n${store.customerName} · ${store.customerPhone}`;
-  return <Card className="mx-auto max-w-2xl space-y-5 p-8 text-center"><CardContent className="space-y-5"><ShieldCheck className="mx-auto size-14 text-emerald-700" /><h1 className="text-2xl font-extrabold text-slate-950">{isEs ? "¡Muchas gracias por su preferencia! Su solicitud ha sido procesada." : "Thank you! Your request has been processed."}</h1><p className="text-sm text-slate-600">{isEs ? "La solicitud se guardó en Supabase y el SMS al propietario ya está listo con el resumen consolidado." : "Your request was saved to Supabase and the owner's SMS is ready with the consolidated summary."}</p><p className="text-xl font-bold text-emerald-800">{price !== null ? `$${price.toFixed(2)} / ${store.mowFrequency === "weekly" ? "weekly" : "bi-weekly"}` : ""}</p><a href={`${BUSINESS.smsHref}?body=${encodeURIComponent(smsBody)}`} className="inline-flex items-center rounded-lg bg-emerald-700 px-4 py-3 font-bold text-white"><MessageSquare className="mr-2 size-4" />{isEs ? "Abrir SMS al propietario" : "Open owner SMS"}</a><div><Button variant="outline" onClick={onReset}><CheckCircle2 className="mr-2 size-4" />{isEs ? "Nueva cotización" : "New quote"}</Button></div></CardContent></Card>;
+  const frequencyLabel = store.mowFrequency === "weekly"
+    ? (isEs ? "Atención continua" : "Continuous attention")
+    : (isEs ? "Servicio quincenal" : "Biweekly service");
+  return <Card className="mx-auto max-w-2xl space-y-5 p-8 text-center"><CardContent className="space-y-5"><ShieldCheck className="mx-auto size-14 text-emerald-700" /><h1 className="text-2xl font-extrabold text-slate-950">{isEs ? "¡Muchas gracias por su preferencia! Su solicitud ha sido procesada." : "Thank you! Your request has been processed."}</h1><p className="text-sm text-slate-600">{isEs ? "La solicitud se guardó en Supabase. Si el SMS no se abrió automáticamente, use el botón de abajo para contactar al propietario." : "Your request was saved to Supabase. If the SMS app did not open automatically, use the button below to contact the owner."}</p><p className="text-xl font-bold text-emerald-800">{price !== null ? `$${price.toFixed(2)} / ${frequencyLabel}` : ""}</p><a href={`${BUSINESS.smsHref}?body=${encodeURIComponent(smsBody)}`} className="inline-flex items-center rounded-lg bg-emerald-700 px-4 py-3 font-bold text-white"><MessageSquare className="mr-2 size-4" />{isEs ? "Abrir SMS al propietario" : "Open owner SMS"}</a><div><Button variant="outline" onClick={onReset}><CheckCircle2 className="mr-2 size-4" />{isEs ? "Nueva cotización" : "New quote"}</Button></div></CardContent></Card>;
 }
