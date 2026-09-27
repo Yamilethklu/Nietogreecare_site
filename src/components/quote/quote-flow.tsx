@@ -132,6 +132,10 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
   }, []);
 
   React.useEffect(() => {
+    if (store.paymentMethod === "cash") store.setPaymentMethod("venmo");
+  }, [store.paymentMethod, store.setPaymentMethod]);
+
+  React.useEffect(() => {
     if (store.step !== 2 || store.measurement || store.latitude == null || store.longitude == null) return;
     let cancelled = false;
     setErrors((current) => ({ ...current, measurement: "" }));
@@ -454,10 +458,11 @@ function MowingCalendar({ selected, city, isEs, onSelect, price }: { selected: s
   const labels = isEs ? ["L", "M", "M", "J", "V", "S", "D"] : ["M", "T", "W", "T", "F", "S", "S"];
   const monthKey = `${month.getFullYear()}-${String(month.getMonth() + 1).padStart(2, "0")}`;
   const normalizedCity = normalizeCityKey(city.trim());
+  const availabilityKey = `${monthKey}:${normalizedCity || "unknown"}`;
 
   React.useEffect(() => {
     let cancelled = false;
-    const cachedDates = availabilityCacheRef.current[monthKey];
+    const cachedDates = availabilityCacheRef.current[availabilityKey];
     if (cachedDates) {
       setAvailabilityReady(true);
       setOccupiedDates(new Set(cachedDates));
@@ -471,20 +476,20 @@ function MowingCalendar({ selected, city, isEs, onSelect, price }: { selected: s
         return payload.occupiedDates ?? [];
       })
       .then((dates) => {
-        availabilityCacheRef.current[monthKey] = dates;
+        availabilityCacheRef.current[availabilityKey] = dates;
         if (!cancelled) {
           setOccupiedDates(new Set(dates));
           setAvailabilityReady(true);
         }
       })
       .catch(() => {
-        delete availabilityCacheRef.current[monthKey];
+        delete availabilityCacheRef.current[availabilityKey];
         if (!cancelled) {
           setAvailabilityReady(false);
         }
       });
     return () => { cancelled = true; };
-  }, [monthKey]);
+  }, [availabilityKey, monthKey]);
 
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-6" aria-label={isEs ? "Calendario de corte" : "Mowing calendar"}>

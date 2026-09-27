@@ -22,21 +22,25 @@ export async function POST(request: Request) {
   const detectUrl = new URL("/api/lawn-detect", request.url);
   detectUrl.searchParams.set("address", detectAddress);
 
-  const detectResponse = await fetch(detectUrl, { cache: "no-store" });
-  const payload = await detectResponse.json().catch(() => ({}));
-  if (!detectResponse.ok || payload?.ok !== true) {
-    return NextResponse.json(
-      { error: mapDetectError(payload?.error, detectResponse.status), warning: payload?.warning },
-      { status: detectResponse.status || 502 },
-    );
-  }
+  try {
+    const detectResponse = await fetch(detectUrl, { cache: "no-store" });
+    const payload = await detectResponse.json().catch(() => ({}));
+    if (!detectResponse.ok || payload?.ok !== true) {
+      return NextResponse.json(
+        { error: mapDetectError(payload?.error, detectResponse.status), warning: payload?.warning },
+        { status: detectResponse.status || 502 },
+      );
+    }
 
-  return NextResponse.json({
-    poligonoJardin: payload.poligonoJardin,
-    areaMetros: payload.areaMetros,
-    areaPies: payload.areaPies,
-    centro: payload.centro,
-    huellaCasaSimulada: payload.huellaCasaSimulada,
-    warning: payload.warning,
-  });
+    return NextResponse.json({
+      poligonoJardin: payload.poligonoJardin,
+      areaMetros: payload.areaMetros,
+      areaPies: payload.areaPies,
+      centro: payload.centro,
+      huellaCasaSimulada: payload.huellaCasaSimulada,
+      warning: payload.warning,
+    });
+  } catch {
+    return NextResponse.json({ error: "No se pudo obtener la geometría catastral de esta dirección." }, { status: 502 });
+  }
 }
