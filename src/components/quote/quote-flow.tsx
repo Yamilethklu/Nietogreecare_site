@@ -163,7 +163,11 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
     setErrors((current) => ({ ...current, measurement: "" }));
     setMeasurementWarning("");
     setMeasurementLoading(true);
-    void fetch(`/api/lawn-detect?address=${encodeURIComponent(store.formattedAddress || store.address)}`, { cache: "no-store" })
+    const detectUrl = new URL("/api/lawn-detect", window.location.origin);
+    detectUrl.searchParams.set("address", store.formattedAddress || store.address);
+    detectUrl.searchParams.set("lat", String(store.latitude));
+    detectUrl.searchParams.set("lng", String(store.longitude));
+    void fetch(detectUrl.toString(), { cache: "no-store" })
       .then(async (response) => {
         const payload = (await response.json().catch(() => ({}))) as LawnDetectionResponse;
         if (!response.ok) throw new Error(resolveMeasurementError(payload.error, isEs));
@@ -388,11 +392,21 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
           {store.step === 2 && <section className="space-y-5">
             <div><h2 className="text-xl font-bold text-slate-900">{isEs ? "2. Estimación y mapa satelital automático" : "2. Automatic estimate and satellite map"}</h2><p className="mt-1 text-sm text-slate-600">{isEs ? "El sistema calcula automáticamente el jardín, excluyendo la casa." : "The system automatically calculates the lawn area excluding the house."}</p></div>
             {measurementLoading && <p className="rounded-lg bg-slate-100 px-4 py-3 text-sm font-semibold text-slate-700">{isEs ? "Analizando tu propiedad por satélite..." : "Analyzing your property by satellite..."}</p>}
-            <PropertySatellite address={store.address} latitude={store.latitude} longitude={store.longitude} isEs={isEs} polygon={polygon} geometry={lawnGeometry} center={markerCenter} loadingText={isEs ? "Analizando tu propiedad por satélite..." : "Analyzing your property by satellite..."} />
-            <p className="font-bold text-emerald-900">{isEs ? `Área de césped calculada automáticamente: ${lawnAreaSqM.toLocaleString()} m² (${lawnAreaSqFt.toLocaleString()} ft²)` : `Automatically calculated lawn area: ${lawnAreaSqM.toLocaleString()} m² (${lawnAreaSqFt.toLocaleString()} ft²)`}</p>
+            <PropertySatellite address={store.address} latitude={store.latitude} longitude={store.longitude} isEs={isEs} polygon={polygon} geometry={lawnGeometry} center={markerCenter} loadingText={isEs ? "Analizando tu propiedad por satélite..." : "Analyzing your property by satellite..."} showMarker={false} />
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4">
+                <p className="text-sm font-semibold text-emerald-900">{isEs ? "Área utilizable" : "Usable area"}</p>
+                <p className="mt-2 text-2xl font-extrabold text-emerald-950">{lawnAreaSqFt.toLocaleString()} ft²</p>
+                <p className="text-sm text-emerald-900">{lawnAreaSqM.toLocaleString()} m²</p>
+              </div>
+              <div className="rounded-lg border border-emerald-200 bg-white p-4">
+                <p className="text-sm font-semibold text-slate-700">{isEs ? "Tarifa estimada" : "Estimated rate"}</p>
+                <p className="mt-2 text-2xl font-extrabold text-emerald-900">{price !== null ? `$${price.toFixed(2)}` : "—"}</p>
+                <p className="text-sm font-semibold text-slate-600">{price !== null ? `/ ${cadenceLabel}` : (isEs ? "Calculando tarifa…" : "Calculating rate…")}</p>
+              </div>
+            </div>
             <FieldError>{errors.measurement}</FieldError>
             {measurementWarning && <div className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900">{measurementWarning}</div>}
-            <div className="rounded-lg bg-emerald-50 p-4 text-sm font-semibold text-emerald-950">{price !== null ? `$${price.toFixed(2)} / ${cadenceLabel}` : (isEs ? "Calculando tarifa…" : "Calculating rate…")}</div>
           </section>}
 
           {store.step === 3 && <section className="space-y-6">
