@@ -458,11 +458,10 @@ function MowingCalendar({ selected, city, isEs, onSelect, price }: { selected: s
   const labels = isEs ? ["L", "M", "M", "J", "V", "S", "D"] : ["M", "T", "W", "T", "F", "S", "S"];
   const monthKey = `${month.getFullYear()}-${String(month.getMonth() + 1).padStart(2, "0")}`;
   const normalizedCity = normalizeCityKey(city.trim());
-  const availabilityKey = `${monthKey}:${normalizedCity || "unknown"}`;
 
   React.useEffect(() => {
     let cancelled = false;
-    const cachedDates = availabilityCacheRef.current[availabilityKey];
+    const cachedDates = availabilityCacheRef.current[monthKey];
     if (cachedDates) {
       setAvailabilityReady(true);
       setOccupiedDates(new Set(cachedDates));
@@ -476,20 +475,20 @@ function MowingCalendar({ selected, city, isEs, onSelect, price }: { selected: s
         return payload.occupiedDates ?? [];
       })
       .then((dates) => {
-        availabilityCacheRef.current[availabilityKey] = dates;
+        availabilityCacheRef.current[monthKey] = dates;
         if (!cancelled) {
           setOccupiedDates(new Set(dates));
           setAvailabilityReady(true);
         }
       })
       .catch(() => {
-        delete availabilityCacheRef.current[availabilityKey];
+        delete availabilityCacheRef.current[monthKey];
         if (!cancelled) {
           setAvailabilityReady(false);
         }
       });
     return () => { cancelled = true; };
-  }, [availabilityKey, monthKey]);
+  }, [monthKey]);
 
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-6" aria-label={isEs ? "Calendario de corte" : "Mowing calendar"}>
@@ -511,7 +510,7 @@ function MowingCalendar({ selected, city, isEs, onSelect, price }: { selected: s
             : false;
           const isOutOfZone = isWeekend || !isCovered;
           const isOccupied = occupiedDates.has(iso);
-          const disabled = !availabilityReady || iso < todayISO() || isOutOfZone || isOccupied;
+          const disabled = iso < todayISO() || isOutOfZone || (availabilityReady && isOccupied);
           const occupiedClass = isOccupied ? "border-red-300 bg-red-50 text-red-700 line-through" : "";
           const unavailableClass = !isOccupied && disabled ? "border-slate-100 bg-slate-50 text-slate-300" : "";
           const selectedClass = selected === iso && !disabled ? "border-green-500 bg-emerald-50 text-emerald-900" : "";
