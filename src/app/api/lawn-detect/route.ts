@@ -115,6 +115,25 @@ async function getSolarHouseFootprint(lat: number, lng: number, apiKey: string):
   }
 }
 
+async function getWilliamsonParcel(latitude: number, longitude: number): Promise<AreaFeature | null> {
+  const queryParcel = async (spatialRel: string) => {
+    const parcelUrl = new URL("https://gis.wilco.org/arcgis/rest/services/public/county_wcad_parcels/MapServer/0/query");
+    parcelUrl.searchParams.set("geometry", `${longitude},${latitude}`);
+    parcelUrl.searchParams.set("geometryType", "esriGeometryPoint");
+    parcelUrl.searchParams.set("inSR", "4326");
+    parcelUrl.searchParams.set("spatialRel", spatialRel);
+    parcelUrl.searchParams.set("outFields", "*");
+    parcelUrl.searchParams.set("f", "geojson");
+
+    const parcelResponse = await fetch(parcelUrl, { cache: "no-store" });
+    if (!parcelResponse.ok) return null;
+    const parcelPayload = await parcelResponse.json();
+    return findAreaFeature(parcelPayload);
+  };
+
+  return (await queryParcel("esriSpatialRelWithin")) ?? queryParcel("esriSpatialRelIntersects");
+}
+
 export async function GET(request: Request) {
   const params = new URL(request.url).searchParams;
   const address = params.get("address")?.trim() ?? "";
@@ -152,26 +171,12 @@ export async function GET(request: Request) {
   }
 
   try {
-    const parcelUrl = new URL("https://gis.wilco.org/arcgis/rest/services/public/county_wcad_parcels/MapServer/0/query");
-    parcelUrl.searchParams.set("geometry", `${longitude},${latitude}`);
-    parcelUrl.searchParams.set("geometryType", "esriGeometryPoint");
-    parcelUrl.searchParams.set("inSR", "4326");
-    parcelUrl.searchParams.set("spatialRel", "esriSpatialRelWithin");
-    parcelUrl.searchParams.set("outFields", "*");
-    parcelUrl.searchParams.set("f", "geojson");
-
-    const parcelResponse = await fetch(parcelUrl, { cache: "no-store" });
-    if (!parcelResponse.ok) {
-      return NextResponse.json({ ok: false, error: NO_PARCEL_ERROR, formattedAddress, latitude, longitude }, { status: 404 });
-    }
-
-    const parcelPayload = await parcelResponse.json();
-    const parcel = findAreaFeature(parcelPayload);
+    const parcel = await getWilliamsonParcel(latitude, longitude);
     if (!parcel) {
       return NextResponse.json({ ok: false, error: NO_PARCEL_ERROR, formattedAddress, latitude, longitude }, { status: 404 });
     }
 
-    let house = findBuildingFeature(parcelPayload);
+    let house: AreaFeature | null = null;
     let simulated = false;
     let warning: string | undefined;
 
