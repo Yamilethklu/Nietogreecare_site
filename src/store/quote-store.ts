@@ -23,7 +23,7 @@ import { buildReferenceCode } from "@/lib/utils";
  * el recorte del area y los pasos completados, incluso si el cliente cierra el navegador.
  */
 
-export const TOTAL_STEPS = 4;
+export const TOTAL_STEPS = 7;
 export const DRAFT_STORAGE_KEY = "ngc-quote-draft-v3";
 
 export type ServiceFrequency = "ongoing" | "one_time";
@@ -147,7 +147,7 @@ const initialFields: QuoteStateFields = {
   selectedServices: ["weekly_biweekly_lawn_service"],
   details: "",
   additionalNotes: "",
-  paymentMethod: "cash",
+  paymentMethod: "venmo",
   cashLocation: "",
   referenceCode: null,
   updatedAt: "",

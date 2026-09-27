@@ -15,6 +15,7 @@ type Props = {
   polygon?: PolygonPoint[][];
   geometry?: LawnGeoJsonGeometry;
   center?: PolygonPoint | null;
+  loadingText?: string;
 };
 
 function getBounds(paths?: PolygonPoint[][]) {
@@ -52,7 +53,7 @@ function geometryToGooglePaths(geometry?: LawnGeoJsonGeometry): PolygonPoint[][]
   return geometry.coordinates.map((polygon) => polygon.map(ringToPath).filter((ring) => ring.length >= 3)).filter((polygon) => polygon.length > 0);
 }
 
-export function PropertySatellite({ address, latitude, longitude, isEs, compact = false, polygon, geometry, center }: Props) {
+export function PropertySatellite({ address, latitude, longitude, isEs, compact = false, polygon, geometry, center, loadingText }: Props) {
   const container = React.useRef<HTMLDivElement>(null);
   const [available, setAvailable] = React.useState(false);
   const hasCoordinates = latitude !== null && longitude !== null && Number.isFinite(latitude) && Number.isFinite(longitude);
@@ -73,7 +74,7 @@ export function PropertySatellite({ address, latitude, longitude, isEs, compact 
       const map = new window.google.maps.Map(container.current, {
         center: lawnCenter ?? position,
         zoom: 19,
-        mapTypeId: "satellite",
+        mapTypeId: "hybrid",
         streetViewControl: false,
         mapTypeControl: false,
         fullscreenControl: false,
@@ -113,7 +114,7 @@ export function PropertySatellite({ address, latitude, longitude, isEs, compact 
   return (
     <div className={`relative overflow-hidden rounded-2xl border-2 border-lime-400 bg-emerald-950 shadow-lg ${compact ? "min-h-56" : "min-h-72 sm:min-h-96"}`}>
       {!hasCoordinates && <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-6 text-center text-white"><MapPin className="size-9 text-lime-400" /><p className="font-semibold">{isEs ? "Selecciona una dirección sugerida para ubicar el trabajo en el satélite." : "Select a suggested address to locate the job on satellite view."}</p></div>}
-      {hasCoordinates && !available && <div className="absolute inset-0 grid place-items-center p-6 text-center text-sm font-semibold text-white">{GOOGLE_MAPS_API_KEY ? (isEs ? "Cargando mapa satelital..." : "Loading satellite map...") : (isEs ? "Falta la clave de Google Maps para mostrar el satélite." : "Google Maps key is missing for satellite view.")}</div>}
+      {hasCoordinates && !available && <div className="absolute inset-0 grid place-items-center p-6 text-center text-sm font-semibold text-white">{GOOGLE_MAPS_API_KEY ? (loadingText ?? (isEs ? "Cargando mapa satelital..." : "Loading satellite map...")) : (isEs ? "Falta la clave de Google Maps para mostrar el satélite." : "Google Maps key is missing for satellite view.")}</div>}
       <div ref={container} className={`absolute inset-0 ${available ? "opacity-100" : "pointer-events-none opacity-0"}`} aria-label={isEs ? "Mapa satelital de la propiedad" : "Property satellite map"} />
       {hasCoordinates && <div className="pointer-events-none absolute bottom-3 left-3 right-3 flex items-center gap-2 rounded-xl bg-white/95 px-3 py-2 text-xs font-semibold text-slate-900 shadow"><MapPin className="size-4 shrink-0 text-green-600" /><span className="truncate">{address}</span></div>}
     </div>
