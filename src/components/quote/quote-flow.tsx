@@ -248,6 +248,10 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
         return;
       }
     }
+    if (current.step === 5 && !current.city.trim()) {
+      setErrors({ requestedDate: isEs ? "No se pudo determinar la ciudad. Regrese al paso 1 y confirme su dirección y código postal." : "Could not determine the city. Go back to Step 1 and confirm your address and ZIP code." });
+      return;
+    }
     if (current.step === 5 && !current.requestedDate) {
       setErrors({ requestedDate: isEs ? "Seleccione el día preferido para el corte." : "Choose your preferred service date." });
       return;
@@ -396,7 +400,7 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
 
           {store.step === 5 && <section className="space-y-6">
             <div><h2 className="text-xl font-bold text-slate-900">{isEs ? "5. Calendario y cobertura por ciudad" : "5. Calendar and city coverage"}</h2><p className="mt-1 text-sm text-slate-600">{isEs ? `Ciudad detectada: ${store.city || "Sin ciudad"} · Seleccione un día disponible.` : `Detected city: ${store.city || "No city"} · Select an available day.`}</p></div>
-            <MowingCalendar selected={store.requestedDate} city={store.city} isEs={isEs} onSelect={(date) => store.setSchedule(date, store.requestedTimeWindow ?? "08:00 - 18:00")} price={price} />
+            {store.city.trim() ? <MowingCalendar selected={store.requestedDate} city={store.city} isEs={isEs} onSelect={(date) => store.setSchedule(date, store.requestedTimeWindow ?? "08:00 - 18:00")} price={price} /> : <div className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900">{isEs ? "Primero confirme una dirección con ciudad válida en el Paso 1 para habilitar el calendario." : "Please confirm an address with a valid city in Step 1 to unlock the calendar."}</div>}
             <FieldError>{errors.requestedDate}</FieldError>
           </section>}
 
@@ -417,7 +421,7 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
               <select value={store.paymentMethod} onChange={(event) => store.setPaymentMethod(event.target.value as PaymentMethod)} className="mt-3 min-h-11 w-full max-w-sm rounded-lg border border-slate-300 bg-white px-3 text-slate-900">
                 <option value="venmo">Venmo</option><option value="cash_app">Cash App</option><option value="zelle">Zelle</option>
               </select>
-              <div className="mt-3 flex flex-wrap gap-3"><a href={BUSINESS.venmoUrl} target="_blank" rel="noreferrer" className="rounded-lg border border-slate-200 bg-white px-3 py-2 font-semibold text-slate-900">Venmo · https://venmo.com/u/gxrciaa</a><a href={BUSINESS.cashAppUrl} target="_blank" rel="noreferrer" className="rounded-lg border border-slate-200 bg-white px-3 py-2 font-semibold text-slate-900">Cash App · $NietoGreenCare</a><span className="rounded-lg border border-slate-200 bg-white px-3 py-2 font-semibold text-slate-900">Zelle · 737 314 4215</span></div>
+              <div className="mt-3 flex flex-wrap gap-3"><a href={BUSINESS.venmoUrl} target="_blank" rel="noreferrer" className="rounded-lg border border-slate-200 bg-white px-3 py-2 font-semibold text-slate-900">Venmo · {BUSINESS.venmoUrl}</a><a href={BUSINESS.cashAppUrl} target="_blank" rel="noreferrer" className="rounded-lg border border-slate-200 bg-white px-3 py-2 font-semibold text-slate-900">Cash App · {BUSINESS.cashAppTag}</a><span className="rounded-lg border border-slate-200 bg-white px-3 py-2 font-semibold text-slate-900">Zelle · {BUSINESS.zellePhone}</span></div>
             </div>
             <div className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-900">{isEs ? "NOTA IMPORTANTE: Siempre que envíe su pago, asegúrese de poner su dirección en la nota del pago." : "IMPORTANT NOTE: When you send your payment, make sure to include your address in the payment note."}</div>
             <p className="text-sm text-slate-600">{isEs ? "Al confirmar, se guarda la solicitud en Supabase y se abre el SMS nativo para enviar el resumen completo al propietario." : "On confirm, your request is saved to Supabase and the native SMS app opens with the full summary for the owner."}</p>
@@ -440,6 +444,7 @@ function MowingCalendar({ selected, city, isEs, onSelect, price }: { selected: s
   };
   const [monthOffset, setMonthOffset] = React.useState(0);
   const [occupiedDates, setOccupiedDates] = React.useState<Set<string>>(new Set());
+  const availabilityCacheRef = React.useRef<Record<string, string[]>>({});
   const now = new Date();
   const month = new Date(now.getFullYear(), now.getMonth() + monthOffset, 1);
   const firstDay = (month.getDay() + 6) % 7;
@@ -450,6 +455,11 @@ function MowingCalendar({ selected, city, isEs, onSelect, price }: { selected: s
 
   React.useEffect(() => {
     let cancelled = false;
+    const cachedDates = availabilityCacheRef.current[monthKey];
+    if (cachedDates) {
+      setOccupiedDates(new Set(cachedDates));
+      return () => { cancelled = true; };
+    }
     void fetch(`/api/availability?month=${monthKey}`, { cache: "no-store" })
       .then(async (response) => {
         const payload = (await response.json().catch(() => ({}))) as AvailabilityResponse;
@@ -457,6 +467,7 @@ function MowingCalendar({ selected, city, isEs, onSelect, price }: { selected: s
         return payload.occupiedDates ?? [];
       })
       .then((dates) => {
+        availabilityCacheRef.current[monthKey] = dates;
         if (!cancelled) setOccupiedDates(new Set(dates));
       })
       .catch(() => {
