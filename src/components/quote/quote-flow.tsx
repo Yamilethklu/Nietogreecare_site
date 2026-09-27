@@ -14,9 +14,8 @@ import { Select } from "@/components/ui/controls";
 import { FieldError, Input, Label, Textarea } from "@/components/ui/input";
 import { BUSINESS, SERVICES, TIME_WINDOWS, ZIP_CITY_MAP } from "@/lib/constants";
 import { matchMowRate, type MowRate } from "@/lib/instant-pricing";
-import { todayISO } from "@/lib/utils";
 import { formatZodErrors, step1Schema, step7Schema } from "@/lib/validation";
-import type { PaymentMethod, PolygonPoint } from "@/lib/types";
+import type { LawnGeoJsonGeometry, PaymentMethod, PolygonPoint } from "@/lib/types";
 import { buildMeasurement, pickSubmissionFields, TOTAL_STEPS, useQuoteStore, type QuoteStore } from "@/store/quote-store";
 
 type AddressSuggestion = {
@@ -35,7 +34,7 @@ type LawnDetectionResponse = {
   formattedAddress?: string;
   latitude?: number;
   longitude?: number;
-  poligonoJardin?: { type: "Polygon"; coordinates: number[][][] };
+  poligonoJardin?: LawnGeoJsonGeometry;
   areaMetros?: number;
   areaPies?: number;
   centro?: { lat: number; lng: number };
@@ -47,10 +46,16 @@ type LawnDetectionResponse = {
 
 const SQ_FT_PER_SQ_M = 10.7639;
 
-function geoJsonPolygonToPath(polygon: LawnDetectionResponse["poligonoJardin"]): PolygonPoint[] {
-  return (polygon?.coordinates?.[0] ?? [])
+function ringToPath(ring: number[][]): PolygonPoint[] {
+  return ring
     .map(([lng, lat]) => ({ lat, lng }))
     .filter((point) => Number.isFinite(point.lat) && Number.isFinite(point.lng));
+}
+
+function geoJsonGeometryToPolygons(geometry: LawnGeoJsonGeometry | undefined): PolygonPoint[][] {
+  if (!geometry) return [];
+  if (geometry.type === "Polygon") return [ringToPath(geometry.coordinates[0] ?? [])].filter((path) => path.length >= 3);
+  return geometry.coordinates.map((polygon) => ringToPath(polygon[0] ?? [])).filter((path) => path.length >= 3);
 }
 
 export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
@@ -107,9 +112,8 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
       })
       .then((payload) => {
         if (cancelled) return;
-        const jardinPath = geoJsonPolygonToPath(payload.poligonoJardin);
-        const polygons = jardinPath.length >= 3 ? [jardinPath] : payload.polygons?.filter((path) => path.length >= 3) ?? [];
-        const areaSqFt = Number(payload.areaPies ?? payload.areaSqFt);
+        const polygons = geoJsonGeometryToPolygons(payload.poligonoJardin);
+        const areaSqFt = Number(payload.areaPies);
         const center = payload.centro && Number.isFinite(payload.centro.lat) && Number.isFinite(payload.centro.lng) ? payload.centro : null;
         if (!payload.ok || !polygons.length || !Number.isFinite(areaSqFt) || areaSqFt <= 0) {
           setErrors((current) => ({
@@ -125,7 +129,7 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
             longitude: payload.longitude,
           });
         }
-        const measurement = buildMeasurement(polygons[0], areaSqFt, 2, 19, polygons);
+        const measurement = buildMeasurement(polygons[0], areaSqFt, 2, 19, polygons, undefined, payload.poligonoJardin);
         if (center) measurement.center = center;
         store.setMeasurement(measurement);
       })
@@ -152,6 +156,10 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
 
   const rate = matchMowRate(rates, store.measurement?.areaSqFt ?? 0, store.mowFrequency);
   const price = rate ? Number(rate.price) : null;
+  const minDate = React.useMemo(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  }, []);
 
   const resolveCoordinates = async () => {
     const current = useQuoteStore.getState();
@@ -268,6 +276,7 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
 
   const polygon = store.measurement?.polygons ?? (store.measurement?.polygon ? [store.measurement.polygon] : []);
   const markerCenter = store.measurement?.center ?? null;
+  const lawnGeometry = store.measurement?.lawnGeometry;
   const lawnAreaSqFt = Math.round(store.measurement?.areaSqFt ?? 0);
   const lawnAreaSqM = Math.round(((store.measurement?.areaSqFt ?? 0) / SQ_FT_PER_SQ_M) * 100) / 100;
 
@@ -294,7 +303,7 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
 
           {store.step === 2 && <section className="space-y-5">
             <div><h2 className="text-xl font-bold text-slate-900">{isEs ? "2. Medición satelital automática" : "2. Automatic satellite measurement"}</h2><p className="mt-1 text-sm text-slate-600">{isEs ? "El sistema calcula automáticamente el jardín con Regrid y Turf, excluyendo la casa." : "The system automatically calculates the lawn with Regrid and Turf, excluding the house."}</p></div>
-            <PropertySatellite address={store.address} latitude={store.latitude} longitude={store.longitude} isEs={isEs} polygon={polygon} markerCenter={markerCenter} />
+            <PropertySatellite address={store.address} latitude={store.latitude} longitude={store.longitude} isEs={isEs} polygon={polygon} geometry={lawnGeometry} center={markerCenter} />
             <p className="font-bold text-emerald-900">{isEs ? "Área del jardín" : "Lawn area"}: {lawnAreaSqM.toLocaleString()} m² · {lawnAreaSqFt.toLocaleString()} ft²</p>
             <FieldError>{errors.measurement}</FieldError>
             <div className="rounded-lg bg-emerald-50 p-4 text-sm font-semibold text-emerald-950">{price !== null ? `$${price.toFixed(2)} / ${store.mowFrequency === "weekly" ? (isEs ? "semanal" : "weekly") : (isEs ? "quincenal" : "bi-weekly")}` : (isEs ? "Calculando tarifa…" : "Calculating rate…")}</div>
@@ -317,7 +326,7 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
           {store.step === 4 && <section className="space-y-6">
             <div className="grid gap-5 border-b border-emerald-100 pb-5 sm:grid-cols-[1fr_1fr]">
               <div><h2 className="text-2xl font-extrabold text-emerald-950">My Custom Lawn Mowing Plan</h2><p className="mt-3 text-2xl font-bold text-emerald-800">{price !== null ? `$${price.toFixed(2)} / ${store.mowFrequency === "weekly" ? (isEs ? "semanal" : "weekly") : (isEs ? "quincenal" : "bi-weekly")}` : ""}</p><p className="mt-2 text-sm text-slate-600">{store.address}</p></div>
-              <PropertySatellite address={store.address} latitude={store.latitude} longitude={store.longitude} isEs={isEs} compact polygon={polygon} markerCenter={markerCenter} />
+              <PropertySatellite address={store.address} latitude={store.latitude} longitude={store.longitude} isEs={isEs} compact polygon={polygon} geometry={lawnGeometry} center={markerCenter} />
             </div>
             <p className="font-bold text-emerald-900">{isEs ? "Área del jardín" : "Lawn area"}: {lawnAreaSqM.toLocaleString()} m² · {lawnAreaSqFt.toLocaleString()} ft²</p>
             <div className="grid gap-3 text-sm sm:grid-cols-2"><p><strong>{isEs ? "Frecuencia" : "Frequency"}:</strong> {store.mowFrequency === "weekly" ? (isEs ? "Semanal" : "Weekly") : (isEs ? "Quincenal" : "Bi-weekly")}</p><p><strong>{isEs ? "Día preferido" : "Preferred service day"}:</strong> {store.requestedDate || (isEs ? "Seleccione una fecha" : "Choose a date")}</p><p className="sm:col-span-2"><strong>{isEs ? "Trabajos" : "Services"}:</strong> {store.selectedServices.map((key) => { const service = SERVICES.find((item) => item.key === key); return service ? (isEs ? service.nameEs : service.nameEn) : key; }).join(", ")}</p><p><strong>{isEs ? "Cliente" : "Customer"}:</strong> {store.customerName}</p><p><strong>{isEs ? "Teléfono" : "Phone"}:</strong> {store.customerPhone}</p><p><strong>{isEs ? "Candado/portón" : "Lock/gate"}:</strong> {store.hasGateCode ? `${isEs ? "Sí" : "Yes"} · ${store.gateCode}` : (isEs ? "No" : "No")}</p><p><strong>{isEs ? "Notas" : "Notes"}:</strong> {store.additionalNotes || "—"}</p></div>
@@ -328,7 +337,7 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
               <Input
                 id="quote-service-date"
                 type="date"
-                min={todayISO()}
+                min={minDate}
                 value={store.requestedDate ?? ""}
                 onChange={(event) => {
                   const value = event.target.value;
@@ -342,7 +351,7 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
               <Label>{isEs ? "Horario preferido" : "Preferred Time Window"}</Label>
               <Select
                 value={store.requestedTimeWindow ?? "08:00 - 18:00"}
-                onChange={(event) => store.setSchedule(store.requestedDate ?? todayISO(), event.target.value)}
+                onChange={(event) => store.setSchedule(store.requestedDate ?? minDate, event.target.value)}
                 className="mt-2"
               >
                 <option value="08:00 - 18:00">{isEs ? "Flexible (Todo el día)" : "Flexible (All Day)"}</option>
@@ -375,6 +384,10 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
 }
 
 function MowingCalendar({ selected, isEs, onSelect, price }: { selected: string | null; isEs: boolean; onSelect: (date: string) => void; price: number | null }) {
+  const todayISO = () => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  };
   const [monthOffset, setMonthOffset] = React.useState(0);
   const now = new Date();
   const month = new Date(now.getFullYear(), now.getMonth() + monthOffset, 1);
