@@ -58,8 +58,8 @@ export function ServicesSection({ compact = false }: { compact?: boolean }) {
                 key={service.key}
                 className={cn(
                   `group relative flex flex-col gap-3 overflow-hidden transition-all duration-500 ${compact ? "min-h-0 p-3" : "min-h-[190px] p-4 sm:p-5"}`,
-                  "hover:-translate-y-1 hover:border-gold-500/40 hover:shadow-gold",
-                  service.featured && "border-emerald-200 bg-white",
+                  "border-lime-300 bg-lime-50 text-black hover:-translate-y-1 hover:border-lime-500 hover:bg-lime-100 hover:shadow-gold",
+                  service.featured && "border-lime-400 bg-lime-100",
                 )}
               >
                 <span
@@ -67,21 +67,21 @@ export function ServicesSection({ compact = false }: { compact?: boolean }) {
                   className="pointer-events-none absolute -right-12 -top-12 size-28 rounded-full bg-forest-600/20 blur-3xl transition-opacity duration-500 group-hover:bg-gold-500/20"
                 />
 
-                <span className="relative grid size-10 place-items-center rounded-lg border border-gold-500/30 bg-gradient-to-br from-forest-700 to-slate-50 shadow-inset">
-                  <Icon className="size-5 text-gold-200" />
+                <span className="relative grid size-10 place-items-center rounded-lg border border-lime-500 bg-lime-300 shadow-inset">
+                  <Icon className="size-5 text-black" />
                 </span>
 
                 <div className="relative flex flex-1 flex-col gap-2">
                   <h3 className="font-display text-base font-semibold leading-snug text-slate-900 sm:text-lg">
                     {isEs ? service.nameEs : service.nameEn}
                   </h3>
-                  {!compact && <p className="text-xs leading-relaxed text-slate-700/80 sm:text-sm">
+                  {!compact && <p className="text-xs leading-relaxed text-black sm:text-sm">
                     {isEs ? service.descriptionEs : service.descriptionEn}
                   </p>}
                 </div>
 
                 {!compact && <div className="relative border-t border-white/8 pt-3">
-                  <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-gold-300">
+                  <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-black">
                     {t.services.included}
                   </span>
                 </div>}
