@@ -448,17 +448,17 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
                 { key: "back_only", labelEs: "Solo atrás", labelEn: "Back Only", art: "▁" },
               ].map((option) => {
                 const selected = store.areaSelection === option.key;
-                return <button key={option.key} type="button" aria-pressed={selected} onClick={() => store.setLawnOptions({ areaSelection: option.key as QuoteStore["areaSelection"] })} className={`flex w-full items-center gap-4 rounded-2xl border p-4 text-left transition ${selected ? "border-emerald-600 bg-emerald-50 ring-2 ring-emerald-200" : "border-slate-200 bg-white hover:border-emerald-300"}`}>
-                  <span className="grid size-20 shrink-0 place-items-center rounded-xl border border-emerald-100 bg-emerald-100 text-4xl font-black text-emerald-500">{option.art}</span>
-                  <span className="flex items-center gap-3 text-lg font-bold text-slate-950"><span className={`grid size-5 place-items-center rounded border ${selected ? "border-emerald-600 bg-emerald-500 text-white" : "border-slate-300 bg-white"}`}>{selected ? "✓" : ""}</span>{isEs ? option.labelEs : option.labelEn}</span>
+                return <button key={option.key} type="button" aria-pressed={selected} onClick={() => store.setLawnOptions({ areaSelection: option.key as QuoteStore["areaSelection"] })} className={`flex w-full items-center gap-4 rounded-2xl border p-4 text-left text-black transition ${selected ? "border-lime-500 bg-lime-200 ring-2 ring-lime-300" : "border-lime-300 bg-lime-50 hover:border-lime-500 hover:bg-lime-100"}`}>
+                  <span className="grid size-20 shrink-0 place-items-center rounded-xl border border-lime-500 bg-lime-300 text-4xl font-black text-black">{option.art}</span>
+                  <span className="flex items-center gap-3 text-lg font-bold text-black"><span className={`grid size-5 place-items-center rounded border ${selected ? "border-lime-600 bg-lime-500 text-black" : "border-lime-400 bg-white"}`}>{selected ? "✓" : ""}</span>{isEs ? option.labelEs : option.labelEn}</span>
                 </button>;
               })}
             </div>
             <fieldset className="border-t border-slate-200 pt-5">
-              <legend className="text-sm font-bold text-slate-800">{isEs ? "¿El césped mide más de 6 pulgadas de alto?" : "Is the grass over 6 inches tall?"}</legend>
+              <legend className="text-sm font-bold text-black">{isEs ? "¿El césped mide más de 6 pulgadas de alto?" : "Is the grass over 6 inches tall?"}</legend>
               <div className="mt-3 flex gap-3">
-                <button type="button" aria-pressed={store.isGrassOver6} onClick={() => store.setPersonal({ isGrassOver6: true, isGrassOver12: false })} className={`rounded-lg border px-5 py-2 font-semibold ${store.isGrassOver6 ? "border-emerald-700 bg-emerald-700 text-white" : "border-slate-300 bg-white text-slate-800"}`}>{isEs ? "Sí" : "Yes"}</button>
-                <button type="button" aria-pressed={!store.isGrassOver6} onClick={() => store.setPersonal({ isGrassOver6: false, isGrassOver12: false })} className={`rounded-lg border px-5 py-2 font-semibold ${!store.isGrassOver6 ? "border-emerald-700 bg-emerald-700 text-white" : "border-slate-300 bg-white text-slate-800"}`}>{isEs ? "No" : "No"}</button>
+                <button type="button" aria-pressed={store.isGrassOver6} onClick={() => store.setPersonal({ isGrassOver6: true, isGrassOver12: false })} className={`rounded-lg border px-5 py-2 font-semibold ${store.isGrassOver6 ? "border-lime-600 bg-lime-300 text-black" : "border-lime-300 bg-white text-black"}`}>{isEs ? "Sí" : "Yes"}</button>
+                <button type="button" aria-pressed={!store.isGrassOver6} onClick={() => store.setPersonal({ isGrassOver6: false, isGrassOver12: false })} className={`rounded-lg border px-5 py-2 font-semibold ${!store.isGrassOver6 ? "border-lime-600 bg-lime-300 text-black" : "border-lime-300 bg-white text-black"}`}>{isEs ? "No" : "No"}</button>
               </div>
               {store.isGrassOver6 && <p className="mt-3 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900">{isEs ? "Nota: este servicio puede tener costo extra." : "Note: this service may have an extra cost."}</p>}
             </fieldset>
