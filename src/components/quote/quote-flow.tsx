@@ -235,10 +235,12 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
   const rate = matchMowRate(rates, store.measurement?.areaSqFt ?? 0, store.mowFrequency);
   const price = rate ? Number(rate.price) : null;
   const { descriptive: frequencyLabel, cadence: cadenceLabel } = getMowFrequencyLabels(store.mowFrequency, isEs);
-  const selectedJobNames = store.selectedServices.map((key) => {
-    const service = SERVICES.find((item) => item.key === key);
-    return service ? (isEs ? service.nameEs : service.nameEn) : key;
-  });
+  const selectedSpecialJobNames = store.selectedServices
+    .filter((key) => key !== BASE_LAWN_SERVICE_KEY)
+    .map((key) => {
+      const service = SERVICES.find((item) => item.key === key);
+      return service ? (isEs ? service.nameEs : service.nameEn) : key;
+    });
 
   const resolveCoordinates = async () => {
     const current = useQuoteStore.getState();
@@ -429,15 +431,6 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
             </div>
             <div><Step1Address error={errors.address} isEs={isEs} /><Step1AddressHint isEs={isEs} /><FieldError>{errors.address}</FieldError></div>
             <div><Label htmlFor="quote-zip">{isEs ? "Código postal *" : "ZIP code *"}</Label><Input id="quote-zip" required inputMode="numeric" value={store.zipCode} maxLength={5} onChange={(event) => { const zipCode = event.target.value.replace(/\D/g, "").slice(0, 5); store.setAddress({ zipCode, city: ZIP_CITY_MAP[zipCode] ?? "" }); }} placeholder="78642" className="mt-2" /><FieldError>{errors.zipCode}</FieldError></div>
-            <div className="rounded-xl border border-emerald-100 bg-emerald-50/60 p-4">
-              <p className="mb-3 text-sm font-bold text-emerald-950">{isEs ? "¿Requiere servicios especiales?" : "Do you need special services?"}</p>
-              <div className="grid gap-2 sm:grid-cols-2">
-                {ADDITIONAL_SERVICES.map((service) => {
-                  const selected = store.selectedServices.includes(service.key);
-                  return <button key={service.key} type="button" aria-pressed={selected} onClick={() => store.toggleService(service.key)} className={`min-h-12 rounded-lg border px-3 py-2 text-left text-sm font-semibold transition ${selected ? "border-emerald-700 bg-white text-emerald-900" : "border-emerald-100 bg-white/80 text-slate-700 hover:border-emerald-400"}`}>{selected ? "✓ " : ""}{isEs ? service.nameEs : service.nameEn}</button>;
-                })}
-              </div>
-            </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <div><Label htmlFor="quote-customer-name-step1">{isEs ? "Nombre *" : "Name *"}</Label><Input id="quote-customer-name-step1" required value={store.customerName} onChange={(event) => store.setPersonal({ customerName: event.target.value, firstName: event.target.value, lastName: "" })} className="mt-2" /><FieldError>{errors.customerName}</FieldError></div>
               <div><Label htmlFor="quote-customer-phone-step1">{isEs ? "Teléfono *" : "Phone *"}</Label><Input id="quote-customer-phone-step1" required type="tel" value={store.customerPhone} onChange={(event) => store.setPersonal({ customerPhone: event.target.value })} className="mt-2" /><FieldError>{errors.customerPhone}</FieldError></div>
@@ -507,6 +500,15 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
               </div>
               {store.isGrassOver6 && <p className="mt-3 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900">{isEs ? "Nota: este servicio puede tener costo extra." : "Note: this service may have an extra cost."}</p>}
             </fieldset>
+            <div className="rounded-xl border border-emerald-100 bg-emerald-50/60 p-4">
+              <p className="mb-3 text-sm font-bold text-emerald-950">{isEs ? "¿Requiere servicios especiales?" : "Do you need special services?"}</p>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {ADDITIONAL_SERVICES.map((service) => {
+                  const selected = store.selectedServices.includes(service.key);
+                  return <button key={service.key} type="button" aria-pressed={selected} onClick={() => store.toggleService(service.key)} className={`min-h-12 rounded-lg border px-3 py-2 text-left text-sm font-semibold transition ${selected ? "border-emerald-700 bg-white text-emerald-900" : "border-emerald-100 bg-white/80 text-slate-700 hover:border-emerald-400"}`}>{selected ? "✓ " : ""}{isEs ? service.nameEs : service.nameEn}</button>;
+                })}
+              </div>
+            </div>
           </section>}
 
           {store.step === 4 && <section className="space-y-5">
@@ -530,7 +532,7 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
               <p><strong>{isEs ? "Césped calculado" : "Calculated lawn"}:</strong> {lawnAreaSqFt.toLocaleString()} ft² / {lawnAreaSqM.toLocaleString(undefined, { maximumFractionDigits: 1 })} m²</p>
               <p><strong>{isEs ? "Mascotas" : "Pets"}:</strong> {store.hasPetsInBackyard ? (isEs ? "Sí" : "Yes") : "No"}</p><p><strong>{isEs ? "Cerradura" : "Lock"}:</strong> {store.hasGateCode ? `${isEs ? "Sí" : "Yes"} (${store.gateCode})` : "No"}</p>
             </div>
-            <div className="rounded-lg bg-slate-50 p-4"><p className="text-sm font-bold text-emerald-900">{isEs ? "Servicios seleccionados" : "Selected services"}</p><div className="mt-2 grid gap-2 text-sm text-slate-700 sm:grid-cols-2">{selectedJobNames.map((name) => <span key={name} className="flex items-center gap-2"><CheckCircle2 className="size-4 text-emerald-600" />{name}</span>)}</div></div>
+            <div className="rounded-lg bg-slate-50 p-4"><p className="text-sm font-bold text-emerald-900">{isEs ? "Servicio especial" : "Special service"}</p><div className="mt-2 grid gap-2 text-sm text-slate-700 sm:grid-cols-2">{selectedSpecialJobNames.length ? selectedSpecialJobNames.map((name) => <span key={name} className="flex items-center gap-2"><CheckCircle2 className="size-4 text-emerald-600" />{name}</span>) : <span>{isEs ? "Ninguno seleccionado" : "None selected"}</span>}</div></div>
             {(store.additionalNotes.trim() || store.details.trim()) && <div className="rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-700">{store.additionalNotes.trim() && <p><strong>{isEs ? "Nota" : "Note"}:</strong> {store.additionalNotes}</p>}{store.details.trim() && <p className="mt-2"><strong>{isEs ? "Trabajo adicional" : "Additional work"}:</strong> {store.details}</p>}</div>}
           </section>}
 
