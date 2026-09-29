@@ -65,17 +65,17 @@ export function PaymentsSection({
         ) : null}
 
         <div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-4">
-          <Card className="flex flex-col gap-4 border-red-500/20 bg-red-950/10 p-7">
+          <Card className="flex flex-col gap-4 border-red-300 bg-red-50 p-7 text-black">
             <span className="flex items-center gap-2">
               <Ban className="size-5 text-red-300" />
               <h3 className="font-display text-lg font-semibold text-slate-900">
                 {t.payments.policyTitle}
               </h3>
             </span>
-            <p className="text-sm leading-relaxed text-slate-700/80">{isEs ? "Preferimos el pago después de cada corte. Se permiten máximo dos cortes pendientes de pago." : "Payment after each cut is preferred. A maximum of two cuts may remain unpaid."}</p>
+            <p className="text-sm leading-relaxed text-black">{isEs ? "Preferimos el pago después de cada corte. Se permiten máximo dos cortes pendientes de pago." : "Payment after each cut is preferred. A maximum of two cuts may remain unpaid."}</p>
             <ul className="flex flex-col gap-2">
               {t.payments.policyPoints.map((point) => (
-                <li key={point} className="flex items-start gap-2 text-sm text-slate-700/80">
+                <li key={point} className="flex items-start gap-2 text-sm text-black">
                   <CreditCard className="mt-0.5 size-4 shrink-0 text-red-300" />
                   {point}
                 </li>
@@ -83,20 +83,20 @@ export function PaymentsSection({
             </ul>
           </Card>
 
-          <Card className="flex flex-col gap-4 p-7">
+          <Card className="flex flex-col gap-4 bg-lime-50 p-7 text-black">
             <span className="flex items-center gap-2">
               <Smartphone className="size-5 text-gold-300" />
               <h3 className="font-display text-lg font-semibold text-slate-900">
                 {t.payments.cashAppTitle}
               </h3>
             </span>
-            <p className="text-sm leading-relaxed text-slate-700/80">{t.payments.cashAppDesc}</p>
+            <p className="text-sm leading-relaxed text-black">{t.payments.cashAppDesc}</p>
 
             <div className="flex items-center justify-between gap-3 rounded-2xl border border-gold-500/25 bg-white px-4 py-3">
               <span className="text-[11px] uppercase tracking-[0.16em] text-slate-500">
                 {t.payments.cashAppTag}
               </span>
-              <span className="font-display text-base font-semibold text-gold-200">
+              <span className="font-display text-base font-semibold text-black">
                 {BUSINESS.cashAppTag}
               </span>
             </div>
@@ -119,8 +119,8 @@ export function PaymentsSection({
               </Button>
             </div>
 
-            <div className="flex flex-col items-center gap-3 rounded-2xl border border-slate-200 bg-white/[0.03] p-4">
-              <span className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-gold-200">
+            <div className="flex flex-col items-center gap-3 rounded-2xl border border-lime-300 bg-white p-4">
+              <span className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-black">
                 <QrCode className="size-4" />
                 {t.payments.cashAppQr}
               </span>
@@ -138,26 +138,26 @@ export function PaymentsSection({
                   {BUSINESS.cashAppUrl}
                 </span>
               )}
-              <p className="text-center text-xs leading-relaxed text-slate-500">
+              <p className="text-center text-xs leading-relaxed text-black">
                 {t.payments.cashAppQrHint}
               </p>
             </div>
           </Card>
 
-          <Card className="flex flex-col gap-4 p-7">
+          <Card className="flex flex-col gap-4 bg-lime-50 p-7 text-black">
             <span className="flex items-center gap-2">
               <Smartphone className="size-5 text-gold-300" />
               <h3 className="font-display text-lg font-semibold text-slate-900">
                 {t.payments.venmoTitle}
               </h3>
             </span>
-            <p className="text-sm leading-relaxed text-slate-700/80">{t.payments.venmoDesc}</p>
+            <p className="text-sm leading-relaxed text-black">{t.payments.venmoDesc}</p>
 
             <div className="flex items-center justify-between gap-3 rounded-2xl border border-gold-500/25 bg-white px-4 py-3">
               <span className="text-[11px] uppercase tracking-[0.16em] text-slate-500">
                 {t.payments.venmoHandle}
               </span>
-              <span className="font-display text-base font-semibold text-gold-200">
+              <span className="font-display text-base font-semibold text-black">
                 {BUSINESS.venmoHandle}
               </span>
             </div>
@@ -180,8 +180,8 @@ export function PaymentsSection({
               </Button>
             </div>
 
-            <div className="flex flex-col items-center gap-3 rounded-2xl border border-slate-200 bg-white/[0.03] p-4">
-              <span className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-gold-200">
+            <div className="flex flex-col items-center gap-3 rounded-2xl border border-lime-300 bg-white p-4">
+              <span className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-black">
                 <QrCode className="size-4" />
                 {t.payments.venmoQr}
               </span>
@@ -199,33 +199,33 @@ export function PaymentsSection({
                   {BUSINESS.venmoUrl}
                 </span>
               )}
-              <p className="text-center text-xs leading-relaxed text-slate-500">
+              <p className="text-center text-xs leading-relaxed text-black">
                 {t.payments.venmoQrHint}
               </p>
             </div>
           </Card>
 
-          <Card className="flex flex-col gap-4 p-7">
+          <Card className="flex flex-col gap-4 bg-lime-50 p-7 text-black">
             <span className="flex items-center gap-2">
               <Banknote className="size-5 text-gold-300" />
               <h3 className="font-display text-lg font-semibold text-slate-900">
                 {t.payments.zelleTitle}
               </h3>
             </span>
-            <p className="text-sm leading-relaxed text-slate-700/80">{t.payments.zelleDesc}</p>
+            <p className="text-sm leading-relaxed text-black">{t.payments.zelleDesc}</p>
 
             <div className="flex flex-col gap-2 rounded-2xl border border-gold-500/25 bg-white px-4 py-3">
               <div className="flex items-center justify-between gap-3">
                 <span className="text-[11px] uppercase tracking-[0.16em] text-slate-500">
                   {t.payments.zelleName}
                 </span>
-                <span className="text-sm font-semibold text-gold-200">{BUSINESS.zelleName}</span>
+                <span className="text-sm font-semibold text-black">{BUSINESS.zelleName}</span>
               </div>
               <div className="flex items-center justify-between gap-3">
                 <span className="text-[11px] uppercase tracking-[0.16em] text-slate-500">
                   {t.payments.zellePhone}
                 </span>
-                <span className="text-sm font-semibold text-gold-200">{BUSINESS.zellePhoneDisplay}</span>
+                <span className="text-sm font-semibold text-black">{BUSINESS.zellePhoneDisplay}</span>
               </div>
             </div>
 
@@ -238,7 +238,7 @@ export function PaymentsSection({
               {t.payments.copyPhone}
             </Button>
 
-            <p className="flex items-start gap-2 rounded-2xl border border-amber-500/25 bg-amber-950/20 p-3 text-xs leading-relaxed text-amber-100">
+            <p className="flex items-start gap-2 rounded-2xl border border-amber-400 bg-amber-200 p-3 text-xs font-semibold leading-relaxed text-black">
               <TriangleAlert className="mt-0.5 size-4 shrink-0" />
               {t.payments.zelleWarning}
             </p>
@@ -246,33 +246,33 @@ export function PaymentsSection({
         </div>
 
         <div className="grid gap-6 lg:grid-cols-2">
-          <LuxuryCard className="flex flex-col gap-4 p-7">
+          <LuxuryCard className="flex flex-col gap-4 bg-lime-50 p-7 text-black">
             <h3 className="font-display text-lg font-semibold text-slate-900">
               {t.payments.stepsTitle}
             </h3>
             <ol className="flex flex-col gap-3">
               {t.payments.steps.map((step, index) => (
                 <li key={step} className="flex items-start gap-3">
-                  <span className="grid size-7 shrink-0 place-items-center rounded-full border border-gold-500/35 bg-white font-display text-xs font-semibold text-gold-200">
+                  <span className="grid size-7 shrink-0 place-items-center rounded-full border border-lime-500 bg-lime-300 font-display text-xs font-semibold text-black">
                     {index + 1}
                   </span>
-                  <span className="text-sm leading-relaxed text-slate-700/80">{step}</span>
+                  <span className="text-sm leading-relaxed text-black">{step}</span>
                 </li>
               ))}
             </ol>
 
-            <div className="rounded-2xl border border-forest-500/30 bg-emerald-50 p-4">
-              <p className="flex items-center gap-2 text-sm font-semibold text-forest-200">
+            <div className="rounded-2xl border border-lime-400 bg-lime-200 p-4">
+              <p className="flex items-center gap-2 text-sm font-semibold text-black">
                 <ShieldCheck className="size-4" />
                 {t.payments.afterServiceTitle}
               </p>
-              <p className="mt-2 text-xs leading-relaxed text-slate-700/75">
+              <p className="mt-2 text-xs leading-relaxed text-black">
                 {t.payments.afterServiceText}
               </p>
             </div>
           </LuxuryCard>
 
-          <Card className="flex flex-col gap-3 p-7">
+          <Card className="flex flex-col gap-3 bg-lime-50 p-7 text-black">
             <h3 className="font-display text-lg font-semibold text-slate-900">{t.payments.faqTitle}</h3>
             {[
               { q: t.payments.faq1q, a: t.payments.faq1a },
@@ -281,7 +281,7 @@ export function PaymentsSection({
             ].map((faq) => (
               <details
                 key={faq.q}
-                className="group rounded-2xl border border-slate-200 bg-white/[0.03] p-4 open:border-gold-500/30"
+                className="group rounded-2xl border border-lime-300 bg-white p-4 open:border-lime-500"
               >
                 <summary className="cursor-pointer list-none text-sm font-semibold text-slate-900 marker:hidden">
                   <span className="flex items-center justify-between gap-3">
@@ -289,7 +289,7 @@ export function PaymentsSection({
                     <CheckCircle2 className="size-4 shrink-0 text-gold-400 transition-transform group-open:rotate-90" />
                   </span>
                 </summary>
-                <p className="mt-2 text-xs leading-relaxed text-slate-700/75">{faq.a}</p>
+                <p className="mt-2 text-xs leading-relaxed text-black">{faq.a}</p>
               </details>
             ))}
           </Card>
