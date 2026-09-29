@@ -493,7 +493,7 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
               })}
             </div>
             <fieldset className="border-t border-slate-200 pt-5">
-              <legend className="text-sm font-bold text-slate-800">{isEs ? "¿El césped mide más de 6 pulgadas?" : "Is the grass over 6 inches?"}</legend>
+              <legend className="text-sm font-bold text-slate-800">{isEs ? "¿El césped mide más de 6 pulgadas de alto?" : "Is the grass over 6 inches tall?"}</legend>
               <div className="mt-3 flex gap-3">
                 <button type="button" aria-pressed={store.isGrassOver6} onClick={() => store.setPersonal({ isGrassOver6: true, isGrassOver12: false })} className={`rounded-lg border px-5 py-2 font-semibold ${store.isGrassOver6 ? "border-emerald-700 bg-emerald-700 text-white" : "border-slate-300 bg-white text-slate-800"}`}>{isEs ? "Sí" : "Yes"}</button>
                 <button type="button" aria-pressed={!store.isGrassOver6} onClick={() => store.setPersonal({ isGrassOver6: false, isGrassOver12: false })} className={`rounded-lg border px-5 py-2 font-semibold ${!store.isGrassOver6 ? "border-emerald-700 bg-emerald-700 text-white" : "border-slate-300 bg-white text-slate-800"}`}>{isEs ? "No" : "No"}</button>
