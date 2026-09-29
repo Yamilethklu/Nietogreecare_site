@@ -481,7 +481,6 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
               <div className="sm:col-span-2"><Label htmlFor="quote-email">{isEs ? "Correo" : "Email"}</Label><Input id="quote-email" type="email" value={store.customerEmail} onChange={(event) => store.setPersonal({ customerEmail: event.target.value })} className="mt-2" placeholder="you@company.com" /></div>
             </div>
             <div><Label htmlFor="quote-notes">{isEs ? "Nota: escriba algo que requiera" : "Note: write anything you need"}</Label><Textarea id="quote-notes" rows={3} maxLength={2000} value={store.additionalNotes} onChange={(event) => store.setPersonal({ additionalNotes: event.target.value })} className="mt-2" /></div>
-            <div><Label htmlFor="quote-extra-work">{isEs ? "Si requiere algún trabajo y no está escrito, agréguelo aquí abajo" : "If you need a job that is not listed, add it below"}</Label><Textarea id="quote-extra-work" rows={3} maxLength={2000} value={store.details} onChange={(event) => store.setPersonal({ details: event.target.value })} className="mt-2" /></div>
           </section>}
 
           {store.step === 5 && <section className="space-y-6">
