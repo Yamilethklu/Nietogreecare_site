@@ -20,7 +20,7 @@ import { useToast } from "@/components/providers/toast-provider";
 import { SectionHeading } from "@/components/site/section-heading";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, LuxuryCard } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { BUSINESS } from "@/lib/constants";
 
 /**
@@ -246,7 +246,7 @@ export function PaymentsSection({
         </div>
 
         <div className="grid gap-6 lg:grid-cols-2">
-          <LuxuryCard className="flex flex-col gap-4 bg-lime-50 p-7 text-black">
+          <Card className="flex flex-col gap-4 bg-lime-50 p-7 text-black">
             <h3 className="font-display text-lg font-semibold text-slate-900">
               {t.payments.stepsTitle}
             </h3>
@@ -270,7 +270,7 @@ export function PaymentsSection({
                 {t.payments.afterServiceText}
               </p>
             </div>
-          </LuxuryCard>
+          </Card>
 
           <Card className="flex flex-col gap-3 bg-lime-50 p-7 text-black">
             <h3 className="font-display text-lg font-semibold text-slate-900">{t.payments.faqTitle}</h3>
