@@ -28,6 +28,8 @@ export async function POST(request:Request){const {response,db}=await authorized
  const body=await request.json().catch(()=>null);if(!body||typeof body.action!=='string')return fail('Acción inválida.');
  if(body.action==='worker'){
   const parsed=workerSchema.safeParse(body.worker);if(!parsed.success)return fail('Nombre y correo del trabajador inválidos.');
+  const {data:existing,error:lookupError}=await db.from('crew_members').select('id').ilike('email',parsed.data.email).maybeSingle();if(lookupError)return fail(lookupError.message,503);
+  if(existing){const {data,error}=await db.from('crew_members').update({...parsed.data,active:true}).eq('id',existing.id).select().single();return error?fail(error.message):NextResponse.json({ok:true,data});}
   const {data,error}=await db.from('crew_members').insert(parsed.data).select().single();return error?fail(error.message,409):NextResponse.json({ok:true,data});
  }
  if(body.action==='worker_update'){
