@@ -64,7 +64,8 @@ export async function POST(request:Request){const {response,db}=await authorized
   const {id,...changes}=parsed.data;
   const {data:current,error:currentError}=await db.from('work_orders').select('*').eq('id',id).single();if(currentError||!current)return fail('Orden no encontrada.',404);
   if(current.status==='cancelled'&&changes.status&&changes.status!=='scheduled')return fail('Reabra la orden antes de cambiarla.');
-  if(changes.paid_amount!==undefined&&changes.paid_amount>Number(current.price))return fail('El pago no puede superar el precio de esta visita.');
+  const nextPrice=changes.price!==undefined?changes.price:Number(current.price);
+  if(changes.paid_amount!==undefined&&changes.paid_amount>nextPrice)return fail('El pago no puede superar el precio de esta visita.');
   if((changes.paid_amount??Number(current.paid_amount))>0&&!(changes.payment_method??current.payment_method))return fail('Indique cómo pagó el cliente.');
   if(changes.status==='completed'&&current.status!=='completed')Object.assign(changes,{completed_at:new Date().toISOString()});
   if(changes.status&&changes.status!=='completed'&&current.status==='completed')Object.assign(changes,{completed_at:null});
@@ -77,7 +78,9 @@ export async function POST(request:Request){const {response,db}=await authorized
    const conflicts=(day??[]).filter(row=>row.id!==id);
    try {const slot=nextSlot(date,start,duration,worker,conflicts as WorkOrder[]);if(slot.start_time.slice(0,5)!==start.slice(0,5))return fail('Este horario se superpone con otra casa asignada al trabajador.');}catch(e){return fail(e instanceof Error?e.message:'Horario inválido.');}
   }
-  const {data,error}=await db.from('work_orders').update(changes).eq('id',id).select().single();return error?fail(error.message):NextResponse.json({ok:true,data});
+  const {data,error}=await db.from('work_orders').update(changes).eq('id',id).select().single();if(error)return fail(error.message);
+  if(changes.price!==undefined){await db.from('work_invoices').update({total:changes.price}).eq('order_id',id);}
+  return NextResponse.json({ok:true,data});
  }
  return fail('Acción no reconocida.');
 }
