@@ -92,8 +92,8 @@ export function FaqSection() {
                 key={faq.question}
                 className={`overflow-hidden border transition-all duration-300 ${
                   isOpen
-                    ? "border-emerald-200 bg-white shadow-sm"
-                    : "border-slate-200 bg-white/60 hover:border-slate-200"
+                    ? "border-lime-400 bg-lime-100 shadow-sm"
+                    : "border-lime-300 bg-lime-50 hover:border-lime-500"
                 }`}
               >
                 <button
@@ -114,7 +114,7 @@ export function FaqSection() {
                 </button>
 
                 {isOpen && (
-                  <div className="border-t border-slate-200 px-5 py-4 text-sm leading-relaxed text-slate-700 bg-slate-50/20">
+                  <div className="border-t border-lime-300 bg-white px-5 py-4 text-sm leading-relaxed text-black">
                     {faq.answer}
                   </div>
                 )}
