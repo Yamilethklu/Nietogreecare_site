@@ -266,14 +266,8 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
     const current = useQuoteStore.getState();
     if (current.step === 1) {
       const result = step1Schema.safeParse(current);
-      const nextErrors: Record<string, string> = {};
       if (!result.success) {
-        Object.assign(nextErrors, formatZodErrors(result.error));
-      }
-      if (current.customerName.trim().length < 2) nextErrors.customerName = isEs ? "Ingrese su nombre completo." : "Enter your full name.";
-      if (!phoneSchema.safeParse(current.customerPhone).success) nextErrors.customerPhone = isEs ? "Ingrese un teléfono válido de 10 dígitos." : "Enter a valid 10-digit phone number.";
-      if (Object.keys(nextErrors).length > 0) {
-        setErrors(nextErrors);
+        setErrors(formatZodErrors(result.error));
         toast({ title: isEs ? "Revise la dirección y el código postal" : "Review the address and ZIP code", variant: "error" });
         return;
       }
@@ -284,6 +278,16 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
         }
       } catch {
         setErrors({ address: isEs ? "No se pudo ubicar la dirección. Seleccione una sugerencia." : "Could not locate the address. Select a suggestion." });
+        return;
+      }
+    }
+    if (current.step === 4) {
+      const nextErrors: Record<string, string> = {};
+      if (current.customerName.trim().length < 2) nextErrors.customerName = isEs ? "Ingrese su nombre completo." : "Enter your full name.";
+      if (!phoneSchema.safeParse(current.customerPhone).success) nextErrors.customerPhone = isEs ? "Ingrese un teléfono válido de 10 dígitos." : "Enter a valid 10-digit phone number.";
+      if (Object.keys(nextErrors).length > 0) {
+        setErrors(nextErrors);
+        toast({ title: isEs ? "Complete los datos requeridos" : "Complete the required details", variant: "error" });
         return;
       }
     }
@@ -311,39 +315,6 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
     }
     setErrors({});
     current.goNext();
-  };
-
-  const sendStepOneSms = async () => {
-    const current = useQuoteStore.getState();
-    const nextErrors: Record<string, string> = {};
-    const result = step1Schema.safeParse(current);
-    if (!result.success) Object.assign(nextErrors, formatZodErrors(result.error));
-    if (current.customerName.trim().length < 2) nextErrors.customerName = isEs ? "Ingrese su nombre completo." : "Enter your full name.";
-    if (!phoneSchema.safeParse(current.customerPhone).success) nextErrors.customerPhone = isEs ? "Ingrese un teléfono válido de 10 dígitos." : "Enter a valid 10-digit phone number.";
-    if (Object.keys(nextErrors).length > 0) {
-      setErrors(nextErrors);
-      toast({ title: isEs ? "Complete dirección, código postal, nombre y teléfono" : "Complete address, ZIP code, name, and phone", variant: "error" });
-      return;
-    }
-
-    const referenceCode = current.ensureReferenceCode();
-    const jobs = current.selectedServices
-      .map((key) => {
-        const service = SERVICES.find((item) => item.key === key);
-        return service ? (isEs ? service.nameEs : service.nameEn) : key;
-      })
-      .join(", ");
-    const smsBody = [
-      `${BUSINESS.name} - ${isEs ? "Solicitud de cotización" : "Quote request"}`,
-      `${isEs ? "Folio" : "Reference"}: ${referenceCode}`,
-      `${isEs ? "Cliente" : "Customer"}: ${current.customerName}`,
-      `${isEs ? "Teléfono" : "Phone"}: ${current.customerPhone}`,
-      `${isEs ? "Dirección" : "Address"}: ${current.address}`,
-      `${isEs ? "Código postal" : "ZIP code"}: ${current.zipCode}`,
-      `${isEs ? "Servicio principal" : "Main service"}: ${isEs ? "Corte de césped" : "Lawn mowing"}`,
-      `${isEs ? "Servicios adicionales" : "Additional services"}: ${jobs || (isEs ? "Ninguno" : "None")}`,
-    ].filter(Boolean).join("\n");
-    window.location.href = `${BUSINESS.smsHref}?body=${encodeURIComponent(smsBody)}`;
   };
 
   const submit = async () => {
@@ -431,15 +402,6 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
             </div>
             <div><Step1Address error={errors.address} isEs={isEs} /><Step1AddressHint isEs={isEs} /><FieldError>{errors.address}</FieldError></div>
             <div><Label htmlFor="quote-zip">{isEs ? "Código postal *" : "ZIP code *"}</Label><Input id="quote-zip" required inputMode="numeric" value={store.zipCode} maxLength={5} onChange={(event) => { const zipCode = event.target.value.replace(/\D/g, "").slice(0, 5); store.setAddress({ zipCode, city: ZIP_CITY_MAP[zipCode] ?? "" }); }} placeholder="78642" className="mt-2" /><FieldError>{errors.zipCode}</FieldError></div>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div><Label htmlFor="quote-customer-name-step1">{isEs ? "Nombre *" : "Name *"}</Label><Input id="quote-customer-name-step1" required value={store.customerName} onChange={(event) => store.setPersonal({ customerName: event.target.value, firstName: event.target.value, lastName: "" })} className="mt-2" /><FieldError>{errors.customerName}</FieldError></div>
-              <div><Label htmlFor="quote-customer-phone-step1">{isEs ? "Teléfono *" : "Phone *"}</Label><Input id="quote-customer-phone-step1" required type="tel" value={store.customerPhone} onChange={(event) => store.setPersonal({ customerPhone: event.target.value })} className="mt-2" /><FieldError>{errors.customerPhone}</FieldError></div>
-              <div className="sm:col-span-2"><Label htmlFor="quote-address-confirm-step1">{isEs ? "Dirección" : "Address"}</Label><Input id="quote-address-confirm-step1" value={store.address} onChange={(event) => store.setAddress({ address: event.target.value, formattedAddress: event.target.value })} className="mt-2" /></div>
-            </div>
-            <div className="flex flex-wrap items-center gap-3">
-              <Button type="button" onClick={() => void sendStepOneSms()} className="bg-emerald-700 font-bold hover:bg-emerald-800"><MessageSquare className="mr-2 size-4" />{isEs ? "Cotizar" : "Quote"}</Button>
-              <p className="text-xs font-semibold text-slate-500">{isEs ? "El mensaje se abrirá directo al número del dueño." : "The message will open directly to the owner’s number."}</p>
-            </div>
           </section>}
 
           {store.step === 2 && <section className="space-y-6">
@@ -512,7 +474,12 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
           </section>}
 
           {store.step === 4 && <section className="space-y-5">
-            <div><h2 className="text-xl font-bold text-slate-900">{isEs ? "4. Notas adicionales" : "4. Additional notes"}</h2><p className="mt-1 text-sm text-slate-600">{isEs ? "Los datos del cliente ya se capturaron en el Paso 1." : "Customer details were already collected in Step 1."}</p></div>
+            <div><h2 className="text-xl font-bold text-slate-900">{isEs ? "4. Datos del cliente" : "4. Customer information"}</h2></div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div><Label htmlFor="quote-customer-name">{isEs ? "Nombre *" : "Name *"}</Label><Input id="quote-customer-name" required value={store.customerName} onChange={(event) => store.setPersonal({ customerName: event.target.value, firstName: event.target.value, lastName: "" })} className="mt-2" /><FieldError>{errors.customerName}</FieldError></div>
+              <div><Label htmlFor="quote-customer-phone">{isEs ? "Teléfono *" : "Phone *"}</Label><Input id="quote-customer-phone" required type="tel" value={store.customerPhone} onChange={(event) => store.setPersonal({ customerPhone: event.target.value })} className="mt-2" /><FieldError>{errors.customerPhone}</FieldError></div>
+              <div className="sm:col-span-2"><Label htmlFor="quote-email">{isEs ? "Correo" : "Email"}</Label><Input id="quote-email" type="email" value={store.customerEmail} onChange={(event) => store.setPersonal({ customerEmail: event.target.value })} className="mt-2" placeholder="you@company.com" /></div>
+            </div>
             <div><Label htmlFor="quote-notes">{isEs ? "Nota: escriba algo que requiera" : "Note: write anything you need"}</Label><Textarea id="quote-notes" rows={3} maxLength={2000} value={store.additionalNotes} onChange={(event) => store.setPersonal({ additionalNotes: event.target.value })} className="mt-2" /></div>
             <div><Label htmlFor="quote-extra-work">{isEs ? "Si requiere algún trabajo y no está escrito, agréguelo aquí abajo" : "If you need a job that is not listed, add it below"}</Label><Textarea id="quote-extra-work" rows={3} maxLength={2000} value={store.details} onChange={(event) => store.setPersonal({ details: event.target.value })} className="mt-2" /></div>
           </section>}
