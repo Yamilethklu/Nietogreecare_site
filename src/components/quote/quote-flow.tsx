@@ -430,7 +430,7 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
             <div><Step1Address error={errors.address} isEs={isEs} /><Step1AddressHint isEs={isEs} /><FieldError>{errors.address}</FieldError></div>
             <div><Label htmlFor="quote-zip">{isEs ? "Código postal *" : "ZIP code *"}</Label><Input id="quote-zip" required inputMode="numeric" value={store.zipCode} maxLength={5} onChange={(event) => { const zipCode = event.target.value.replace(/\D/g, "").slice(0, 5); store.setAddress({ zipCode, city: ZIP_CITY_MAP[zipCode] ?? "" }); }} placeholder="78642" className="mt-2" /><FieldError>{errors.zipCode}</FieldError></div>
             <div className="rounded-xl border border-emerald-100 bg-emerald-50/60 p-4">
-              <p className="mb-3 text-sm font-bold text-emerald-950">{isEs ? "¿Requiere algún servicio distinto?" : "Do you need a different service?"}</p>
+              <p className="mb-3 text-sm font-bold text-emerald-950">{isEs ? "¿Requiere servicios especiales?" : "Do you need special services?"}</p>
               <div className="grid gap-2 sm:grid-cols-2">
                 {ADDITIONAL_SERVICES.map((service) => {
                   const selected = store.selectedServices.includes(service.key);
@@ -444,7 +444,7 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
               <div className="sm:col-span-2"><Label htmlFor="quote-address-confirm-step1">{isEs ? "Dirección" : "Address"}</Label><Input id="quote-address-confirm-step1" value={store.address} onChange={(event) => store.setAddress({ address: event.target.value, formattedAddress: event.target.value })} className="mt-2" /></div>
             </div>
             <div className="flex flex-wrap items-center gap-3">
-              <Button type="button" onClick={() => void sendStepOneSms()} className="bg-emerald-700 font-bold hover:bg-emerald-800"><MessageSquare className="mr-2 size-4" />{isEs ? "Cotizar por SMS" : "Quote by SMS"}</Button>
+              <Button type="button" onClick={() => void sendStepOneSms()} className="bg-emerald-700 font-bold hover:bg-emerald-800"><MessageSquare className="mr-2 size-4" />{isEs ? "Cotizar" : "Quote"}</Button>
               <p className="text-xs font-semibold text-slate-500">{isEs ? "El mensaje se abrirá directo al número del dueño." : "The message will open directly to the owner’s number."}</p>
             </div>
           </section>}
