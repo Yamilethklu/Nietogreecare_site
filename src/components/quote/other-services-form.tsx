@@ -23,11 +23,11 @@ const OTHER_JOB_TYPES = [
 
 export function OtherServicesForm() {
   const { isEs } = useLanguage();
+  const [open, setOpen] = React.useState(false);
   const [selectedJobs, setSelectedJobs] = React.useState<string[]>([]);
+  const [address, setAddress] = React.useState("");
   const [name, setName] = React.useState("");
   const [phone, setPhone] = React.useState("");
-  const [hasGate, setHasGate] = React.useState<"yes" | "no" | "">("");
-  const [gateCode, setGateCode] = React.useState("");
   const [comments, setComments] = React.useState("");
   const [saving, setSaving] = React.useState(false);
   const [saveError, setSaveError] = React.useState("");
@@ -45,8 +45,8 @@ export function OtherServicesForm() {
       setSaveError(isEs ? "Seleccione al menos un trabajo." : "Select at least one service.");
       return;
     }
-    if (!hasGate) {
-      setSaveError(isEs ? "Indique si el patio tiene candado o portón." : "Choose whether the yard has a lock or gate.");
+    if (address.trim().length < 5) {
+      setSaveError(isEs ? "Ingrese la dirección del servicio." : "Enter the service address.");
       return;
     }
     setSaving(true);
@@ -58,12 +58,12 @@ export function OtherServicesForm() {
     }).join(", ");
 
     const body = [
-      `Solicitud de cotización: ${jobNames}`,
-      `Nombre: ${name}`,
-      `Teléfono: ${phone}`,
-      `¿Acceso con candado?: ${hasGate === "yes" ? "Sí" : "No"}`,
-      hasGate === "yes" && gateCode ? `Código/Info acceso: ${gateCode}` : "",
-      comments ? `Comentarios: ${comments}` : "",
+      `${BUSINESS.name} - ${isEs ? "Cotización de otro servicio" : "Other service quote"}`,
+      `${isEs ? "Servicios" : "Services"}: ${jobNames}`,
+      `${isEs ? "Dirección" : "Address"}: ${address.trim()}`,
+      `${isEs ? "Cliente" : "Customer"}: ${name.trim()}`,
+      `${isEs ? "Teléfono" : "Phone"}: ${phone.trim()}`,
+      comments.trim() ? `${isEs ? "Comentarios" : "Comments"}: ${comments.trim()}` : "",
     ]
       .filter(Boolean)
       .join("\n");
@@ -76,10 +76,12 @@ export function OtherServicesForm() {
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-xl font-bold text-slate-900">
           <Wrench className="size-5 text-emerald-600" />
-          {isEs ? "SELECCIONE LOS TRABAJOS A REALIZAR" : "SELECT SERVICES TO PERFORM"}
+          {isEs ? "¿Requieres otro servicio?" : "Do you need another service?"}
         </CardTitle>
+        <p className="text-sm font-semibold text-slate-600">{isEs ? "Cotiza aquí trabajos diferentes al corte de césped." : "Quote services other than lawn mowing here."}</p>
+        {!open && <Button type="button" onClick={() => setOpen(true)} className="mt-2 w-full bg-emerald-600 font-bold hover:bg-emerald-700 sm:w-auto">{isEs ? "Cotiza aquí" : "Quote here"}</Button>}
       </CardHeader>
-      <CardContent>
+      {open && <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <div className="grid gap-2 sm:grid-cols-3">
@@ -97,6 +99,10 @@ export function OtherServicesForm() {
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
+            <div className="sm:col-span-2">
+              <Label htmlFor="other-address">{isEs ? "Dirección del servicio *" : "Service address *"}</Label>
+              <Input id="other-address" required value={address} onChange={(e) => setAddress(e.target.value)} placeholder={isEs ? "Dirección completa" : "Full address"} className="mt-1" />
+            </div>
             <div>
               <Label htmlFor="other-name">{isEs ? "Nombre completo *" : "Full Name *"}</Label>
               <Input id="other-name" required value={name} onChange={(e) => setName(e.target.value)} placeholder={isEs ? "Ej. Juan Pérez" : "e.g. John Smith"} className="mt-1" />
@@ -108,17 +114,6 @@ export function OtherServicesForm() {
           </div>
 
           <div>
-            <Label>{isEs ? "¿El patio tiene candado / portón?" : "Does the yard have a lock/gate?"}</Label>
-            <div className="mt-1 flex gap-4">
-                <Button type="button" variant={hasGate === "yes" ? "default" : "outline"} onClick={() => setHasGate("yes")}>{isEs ? "Sí" : "Yes"}</Button>
-                <Button type="button" variant={hasGate === "no" ? "default" : "outline"} onClick={() => setHasGate("no")}>{isEs ? "No" : "No"}</Button>
-            </div>
-            {hasGate === "yes" && (
-                <Input className="mt-2" placeholder={isEs ? "Código o info de acceso" : "Gate code or access info"} value={gateCode} onChange={(e) => setGateCode(e.target.value)} />
-            )}
-          </div>
-
-          <div>
             <Label htmlFor="other-comments">{isEs ? "Comentarios / Detalles" : "Comments / Work details"}</Label>
             <Textarea id="other-comments" value={comments} onChange={(e) => setComments(e.target.value)} className="mt-1" rows={3} />
           </div>
@@ -126,10 +121,10 @@ export function OtherServicesForm() {
           {saveError && <p role="alert" className="text-sm text-red-600">{saveError}</p>}
           <Button type="submit" disabled={saving} className="w-full font-bold bg-emerald-600 hover:bg-emerald-700">
             <MessageSquare className="mr-2 size-4" />
-            {saving ? (isEs ? "Guardando..." : "Saving...") : (isEs ? "SOLICITAR COTIZACIÓN POR SMS" : "REQUEST QUOTE BY SMS")}
+            {saving ? (isEs ? "Abriendo SMS..." : "Opening SMS...") : (isEs ? "Enviar información para cotización" : "Send information for quote")}
           </Button>
         </form>
-      </CardContent>
+      </CardContent>}
     </Card>
   );
 }
