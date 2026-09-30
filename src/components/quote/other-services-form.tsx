@@ -28,6 +28,7 @@ export function OtherServicesForm() {
   const [address, setAddress] = React.useState("");
   const [name, setName] = React.useState("");
   const [phone, setPhone] = React.useState("");
+  const [email, setEmail] = React.useState("");
   const [comments, setComments] = React.useState("");
   const [saving, setSaving] = React.useState(false);
   const [saveError, setSaveError] = React.useState("");
@@ -63,6 +64,7 @@ export function OtherServicesForm() {
       `${isEs ? "Dirección" : "Address"}: ${address.trim()}`,
       `${isEs ? "Cliente" : "Customer"}: ${name.trim()}`,
       `${isEs ? "Teléfono" : "Phone"}: ${phone.trim()}`,
+      email.trim() ? `${isEs ? "Correo" : "Email"}: ${email.trim()}` : "",
       comments.trim() ? `${isEs ? "Comentarios" : "Comments"}: ${comments.trim()}` : "",
     ]
       .filter(Boolean)
@@ -79,26 +81,32 @@ export function OtherServicesForm() {
           {isEs ? "¿Requieres otro servicio?" : "Do you need another service?"}
         </CardTitle>
         <p className="text-sm font-semibold text-slate-600">{isEs ? "Cotiza aquí trabajos diferentes al corte de césped." : "Quote services other than lawn mowing here."}</p>
-        {!open && <Button type="button" onClick={() => setOpen(true)} className="mt-2 w-full bg-emerald-600 font-bold hover:bg-emerald-700 sm:w-auto">{isEs ? "Cotiza aquí" : "Quote here"}</Button>}
       </CardHeader>
-      {open && <CardContent>
+      <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <div className="grid gap-2 sm:grid-cols-3">
-              {OTHER_JOB_TYPES.map((type) => (
-                <button
-                  key={type.key}
-                  type="button"
-                  onClick={() => toggleJob(type.key)}
-                  className={`rounded-xl border p-3 text-left text-xs font-semibold transition ${selectedJobs.includes(type.key) ? "border-emerald-600 bg-emerald-50 text-emerald-700" : "border-slate-200 bg-slate-50 text-slate-600 hover:border-emerald-600/50"}`}
-                >
-                  {isEs ? type.labelEs : type.labelEn}
-                </button>
-              ))}
-            </div>
+          <div className="grid gap-2 sm:grid-cols-3">
+            {OTHER_JOB_TYPES.map((type) => (
+              <button
+                key={type.key}
+                type="button"
+                onClick={() => toggleJob(type.key)}
+                className={`rounded-xl border p-3 text-left text-xs font-semibold transition ${selectedJobs.includes(type.key) ? "border-emerald-600 bg-emerald-50 text-emerald-700" : "border-slate-200 bg-slate-50 text-slate-600 hover:border-emerald-600/50"}`}
+              >
+                {selectedJobs.includes(type.key) ? "✓ " : ""}{isEs ? type.labelEs : type.labelEn}
+              </button>
+            ))}
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
+          {!open && <Button type="button" onClick={() => {
+            if (selectedJobs.length === 0) {
+              setSaveError(isEs ? "Seleccione al menos un trabajo." : "Select at least one service.");
+              return;
+            }
+            setSaveError("");
+            setOpen(true);
+          }} className="w-full bg-emerald-600 font-bold hover:bg-emerald-700">{isEs ? "Cotiza aquí" : "Quote here"}</Button>}
+
+          {open && <div className="grid gap-4 sm:grid-cols-2">
             <div className="sm:col-span-2">
               <Label htmlFor="other-address">{isEs ? "Dirección del servicio *" : "Service address *"}</Label>
               <Input id="other-address" required value={address} onChange={(e) => setAddress(e.target.value)} placeholder={isEs ? "Dirección completa" : "Full address"} className="mt-1" />
@@ -111,20 +119,24 @@ export function OtherServicesForm() {
               <Label htmlFor="other-phone">{isEs ? "Teléfono *" : "Phone *"}</Label>
               <Input id="other-phone" required type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="737-000-0000" className="mt-1" />
             </div>
-          </div>
+            <div className="sm:col-span-2">
+              <Label htmlFor="other-email">{isEs ? "Correo" : "Email"}</Label>
+              <Input id="other-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="cliente@email.com" className="mt-1" />
+            </div>
+          </div>}
 
-          <div>
+          {open && <div>
             <Label htmlFor="other-comments">{isEs ? "Comentarios / Detalles" : "Comments / Work details"}</Label>
             <Textarea id="other-comments" value={comments} onChange={(e) => setComments(e.target.value)} className="mt-1" rows={3} />
-          </div>
+          </div>}
 
           {saveError && <p role="alert" className="text-sm text-red-600">{saveError}</p>}
-          <Button type="submit" disabled={saving} className="w-full font-bold bg-emerald-600 hover:bg-emerald-700">
+          {open && <Button type="submit" disabled={saving} className="w-full font-bold bg-emerald-600 hover:bg-emerald-700">
             <MessageSquare className="mr-2 size-4" />
-            {saving ? (isEs ? "Abriendo SMS..." : "Opening SMS...") : (isEs ? "Enviar información para cotización" : "Send information for quote")}
-          </Button>
+            {saving ? (isEs ? "Abriendo SMS..." : "Opening SMS...") : (isEs ? "Cotizar" : "Quote")}
+          </Button>}
         </form>
-      </CardContent>}
+      </CardContent>
     </Card>
   );
 }
