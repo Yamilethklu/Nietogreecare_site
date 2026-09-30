@@ -6,6 +6,7 @@ import { asAreaFeature, featureAreaSqFt, featureAreaSqM, featureCenter, findArea
 export const runtime = "nodejs";
 
 const GOOGLE_KEY = process.env.GOOGLE_MAPS_SERVER_API_KEY || process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "";
+const REGRID_TOKEN = process.env.REGRID_TOKEN || process.env.REGRID_API_TOKEN || process.env.NEXT_PUBLIC_REGRID_TOKEN || "";
 const NO_PARCEL_ERROR = "No hay datos catastrales para esta dirección";
 const LAWN_COMPUTE_ERROR = "No se pudo calcular el área del jardín";
 const INVALID_LAWN_ERROR = "El área del jardín no es válida";
@@ -173,6 +174,26 @@ async function getWilliamsonParcel(latitude: number, longitude: number): Promise
   return (await queryParcel("esriSpatialRelWithin")) ?? queryParcel("esriSpatialRelIntersects");
 }
 
+async function getRegridParcel(latitude: number, longitude: number): Promise<{ parcel: AreaFeature; payload: unknown } | null> {
+  if (!REGRID_TOKEN) return null;
+
+  const parcelUrl = new URL("https://app.regrid.com/api/v2/parcels");
+  parcelUrl.searchParams.set("lat", String(latitude));
+  parcelUrl.searchParams.set("lon", String(longitude));
+  parcelUrl.searchParams.set("token", REGRID_TOKEN);
+
+  const parcelResponse = await fetch(parcelUrl, { cache: "no-store" });
+  if (!parcelResponse.ok) return null;
+
+  const parcelPayload = await parcelResponse.json();
+  const parcel = findAreaFeature(parcelPayload);
+  return parcel ? { parcel, payload: parcelPayload } : null;
+}
+
+async function getParcelGeometry(latitude: number, longitude: number): Promise<{ parcel: AreaFeature; payload: unknown } | null> {
+  return (await getWilliamsonParcel(latitude, longitude)) ?? getRegridParcel(latitude, longitude);
+}
+
 export async function GET(request: Request) {
   const params = new URL(request.url).searchParams;
   const address = params.get("address")?.trim() ?? "";
@@ -212,7 +233,7 @@ export async function GET(request: Request) {
   }
 
   try {
-    const parcelLookup = await getWilliamsonParcel(latitude, longitude);
+    const parcelLookup = await getParcelGeometry(latitude, longitude);
     if (!parcelLookup) {
       return NextResponse.json({ ok: false, error: NO_PARCEL_ERROR, formattedAddress, latitude, longitude }, { status: 404 });
     }
