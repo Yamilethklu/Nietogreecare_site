@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { OtherServicesForm } from "@/components/quote/other-services-form";
 import { PaymentsSection } from "@/components/site/payments-section";
 import { Reviews } from "@/components/site/reviews";
 import { GalleryCarousel } from "@/components/site/gallery-carousel";
@@ -68,6 +69,11 @@ export default async function HomePage() {
       <SiteHeader />
       <main className="bg-emerald-50 text-slate-900">
         <Hero backgroundUrl={grassPhoto?.url ?? "/hero-bg.jpg"} />
+        <section className="bg-lime-100/70 py-10">
+          <div className="container max-w-4xl">
+            <OtherServicesForm />
+          </div>
+        </section>
         <ServicesSection compact />
         <GalleryCarousel items={slides.length ? slides : [{ id: "lawn-photo", url: "/hero-bg.jpg", title: "Nieto Green Care LLC", description: null, location: null }]} />
         <Reviews />
