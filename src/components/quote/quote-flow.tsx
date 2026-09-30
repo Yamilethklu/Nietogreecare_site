@@ -58,7 +58,6 @@ const NO_PARCEL_ERROR = "No hay datos catastrales para esta dirección";
 const LAWN_COMPUTE_ERROR = "No se pudo calcular el área del jardín";
 const INVALID_LAWN_ERROR = "El área del jardín no es válida";
 const BASE_LAWN_SERVICE_KEY = "weekly_biweekly_lawn_service";
-const ADDITIONAL_SERVICES = SERVICES.filter((service) => service.key !== BASE_LAWN_SERVICE_KEY);
 
 function resolveMeasurementError(error: string | undefined, isEs: boolean) {
   switch (error) {
@@ -149,8 +148,11 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
   }, []);
 
   React.useEffect(() => {
-    if (store.paymentMethod === "cash") store.setPaymentMethod("venmo");
-  }, [store, store.paymentMethod, store.setPaymentMethod]);
+    const quoteServices = store.selectedServices.includes(BASE_LAWN_SERVICE_KEY) && store.selectedServices.length === 1
+      ? store.selectedServices
+      : [BASE_LAWN_SERVICE_KEY];
+    if (quoteServices !== store.selectedServices) store.setServices(quoteServices);
+  }, [store, store.selectedServices, store.setServices]);
 
   React.useEffect(() => {
     if (store.step !== 2 || gateAnswer) return;
@@ -235,13 +237,6 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
   const rate = matchMowRate(rates, store.measurement?.areaSqFt ?? 0, store.mowFrequency);
   const price = rate ? Number(rate.price) : null;
   const { descriptive: frequencyLabel, cadence: cadenceLabel } = getMowFrequencyLabels(store.mowFrequency, isEs);
-  const selectedSpecialJobNames = store.selectedServices
-    .filter((key) => key !== BASE_LAWN_SERVICE_KEY)
-    .map((key) => {
-      const service = SERVICES.find((item) => item.key === key);
-      return service ? (isEs ? service.nameEs : service.nameEn) : key;
-    });
-
   const resolveCoordinates = async () => {
     const current = useQuoteStore.getState();
     if (current.latitude != null && current.longitude != null) return true;
@@ -349,14 +344,14 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
         `${isEs ? "Frecuencia" : "Frequency"}: ${getMowFrequencyLabels(submitted.mowFrequency, isEs).descriptive}`,
         `${isEs ? "Estado de propiedad" : "Property status"}: ${submitted.propertyOccupancy === "occupied" ? (isEs ? "Ocupada" : "Occupied") : (isEs ? "Vacante" : "Vacant")}`,
         `${isEs ? "Zona de corte" : "Mowing zone"}: ${submitted.areaSelection === "front_back" ? (isEs ? "Frente y trasera" : "Front and back") : submitted.areaSelection === "front_only" ? (isEs ? "Solo delantera" : "Front only") : (isEs ? "Solo trasera" : "Back only")}`,
-        `${isEs ? "Trabajos" : "Jobs"}: ${jobNames.join(", ")}`,
+        `${isEs ? "Servicio" : "Service"}: ${jobNames.join(", ")}`,
         `${isEs ? "Día preferido" : "Preferred day"}: ${submitted.requestedDate}`,
         `${isEs ? "Cliente" : "Customer"}: ${submitted.customerName}`,
         `${isEs ? "Teléfono" : "Phone"}: ${submitted.customerPhone}`,
         `${isEs ? "Candado/portón" : "Lock/gate"}: ${submitted.hasGateCode ? `${isEs ? "Sí" : "Yes"} (${submitted.gateCode})` : (isEs ? "No" : "No")}`,
         `${isEs ? "Mascotas" : "Pets"}: ${submitted.hasPetsInBackyard ? (isEs ? "Sí" : "Yes") : "No"}`,
         `${isEs ? "Césped sobre 6 pulgadas" : "Grass over 6 inches"}: ${submitted.isGrassOver6 ? (isEs ? "Sí" : "Yes") : "No"}`,
-        `${isEs ? "Pago" : "Payment"}: ${submitted.paymentMethod === "venmo" ? "Venmo" : submitted.paymentMethod === "cash_app" ? "Cash App" : "Zelle"}`,
+        `${isEs ? "Pago" : "Payment"}: ${submitted.paymentMethod === "cash" ? (isEs ? "Efectivo" : "Cash") : submitted.paymentMethod === "venmo" ? "Venmo" : submitted.paymentMethod === "cash_app" ? "Cash App" : "Zelle"}`,
         submitted.additionalNotes.trim() ? `${isEs ? "Notas" : "Notes"}: ${submitted.additionalNotes.trim()}` : "",
         submitted.details.trim() ? `${isEs ? "Trabajo no listado" : "Unlisted work"}: ${submitted.details.trim()}` : "",
       ].filter(Boolean).join("\n");
@@ -399,6 +394,7 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
             <div className="flex flex-col items-center gap-3 text-center">
               <SiteLogo size="lg" showTagline />
               <h2 className="text-xl font-bold text-slate-900">{isEs ? "1. Dirección y código postal" : "1. Address and ZIP code"}</h2>
+              <p className="max-w-xl text-sm font-semibold text-emerald-800">{isEs ? "Este cotizador es únicamente para corte de césped semanal o quincenal." : "This quote form is only for weekly or bi-weekly lawn mowing."}</p>
             </div>
             <div><Step1Address error={errors.address} isEs={isEs} /><Step1AddressHint isEs={isEs} /><FieldError>{errors.address}</FieldError></div>
             <div><Label htmlFor="quote-zip">{isEs ? "Código postal *" : "ZIP code *"}</Label><Input id="quote-zip" required inputMode="numeric" value={store.zipCode} maxLength={5} onChange={(event) => { const zipCode = event.target.value.replace(/\D/g, "").slice(0, 5); store.setAddress({ zipCode, city: ZIP_CITY_MAP[zipCode] ?? "" }); }} placeholder="78642" className="mt-2" /><FieldError>{errors.zipCode}</FieldError></div>
@@ -448,7 +444,7 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
                 { key: "back_only", labelEs: "Solo atrás", labelEn: "Back Only", art: "▁" },
               ].map((option) => {
                 const selected = store.areaSelection === option.key;
-                return <button key={option.key} type="button" aria-pressed={selected} onClick={() => store.setLawnOptions({ areaSelection: option.key as QuoteStore["areaSelection"] })} className={`flex w-full items-center gap-4 rounded-2xl border p-4 text-left text-black transition ${selected ? "border-lime-500 bg-lime-200 ring-2 ring-lime-300" : "border-lime-300 bg-lime-50 hover:border-lime-500 hover:bg-lime-100"}`}>
+                return <button key={option.key} type="button" aria-pressed={selected} onClick={() => { store.setLawnOptions({ areaSelection: option.key as QuoteStore["areaSelection"] }); store.clearMeasurement(); }} className={`flex w-full items-center gap-4 rounded-2xl border p-4 text-left text-black transition ${selected ? "border-lime-500 bg-lime-200 ring-2 ring-lime-300" : "border-lime-300 bg-lime-50 hover:border-lime-500 hover:bg-lime-100"}`}>
                   <span className="grid size-20 shrink-0 place-items-center rounded-xl border border-lime-500 bg-lime-300 text-4xl font-black text-black">{option.art}</span>
                   <span className="flex items-center gap-3 text-lg font-bold text-black"><span className={`grid size-5 place-items-center rounded border ${selected ? "border-lime-600 bg-lime-500 text-black" : "border-lime-400 bg-white"}`}>{selected ? "✓" : ""}</span>{isEs ? option.labelEs : option.labelEn}</span>
                 </button>;
@@ -462,15 +458,6 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
               </div>
               {store.isGrassOver6 && <p className="mt-3 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900">{isEs ? "Nota: este servicio puede tener costo extra." : "Note: this service may have an extra cost."}</p>}
             </fieldset>
-            <div className="rounded-xl border border-emerald-100 bg-emerald-50/60 p-4">
-              <p className="mb-3 text-sm font-bold text-emerald-950">{isEs ? "¿Requiere servicios especiales?" : "Do you need special services?"}</p>
-              <div className="grid gap-2 sm:grid-cols-2">
-                {ADDITIONAL_SERVICES.map((service) => {
-                  const selected = store.selectedServices.includes(service.key);
-                  return <button key={service.key} type="button" aria-pressed={selected} onClick={() => store.toggleService(service.key)} className={`min-h-12 rounded-lg border px-3 py-2 text-left text-sm font-semibold transition ${selected ? "border-emerald-700 bg-white text-emerald-900" : "border-emerald-100 bg-white/80 text-slate-700 hover:border-emerald-400"}`}>{selected ? "✓ " : ""}{isEs ? service.nameEs : service.nameEn}</button>;
-                })}
-              </div>
-            </div>
           </section>}
 
           {store.step === 4 && <section className="space-y-5">
@@ -498,7 +485,6 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
               <p><strong>{isEs ? "Césped calculado" : "Calculated lawn"}:</strong> {lawnAreaSqFt.toLocaleString()} ft² / {lawnAreaSqM.toLocaleString(undefined, { maximumFractionDigits: 1 })} m²</p>
               <p><strong>{isEs ? "Mascotas" : "Pets"}:</strong> {store.hasPetsInBackyard ? (isEs ? "Sí" : "Yes") : "No"}</p><p><strong>{isEs ? "Cerradura" : "Lock"}:</strong> {store.hasGateCode ? `${isEs ? "Sí" : "Yes"} (${store.gateCode})` : "No"}</p>
             </div>
-            <div className="rounded-lg bg-slate-50 p-4"><p className="text-sm font-bold text-emerald-900">{isEs ? "Servicio especial" : "Special service"}</p><div className="mt-2 grid gap-2 text-sm text-slate-700 sm:grid-cols-2">{selectedSpecialJobNames.length ? selectedSpecialJobNames.map((name) => <span key={name} className="flex items-center gap-2"><CheckCircle2 className="size-4 text-emerald-600" />{name}</span>) : <span>{isEs ? "Ninguno seleccionado" : "None selected"}</span>}</div></div>
             {(store.additionalNotes.trim() || store.details.trim()) && <div className="rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-700">{store.additionalNotes.trim() && <p><strong>{isEs ? "Nota" : "Note"}:</strong> {store.additionalNotes}</p>}{store.details.trim() && <p className="mt-2"><strong>{isEs ? "Trabajo adicional" : "Additional work"}:</strong> {store.details}</p>}</div>}
           </section>}
 
@@ -518,9 +504,9 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
             <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4">
               <h3 className="font-bold text-emerald-950">{isEs ? "Métodos de pago" : "Payment options"}</h3>
               <select value={store.paymentMethod} onChange={(event) => store.setPaymentMethod(event.target.value as PaymentMethod)} className="mt-3 min-h-11 w-full max-w-sm rounded-lg border border-slate-300 bg-white px-3 text-slate-900">
-                <option value="venmo">Venmo</option><option value="cash_app">Cash App</option><option value="zelle">Zelle</option>
+                <option value="cash">{isEs ? "Efectivo" : "Cash"}</option><option value="venmo">Venmo</option><option value="cash_app">Cash App</option><option value="zelle">Zelle</option>
               </select>
-              <div className="mt-3 flex flex-wrap gap-3"><a href={BUSINESS.venmoUrl} target="_blank" rel="noreferrer" className="rounded-lg border border-slate-200 bg-white px-3 py-2 font-semibold text-slate-900">Venmo · {BUSINESS.venmoUrl}</a><a href={BUSINESS.cashAppUrl} target="_blank" rel="noreferrer" className="rounded-lg border border-slate-200 bg-white px-3 py-2 font-semibold text-slate-900">Cash App · {BUSINESS.cashAppTag}</a><span className="rounded-lg border border-slate-200 bg-white px-3 py-2 font-semibold text-slate-900">Zelle · {BUSINESS.zellePhoneDisplay}</span></div>
+              <div className="mt-3 flex flex-wrap gap-3"><span className="rounded-lg border border-slate-200 bg-white px-3 py-2 font-semibold text-slate-900">{isEs ? "Efectivo al finalizar" : "Cash after service"}</span><a href={BUSINESS.venmoUrl} target="_blank" rel="noreferrer" className="rounded-lg border border-slate-200 bg-white px-3 py-2 font-semibold text-slate-900">Venmo · {BUSINESS.venmoUrl}</a><a href={BUSINESS.cashAppUrl} target="_blank" rel="noreferrer" className="rounded-lg border border-slate-200 bg-white px-3 py-2 font-semibold text-slate-900">Cash App · {BUSINESS.cashAppTag}</a><span className="rounded-lg border border-slate-200 bg-white px-3 py-2 font-semibold text-slate-900">Zelle · {BUSINESS.zellePhoneDisplay}</span></div>
             </div>
             <div className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-900">{isEs ? "NOTA IMPORTANTE: Siempre que envíe su pago, asegúrese de poner su dirección en la nota del pago." : "IMPORTANT NOTE: Whenever you send your payment, make sure to put your address in the payment note."}</div>
           </section>}
