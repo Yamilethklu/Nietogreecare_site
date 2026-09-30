@@ -102,7 +102,7 @@ function selectMowArea(lawn: AreaFeature, parcel: AreaFeature, lat: number, lng:
   const addressIsSouthOrWest = useVerticalSplit ? lat <= splitLat : lng <= splitLng;
   const frontIsLowerSide = addressIsSouthOrWest;
   const wantFront = area === "front_only";
-  const useLowerSide = wantFront ? frontIsLowerSide : !frontIsLowerSide;
+  const useLowerSide = wantFront ? !frontIsLowerSide : frontIsLowerSide;
   const clipBox = useVerticalSplit
     ? useLowerSide
       ? [west, south, east, splitLat]
