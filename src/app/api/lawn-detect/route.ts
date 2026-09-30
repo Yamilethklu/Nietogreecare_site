@@ -103,7 +103,7 @@ function selectMowArea(lawn: AreaFeature, parcel: AreaFeature, lat: number, lng:
   const addressIsSouthOrWest = useVerticalSplit ? lat <= splitLat : lng <= splitLng;
   const frontIsLowerSide = addressIsSouthOrWest;
   const wantFront = area === "front_only";
-  const useLowerSide = wantFront ? !frontIsLowerSide : frontIsLowerSide;
+  const useLowerSide = wantFront ? frontIsLowerSide : !frontIsLowerSide;
   const clipBox = useVerticalSplit
     ? useLowerSide
       ? [west, south, east, splitLat]
@@ -146,9 +146,29 @@ async function getSolarHouseFootprint(lat: number, lng: number, apiKey: string):
         return [];
       }
     });
-    if (!features.length) return null;
-    const combined = features.length === 1 ? features[0] : turf.union(turf.featureCollection(features));
-    return combined ? (combined as AreaFeature) : null;
+    if (features.length) {
+      const combined = features.length === 1 ? features[0] : turf.union(turf.featureCollection(features));
+      if (combined) return combined as AreaFeature;
+    }
+
+    const bounds = data?.buildingBounds;
+    const sw = bounds?.southwest;
+    const ne = bounds?.northeast;
+    if (
+      Number.isFinite(sw?.longitude) &&
+      Number.isFinite(sw?.latitude) &&
+      Number.isFinite(ne?.longitude) &&
+      Number.isFinite(ne?.latitude)
+    ) {
+      return turf.polygon([[
+        [Number(sw.longitude), Number(sw.latitude)],
+        [Number(ne.longitude), Number(sw.latitude)],
+        [Number(ne.longitude), Number(ne.latitude)],
+        [Number(sw.longitude), Number(ne.latitude)],
+        [Number(sw.longitude), Number(sw.latitude)],
+      ]]) as AreaFeature;
+    }
+    return null;
   } catch {
     return null;
   }
