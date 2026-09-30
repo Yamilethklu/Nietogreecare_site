@@ -156,10 +156,39 @@ function selectMowArea(lawn: AreaFeature, parcel: AreaFeature, lat: number, lng:
   const parcelCenter = turf.center(parcel as any).geometry.coordinates;
   const splitLng = parcelCenter[0];
   const splitLat = parcelCenter[1];
-  const useVerticalSplit = height >= width;
   const frontReference = roadPoint ?? { lat, lng };
-  const frontIsLowerSide = useVerticalSplit ? frontReference.lat <= splitLat : frontReference.lng <= splitLng;
   const wantFront = area === "front_only";
+
+  try {
+    const vectorLng = frontReference.lng - splitLng;
+    const vectorLat = frontReference.lat - splitLat;
+    const vectorLength = Math.hypot(vectorLng, vectorLat);
+    if (vectorLength > 0) {
+      const span = Math.max(width, height) * 4;
+      const directionLng = (vectorLng / vectorLength) * span;
+      const directionLat = (vectorLat / vectorLength) * span;
+      const sideLng = (-vectorLat / vectorLength) * span;
+      const sideLat = (vectorLng / vectorLength) * span;
+      const sideA = [splitLng + sideLng, splitLat + sideLat];
+      const sideB = [splitLng - sideLng, splitLat - sideLat];
+      const direction = wantFront ? 1 : -1;
+      const clip = turf.polygon([[
+        sideA,
+        sideB,
+        [sideB[0] + directionLng * direction, sideB[1] + directionLat * direction],
+        [sideA[0] + directionLng * direction, sideA[1] + directionLat * direction],
+        sideA,
+      ]]) as AreaFeature;
+      const clipped = turf.intersect(turf.featureCollection([lawn, clip]) as any);
+      const feature = asAreaFeature(clipped);
+      if (feature && featureAreaSqM(feature) > 0) return feature;
+    }
+  } catch {
+    // Fall back to a simple bbox split below when road-based clipping is unavailable.
+  }
+
+  const useVerticalSplit = height >= width;
+  const frontIsLowerSide = useVerticalSplit ? frontReference.lat <= splitLat : frontReference.lng <= splitLng;
   const useLowerSide = wantFront ? frontIsLowerSide : !frontIsLowerSide;
   const clipBox = useVerticalSplit
     ? useLowerSide
