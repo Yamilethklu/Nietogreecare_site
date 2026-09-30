@@ -16,6 +16,7 @@ const LAWN_DETECTION_FAILED = "lawn_detection_failed";
 const GEOCODE_NOT_FOUND = "geocode_not_found";
 const AREA_SELECTIONS = ["front_back", "front_only", "back_only"] as const;
 type AreaSelection = (typeof AREA_SELECTIONS)[number];
+type LatLngPoint = { lat: number; lng: number };
 
 function findBuildingFeature(payload: any): AreaFeature | null {
   const feature = payload?.features?.[0] ?? payload?.parcels?.features?.[0] ?? payload?.data?.features?.[0] ?? payload?.parcel ?? null;
@@ -91,7 +92,63 @@ function simulatedHouseFootprint(lat: number, lng: number): AreaFeature {
   ]]) as AreaFeature;
 }
 
-function selectMowArea(lawn: AreaFeature, parcel: AreaFeature, lat: number, lng: number, area: AreaSelection): AreaFeature | null {
+function expandHouseFootprint(house: AreaFeature): AreaFeature {
+  try {
+    const buffered = turf.buffer(house as any, 1.5, { units: "meters" });
+    return asAreaFeature(buffered) ?? house;
+  } catch {
+    return house;
+  }
+}
+
+async function getNearestRoadPoint(lat: number, lng: number, parcel: AreaFeature): Promise<LatLngPoint | null> {
+  const query = `
+    [out:json][timeout:25];
+    way["highway"]["highway"!~"footway|path|cycleway|steps|track"](around:140,${lat},${lng});
+    out geom;
+  `;
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 3500);
+
+  try {
+    const response = await fetch("https://overpass-api.de/api/interpreter", {
+      method: "POST",
+      headers: { "Content-Type": "text/plain" },
+      body: query,
+      cache: "no-store",
+      signal: controller.signal,
+    });
+    if (!response.ok) return null;
+    const payload = await response.json();
+    const parcelCenter = turf.center(parcel as any);
+    let nearest: { point: LatLngPoint; distance: number } | null = null;
+
+    for (const element of Array.isArray(payload?.elements) ? payload.elements : []) {
+      const vertices = Array.isArray(element?.geometry) ? element.geometry : [];
+      if (vertices.length < 2) continue;
+      const coordinates = vertices.map((vertex: any) => [Number(vertex.lon), Number(vertex.lat)]);
+      if (coordinates.some((position: number[]) => !Number.isFinite(position[0]) || !Number.isFinite(position[1]))) continue;
+      const road = turf.lineString(coordinates);
+      const closest = turf.nearestPointOnLine(road, parcelCenter, { units: "meters" });
+      const distance = Number(closest.properties?.dist);
+      if (!Number.isFinite(distance)) continue;
+      const candidate = {
+        point: { lat: closest.geometry.coordinates[1], lng: closest.geometry.coordinates[0] },
+        distance,
+      };
+      if (!nearest || candidate.distance < nearest.distance) nearest = candidate;
+    }
+
+    return nearest?.point ?? null;
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+function selectMowArea(lawn: AreaFeature, parcel: AreaFeature, lat: number, lng: number, area: AreaSelection, roadPoint: LatLngPoint | null): AreaFeature | null {
   if (area === "front_back") return lawn;
   const [west, south, east, north] = turf.bbox(parcel as any);
   const width = Math.abs(east - west);
@@ -100,8 +157,8 @@ function selectMowArea(lawn: AreaFeature, parcel: AreaFeature, lat: number, lng:
   const splitLng = parcelCenter[0];
   const splitLat = parcelCenter[1];
   const useVerticalSplit = height >= width;
-  const addressIsSouthOrWest = useVerticalSplit ? lat <= splitLat : lng <= splitLng;
-  const frontIsLowerSide = addressIsSouthOrWest;
+  const frontReference = roadPoint ?? { lat, lng };
+  const frontIsLowerSide = useVerticalSplit ? frontReference.lat <= splitLat : frontReference.lng <= splitLng;
   const wantFront = area === "front_only";
   const useLowerSide = wantFront ? frontIsLowerSide : !frontIsLowerSide;
   const clipBox = useVerticalSplit
@@ -277,8 +334,10 @@ export async function GET(request: Request) {
       warning = APPROXIMATE_WARNING;
     }
 
-    const fullLawn = subtractFootprint(parcel, house);
-    const jardin = fullLawn ? selectMowArea(fullLawn, parcel, latitude, longitude, areaSelection) : null;
+    const houseFootprint = expandHouseFootprint(house);
+    const fullLawn = subtractFootprint(parcel, houseFootprint);
+    const roadPoint = areaSelection === "front_back" ? null : await getNearestRoadPoint(latitude, longitude, parcel);
+    const jardin = fullLawn ? selectMowArea(fullLawn, parcel, latitude, longitude, areaSelection, roadPoint) : null;
     if (!jardin?.geometry) {
       return NextResponse.json({ ok: false, error: LAWN_COMPUTE_ERROR, formattedAddress, latitude, longitude, warning }, { status: 422 });
     }
