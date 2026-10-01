@@ -80,9 +80,11 @@ async function getOverpassHouseFootprint(lat: number, lng: number): Promise<Area
 }
 
 function simulatedHouseFootprint(lat: number, lng: number): AreaFeature {
-  const sideMeters = Math.sqrt(1200 * 0.09290304);
-  const latDelta = sideMeters / 111320;
-  const lngDelta = sideMeters / (111320 * Math.cos((lat * Math.PI) / 180));
+  const areaSqM = 2600 * 0.09290304;
+  const depthMeters = Math.sqrt(areaSqM * 0.8);
+  const widthMeters = areaSqM / depthMeters;
+  const latDelta = depthMeters / 111320;
+  const lngDelta = widthMeters / (111320 * Math.cos((lat * Math.PI) / 180));
   return turf.polygon([[
     [lng - lngDelta / 2, lat - latDelta / 2],
     [lng + lngDelta / 2, lat - latDelta / 2],
