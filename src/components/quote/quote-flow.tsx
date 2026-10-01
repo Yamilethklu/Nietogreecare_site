@@ -204,7 +204,7 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
         const measurement = buildMeasurement(polygons[0], areaSqFt, 2, 19, polygons, parcelPolygons.length ? parcelPolygons : undefined, payload.poligonoJardin);
         if (center) measurement.center = center;
         store.setMeasurement(measurement);
-        setMeasurementWarning(payload.warning || "");
+        setMeasurementWarning("");
       })
       .catch((error: unknown) => {
         if (!cancelled) {
@@ -477,7 +477,6 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
               <PropertySatellite address={store.address} latitude={store.latitude} longitude={store.longitude} isEs={isEs} compact polygon={polygon} geometry={lawnGeometry} parcelPolygons={store.measurement?.parcelPolygons} center={markerCenter} loadingText={isEs ? "Analizando tu propiedad por satélite..." : "Analyzing your property by satellite..."} showMarker={false} />
             </div>
             <FieldError>{errors.measurement}</FieldError>
-            {measurementWarning && <div className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900">{measurementWarning}</div>}
             <div className="grid gap-3 text-sm sm:grid-cols-2">
               <p><strong>{isEs ? "Cliente" : "Customer"}:</strong> {store.customerName}</p><p><strong>{isEs ? "Teléfono" : "Phone"}:</strong> {store.customerPhone}</p>
               <p><strong>{isEs ? "Frecuencia" : "Frequency"}:</strong> {cadenceLabel}</p><p><strong>{isEs ? "Propiedad" : "Property"}:</strong> {store.propertyOccupancy === "occupied" ? (isEs ? "Ocupada" : "Occupied") : (isEs ? "Deshabitada" : "Vacant")}</p>
