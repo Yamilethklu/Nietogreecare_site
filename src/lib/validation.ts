@@ -57,7 +57,6 @@ export const measurementSchema = z.object({
   perimeterFt: z.number().min(0),
   polygon: z.array(polygonPointSchema).max(40).default([]),
   polygons: z.array(z.array(polygonPointSchema).min(3).max(40)).max(8).optional(),
-  parcelPolygons: z.array(z.array(polygonPointSchema).min(3).max(40)).max(8).optional(),
   gardenGeometry: gardenGeometrySchema.optional(),
   polygonPath: z.string().nullable().default(null),
   bounds: boundsSchema.nullable().default(null),
@@ -152,7 +151,6 @@ export const leadSubmissionSchema = z
       propertyOccupancy: z.enum(["occupied", "vacant"]),
     }),
   })
-  .refine((data) => data.paymentMethod !== "cash" || data.cashLocation.length > 2, { message: "Indique dónde dejará el efectivo.", path: ["cashLocation"] })
   .refine((data) => Boolean(data.gardenGeometry) || data.polygon.length >= 3, { message: "Marque el área del césped.", path: ["polygon"] })
   .refine((data) => !data.hasGateCode || data.gateCode.length > 0, {
     message: "Indique la contrasena del porton.",
