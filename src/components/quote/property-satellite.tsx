@@ -89,10 +89,10 @@ export function PropertySatellite({ address, latitude, longitude, isEs, compact 
           new window.google.maps.Polygon({
             map,
             paths,
-            strokeColor: "#f8fafc",
+            strokeColor: "#22c55e",
             strokeOpacity: 0.95,
-            strokeWeight: 2,
-            fillColor: "#f8fafc",
+            strokeWeight: 3,
+            fillColor: "#22c55e",
             fillOpacity: 0.08,
             clickable: false,
           });

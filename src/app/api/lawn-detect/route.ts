@@ -149,14 +149,14 @@ async function getNearestRoadPoint(lat: number, lng: number, parcel: AreaFeature
   }
 }
 
-function selectMowArea(lawn: AreaFeature, parcel: AreaFeature, lat: number, lng: number, area: AreaSelection, roadPoint: LatLngPoint | null): AreaFeature | null {
+function selectMowArea(lawn: AreaFeature, parcel: AreaFeature, house: AreaFeature, lat: number, lng: number, area: AreaSelection, roadPoint: LatLngPoint | null): AreaFeature | null {
   if (area === "front_back") return lawn;
   const [west, south, east, north] = turf.bbox(parcel as any);
   const width = Math.abs(east - west);
   const height = Math.abs(north - south);
-  const parcelCenter = turf.center(parcel as any).geometry.coordinates;
-  const splitLng = parcelCenter[0];
-  const splitLat = parcelCenter[1];
+  const houseCenter = turf.center(house as any).geometry.coordinates;
+  const splitLng = houseCenter[0];
+  const splitLat = houseCenter[1];
   const frontReference = roadPoint ?? { lat, lng };
   const wantFront = area === "front_only";
 
@@ -366,7 +366,7 @@ export async function GET(request: Request) {
     const houseFootprint = expandHouseFootprint(house);
     const fullLawn = subtractFootprint(parcel, houseFootprint);
     const roadPoint = areaSelection === "front_back" ? null : await getNearestRoadPoint(latitude, longitude, parcel);
-    const jardin = fullLawn ? selectMowArea(fullLawn, parcel, latitude, longitude, areaSelection, roadPoint) : null;
+    const jardin = fullLawn ? selectMowArea(fullLawn, parcel, houseFootprint, latitude, longitude, areaSelection, roadPoint) : null;
     if (!jardin?.geometry) {
       return NextResponse.json({ ok: false, error: LAWN_COMPUTE_ERROR, formattedAddress, latitude, longitude, warning }, { status: 422 });
     }
