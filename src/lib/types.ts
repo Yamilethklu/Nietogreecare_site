@@ -18,6 +18,7 @@ export type MapBounds = {
 };
 
 export type QuoteMeasurement = {
+  areaSelection?: "front_back" | "front_only" | "back_only";
   areaSqFt: number;
   areaSqYd: number;
   estimatedCubicYards: number;
