@@ -149,6 +149,56 @@ async function getNearestRoadPoint(lat: number, lng: number, parcel: AreaFeature
   }
 }
 
+function excludeSidewalkStrip(lawn: AreaFeature, parcel: AreaFeature, house: AreaFeature, roadPoint: LatLngPoint | null): AreaFeature {
+  if (!roadPoint) return lawn;
+  try {
+    const [west, south, east, north] = turf.bbox(parcel as any);
+    const width = Math.abs(east - west);
+    const height = Math.abs(north - south);
+    const span = Math.max(width, height) * 4;
+    const houseCenter = turf.center(house as any).geometry.coordinates;
+    const vectorLng = roadPoint.lng - houseCenter[0];
+    const vectorLat = roadPoint.lat - houseCenter[1];
+    const vectorLength = Math.hypot(vectorLng, vectorLat);
+    if (vectorLength <= 0) return lawn;
+
+    const unitLng = vectorLng / vectorLength;
+    const unitLat = vectorLat / vectorLength;
+    const sideLng = -unitLat * span;
+    const sideLat = unitLng * span;
+    const directionLng = unitLng * span;
+    const directionLat = unitLat * span;
+    const bearing = turf.bearing(turf.point(houseCenter), turf.point([roadPoint.lng, roadPoint.lat]));
+    const setbackPoint = turf.destination(turf.point(houseCenter), 2.4, bearing, { units: "meters" }).geometry.coordinates;
+    const setbackProjection = Math.abs((setbackPoint[0] - houseCenter[0]) * unitLng + (setbackPoint[1] - houseCenter[1]) * unitLat);
+    if (!Number.isFinite(setbackProjection) || setbackProjection <= 0) return lawn;
+
+    const parcelCoordinates = turf.coordAll(parcel as any);
+    const frontProjection = Math.max(
+      ...parcelCoordinates
+        .filter((position) => Number.isFinite(position[0]) && Number.isFinite(position[1]))
+        .map((position) => (position[0] - houseCenter[0]) * unitLng + (position[1] - houseCenter[1]) * unitLat),
+    );
+    if (!Number.isFinite(frontProjection)) return lawn;
+
+    const stripProjection = frontProjection - setbackProjection;
+    const stripLng = houseCenter[0] + unitLng * stripProjection;
+    const stripLat = houseCenter[1] + unitLat * stripProjection;
+    const sideA = [stripLng + sideLng, stripLat + sideLat];
+    const sideB = [stripLng - sideLng, stripLat - sideLat];
+    const sidewalkStrip = turf.polygon([[
+      sideA,
+      sideB,
+      [sideB[0] + directionLng, sideB[1] + directionLat],
+      [sideA[0] + directionLng, sideA[1] + directionLat],
+      sideA,
+    ]]) as AreaFeature;
+    return subtractFootprint(lawn, sidewalkStrip) ?? lawn;
+  } catch {
+    return lawn;
+  }
+}
+
 function selectMowArea(lawn: AreaFeature, parcel: AreaFeature, house: AreaFeature, lat: number, lng: number, area: AreaSelection, roadPoint: LatLngPoint | null): AreaFeature | null {
   if (area === "front_back") return lawn;
   const [west, south, east, north] = turf.bbox(parcel as any);
@@ -374,8 +424,9 @@ export async function GET(request: Request) {
 
     const houseFootprint = expandHouseFootprint(house);
     const fullLawn = subtractFootprint(parcel, houseFootprint);
-    const roadPoint = areaSelection === "front_back" ? null : await getNearestRoadPoint(latitude, longitude, parcel);
-    const jardin = fullLawn ? selectMowArea(fullLawn, parcel, houseFootprint, latitude, longitude, areaSelection, roadPoint) : null;
+    const roadPoint = await getNearestRoadPoint(latitude, longitude, parcel);
+    const mowableLawn = fullLawn ? excludeSidewalkStrip(fullLawn, parcel, houseFootprint, roadPoint) : null;
+    const jardin = mowableLawn ? selectMowArea(mowableLawn, parcel, houseFootprint, latitude, longitude, areaSelection, roadPoint) : null;
     if (!jardin?.geometry) {
       return NextResponse.json({ ok: false, error: LAWN_COMPUTE_ERROR, formattedAddress, latitude, longitude, warning }, { status: 422 });
     }
