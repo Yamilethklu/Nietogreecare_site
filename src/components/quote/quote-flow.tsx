@@ -164,6 +164,10 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
   }, [gateAnswer, store.completedSteps, store.hasGateCode, store.step]);
 
   React.useEffect(() => {
+    if (store.measurement?.areaSelection && store.measurement.areaSelection !== store.areaSelection) {
+      store.clearMeasurement();
+      return;
+    }
     if (store.step !== 5 || store.measurement || store.latitude == null || store.longitude == null) return;
     let cancelled = false;
     setErrors((current) => ({ ...current, measurement: "" }));
@@ -202,6 +206,7 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
           });
         }
         const measurement = buildMeasurement(polygons[0], areaSqFt, 2, 19, polygons, parcelPolygons.length ? parcelPolygons : undefined, payload.poligonoJardin);
+        measurement.areaSelection = store.areaSelection;
         if (center) measurement.center = center;
         store.setMeasurement(measurement);
         setMeasurementWarning("");
@@ -228,6 +233,7 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
     store.longitude,
     store.measurement,
     store.areaSelection,
+    store.clearMeasurement,
     store.setAddress,
     store.setMeasurement,
     store.step,
@@ -431,6 +437,7 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
                   <button type="button" aria-pressed={store.hasPetsInBackyard} onClick={() => store.setPersonal({ hasPetsInBackyard: true })} className={`rounded-lg border px-5 py-2 font-semibold ${store.hasPetsInBackyard ? "border-emerald-700 bg-emerald-700 text-white" : "border-slate-300 bg-white text-slate-800"}`}>{isEs ? "Sí" : "Yes"}</button>
                   <button type="button" aria-pressed={!store.hasPetsInBackyard} onClick={() => store.setPersonal({ hasPetsInBackyard: false })} className={`rounded-lg border px-5 py-2 font-semibold ${!store.hasPetsInBackyard ? "border-emerald-700 bg-emerald-700 text-white" : "border-slate-300 bg-white text-slate-800"}`}>{isEs ? "No" : "No"}</button>
                 </div>
+                {store.hasPetsInBackyard && <p className="mt-3 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900">{isEs ? "Por favor, deje a sus mascotas dentro de casa el día del servicio." : "Please keep your pets inside the house on service day."}</p>}
               </fieldset>
             </div>
           </section>}
