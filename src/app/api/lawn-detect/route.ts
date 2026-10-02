@@ -10,7 +10,6 @@ const REGRID_TOKEN = process.env.REGRID_TOKEN || process.env.REGRID_API_TOKEN ||
 const NO_PARCEL_ERROR = "No hay datos catastrales para esta dirección";
 const LAWN_COMPUTE_ERROR = "No se pudo calcular el área del jardín";
 const INVALID_LAWN_ERROR = "El área del jardín no es válida";
-const APPROXIMATE_WARNING = "Aviso: la huella de la casa no está disponible, el área es aproximada";
 const LAWN_DETECTION_UNAVAILABLE = "lawn_detection_unavailable";
 const LAWN_DETECTION_FAILED = "lawn_detection_failed";
 const GEOCODE_NOT_FOUND = "geocode_not_found";
@@ -362,7 +361,6 @@ export async function GET(request: Request) {
     if (!house) {
       house = simulatedHouseFootprint(latitude, longitude);
       simulated = true;
-      warning = APPROXIMATE_WARNING;
     }
 
     const houseFootprint = expandHouseFootprint(house);
