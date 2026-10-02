@@ -155,21 +155,30 @@ function selectMowArea(lawn: AreaFeature, parcel: AreaFeature, house: AreaFeatur
   const width = Math.abs(east - west);
   const height = Math.abs(north - south);
   const houseCenter = turf.center(house as any).geometry.coordinates;
-  const splitLng = houseCenter[0];
-  const splitLat = houseCenter[1];
+  const fallbackSplitLng = houseCenter[0];
+  const fallbackSplitLat = houseCenter[1];
   const frontReference = roadPoint ?? { lat, lng };
   const wantFront = area === "front_only";
 
   try {
-    const vectorLng = frontReference.lng - splitLng;
-    const vectorLat = frontReference.lat - splitLat;
+    const vectorLng = frontReference.lng - houseCenter[0];
+    const vectorLat = frontReference.lat - houseCenter[1];
     const vectorLength = Math.hypot(vectorLng, vectorLat);
     if (vectorLength > 0) {
       const span = Math.max(width, height) * 4;
-      const directionLng = (vectorLng / vectorLength) * span;
-      const directionLat = (vectorLat / vectorLength) * span;
-      const sideLng = (-vectorLat / vectorLength) * span;
-      const sideLat = (vectorLng / vectorLength) * span;
+      const unitLng = vectorLng / vectorLength;
+      const unitLat = vectorLat / vectorLength;
+      const directionLng = unitLng * span;
+      const directionLat = unitLat * span;
+      const sideLng = -unitLat * span;
+      const sideLat = unitLng * span;
+      const houseCoordinates = turf.coordAll(house as any);
+      const houseProjections = houseCoordinates
+        .filter((position) => Number.isFinite(position[0]) && Number.isFinite(position[1]))
+        .map((position) => (position[0] - houseCenter[0]) * unitLng + (position[1] - houseCenter[1]) * unitLat);
+      const splitProjection = wantFront ? Math.max(...houseProjections) : Math.min(...houseProjections);
+      const splitLng = houseCenter[0] + unitLng * splitProjection;
+      const splitLat = houseCenter[1] + unitLat * splitProjection;
       const sideA = [splitLng + sideLng, splitLat + sideLat];
       const sideB = [splitLng - sideLng, splitLat - sideLat];
       const direction = wantFront ? 1 : -1;
@@ -189,15 +198,15 @@ function selectMowArea(lawn: AreaFeature, parcel: AreaFeature, house: AreaFeatur
   }
 
   const useVerticalSplit = height >= width;
-  const frontIsLowerSide = useVerticalSplit ? frontReference.lat <= splitLat : frontReference.lng <= splitLng;
+  const frontIsLowerSide = useVerticalSplit ? frontReference.lat <= fallbackSplitLat : frontReference.lng <= fallbackSplitLng;
   const useLowerSide = wantFront ? frontIsLowerSide : !frontIsLowerSide;
   const clipBox = useVerticalSplit
     ? useLowerSide
-      ? [west, south, east, splitLat]
-      : [west, splitLat, east, north]
+      ? [west, south, east, fallbackSplitLat]
+      : [west, fallbackSplitLat, east, north]
     : useLowerSide
-      ? [west, south, splitLng, north]
-      : [splitLng, south, east, north];
+      ? [west, south, fallbackSplitLng, north]
+      : [fallbackSplitLng, south, east, north];
   try {
     const clipped = turf.bboxClip(lawn as any, clipBox as any);
     const feature = asAreaFeature(clipped);
