@@ -3,28 +3,31 @@ import { z } from 'zod';
 import { requireAdmin } from '@/lib/admin-api';
 import { getSupabaseAdminClient } from '@/lib/supabase/admin';
 import { extendPlans } from '@/lib/operations/server';
+import { listAll } from '@/lib/operations/list';
 import { nextSlot, texasToday } from '@/lib/operations/schedule';
 import { manualLeadSchema, orderUpdateSchema, planSchema, workerSchema } from '@/lib/operations/validation';
 import type { ServicePlan, WorkOrder } from '@/lib/operations/types';
 export const runtime='nodejs';
 const uuid=z.string().uuid();
 const fail=(message:string,status=422)=>NextResponse.json({ok:false,error:message},{status});
-async function authorized(){const gate=await requireAdmin();return {response:gate.response,db:getSupabaseAdminClient()};}
+async function authorized(request:Request){const gate=await requireAdmin(request);return {response:gate.response,db:getSupabaseAdminClient()};}
 const isMissingOpsTable=(message?:string)=>Boolean(message&&(/schema cache/i.test(message)||/could not find the table/i.test(message)||/does not exist/i.test(message))&&/(crew_members|service_plans|work_orders|work_invoices)/i.test(message));
-export async function GET(){const {response,db}=await authorized();if(response)return response;if(!db)return fail('Base de datos no configurada.',503);
+export async function GET(request:Request){const {response,db}=await authorized(request);if(response)return response;if(!db)return fail('Base de datos no configurada.',503);
+ const {error:refreshError}=await db.rpc('refresh_recurring_visits');
+ if(refreshError)return fail('No se pudo actualizar la agenda recurrente.',503);
  const [crew,plans,orders,invoices,leads]=await Promise.all([
-  db.from('crew_members').select('*').order('full_name'),
-  db.from('service_plans').select('*').order('created_at',{ascending:false}),
-  db.from('work_orders').select('*').order('service_date',{ascending:false}).limit(1000),
-  db.from('work_invoices').select('*').order('created_at',{ascending:false}).limit(1000),
-  db.from('leads').select('id,reference_code,customer_name,customer_phone,customer_email,address,city,zip_code,final_price,requested_date,details,additional_notes,has_gate_code,gate_code').order('created_at',{ascending:false}).limit(1000)
+  listAll(db,'crew_members','*','full_name'),
+  listAll(db,'service_plans'),
+  listAll(db,'work_orders','*','service_date'),
+  listAll(db,'work_invoices'),
+  listAll(db,'leads','id,customer_id,reference_code,customer_name,customer_phone,customer_email,address,city,zip_code,final_price,requested_date,details,additional_notes,has_gate_code,gate_code,selected_services')
  ]);
  const err=[crew,plans,orders,invoices,leads].find(x=>x.error)?.error;
  if(err&&isMissingOpsTable(err.message))return NextResponse.json({ok:true,data:{crew:[],plans:[],orders:[],invoices:[],leads:leads.data??[]},warning:'La agenda de casas y trabajos todavía no está activada en Supabase. El panel principal puede usarse normalmente.'},{headers:{'Cache-Control':'no-store'}});
  if(err)return fail('La agenda aún no está disponible en la base de datos: '+err.message,503);
  return NextResponse.json({ok:true,data:{crew:crew.data??[],plans:plans.data??[],orders:orders.data??[],invoices:invoices.data??[],leads:leads.data??[]}},{headers:{'Cache-Control':'no-store'}});
 }
-export async function POST(request:Request){const {response,db}=await authorized();if(response)return response;if(!db)return fail('Base de datos no configurada.',503);
+export async function POST(request:Request){const {response,db}=await authorized(request);if(response)return response;if(!db)return fail('Base de datos no configurada.',503);
  const body=await request.json().catch(()=>null);if(!body||typeof body.action!=='string')return fail('Acción inválida.');
  if(body.action==='worker'){
   const parsed=workerSchema.safeParse(body.worker);if(!parsed.success)return fail('Nombre y correo del trabajador inválidos.');
@@ -71,7 +74,7 @@ export async function POST(request:Request){const {response,db}=await authorized
   if((changes.paid_amount??Number(current.paid_amount))>0&&!(changes.payment_method??current.payment_method))return fail('Indique cómo pagó el cliente.');
   if(changes.status==='completed'&&current.status!=='completed')Object.assign(changes,{completed_at:new Date().toISOString()});
   if(changes.status&&changes.status!=='completed'&&current.status==='completed')Object.assign(changes,{completed_at:null});
-  if(changes.paid_amount!==undefined)Object.assign(changes,{paid_at:changes.paid_amount===Number(current.price)?new Date().toISOString():null});
+  if(changes.paid_amount!==undefined)Object.assign(changes,{paid_at:changes.paid_amount===nextPrice?new Date().toISOString():null});
   const date=changes.service_date??current.service_date,worker=changes.crew_member_id===undefined?current.crew_member_id:changes.crew_member_id;
   const start=changes.start_time??current.start_time,duration=changes.duration_minutes??current.duration_minutes;
   if(changes.service_date||changes.start_time||changes.duration_minutes||changes.crew_member_id!==undefined){
@@ -81,7 +84,7 @@ export async function POST(request:Request){const {response,db}=await authorized
    try {const slot=nextSlot(date,start,duration,worker,conflicts as WorkOrder[]);if(slot.start_time.slice(0,5)!==start.slice(0,5))return fail('Este horario se superpone con otra casa asignada al trabajador.');}catch(e){return fail(e instanceof Error?e.message:'Horario inválido.');}
   }
   const {data,error}=await db.from('work_orders').update(changes).eq('id',id).select().single();if(error)return fail(error.message);
-  if(changes.price!==undefined){await db.from('work_invoices').update({total:changes.price}).eq('order_id',id);}
+  if(changes.price!==undefined && changes.price!==Number(current.price)){await db.from('work_invoices').update({total:changes.price}).eq('order_id',id).is('sent_at',null);}
   return NextResponse.json({ok:true,data});
  }
  return fail('Acción no reconocida.');

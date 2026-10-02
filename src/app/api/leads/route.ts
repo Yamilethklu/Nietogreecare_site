@@ -4,7 +4,7 @@ import { NextResponse } from "next/server";
 import * as turf from "@turf/turf";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import { notifyOwnerOfLead } from "@/lib/notifications";
-import { isDateCoveredForCity, isDateTodayOrLaterInAustin } from "@/lib/service-schedule";
+import { isInitialServiceDate } from "@/lib/service-schedule";
 import { formatZodErrors, leadSubmissionSchema } from "@/lib/validation";
 
 export const runtime = "nodejs";
@@ -14,11 +14,7 @@ export async function POST(request: Request) {
   if (!parsed.success) return NextResponse.json({ ok:false, error:"Revise los campos requeridos.", errors:formatZodErrors(parsed.error) }, { status:422 });
   const d=parsed.data; const supabase=getSupabaseAdminClient();
   if (!supabase) return NextResponse.json({ok:false,error:"La conexión de base de datos no está configurada."},{status:503});
-  if (!isDateTodayOrLaterInAustin(d.requestedDate)) return NextResponse.json({ok:false,error:"Seleccione una fecha de hoy o posterior."},{status:422});
-  if (!isDateCoveredForCity(d.requestedDate, d.city)) return NextResponse.json({ok:false,error:"La fecha seleccionada no coincide con la ruta de servicio para su ciudad."},{status:422});
-  const {data:occupied,error:availabilityError}=await supabase.from("leads").select("id").eq("requested_date",d.requestedDate).neq("status","cancelled").limit(1);
-  if (availabilityError) return NextResponse.json({ok:false,error:"No se pudo validar la disponibilidad."},{status:503});
-  if (occupied?.length) return NextResponse.json({ok:false,error:"Ese día acaba de ocuparse. Seleccione otra fecha disponible."},{status:409});
+  if (!isInitialServiceDate(d.requestedDate, d.city)) return NextResponse.json({ok:false,error:"Seleccione una fecha del 1 al 14, de hoy en adelante y con cobertura para su ciudad."},{status:422});
   const polygons = d.polygons?.length ? d.polygons : [d.polygon];
   const area = d.gardenGeometry
     ? turf.area(turf.feature(d.gardenGeometry)) * 10.7639
@@ -33,14 +29,14 @@ export async function POST(request: Request) {
   if (ratesError) return NextResponse.json({ok:false,error:"No se pudieron obtener los precios."},{status:503});
   const rule = matchMowRate(rules ?? [],area,d.quoteOptions.mowFrequency);
   if (!rule) return NextResponse.json({ok:false,error:"Todavía no hay un precio configurado para esta medida y frecuencia. Contáctenos para recibir ayuda."},{status:422});
-  const price = Number(rule.price);
+  const price = Number(rule.price) + (d.quoteOptions.bagGrass ? 10 : 0);
   if (Math.abs(price - d.quotedPrice) > 0.001) return NextResponse.json({ok:false,error:"La tarifa cambió desde que abrió el cotizador. Revise el nuevo precio y confirme de nuevo."},{status:409});
   if (!Number.isFinite(price) || price <= 0) return NextResponse.json({ok:false,error:"Tarifa no disponible."},{status:422});
   const {data:lead,error}=await supabase.from("leads").insert({
     reference_code:d.referenceCode,address:d.address,formatted_address:d.formattedAddress,zip_code:d.zipCode,city:d.city,state:d.state,place_id:d.placeId,latitude:d.latitude,longitude:d.longitude,
     area_sq_ft:Math.round(area*100)/100,area_sq_yd:Math.round(area/9*100)/100,estimated_cubic_yards:0,depth_inches:d.depthInches,polygon:d.gardenGeometry ?? polygons,polygon_path:d.polygonPath,snapshot_url:d.snapshotUrl,map_bounds:d.mapBounds,
     has_gate_code:d.hasGateCode,gate_code:d.hasGateCode?d.gateCode:null,requested_date:d.requestedDate,requested_time_window:d.requestedTimeWindow,selected_services:d.selectedServices,service_count:d.selectedServices.length,
-    customer_name:d.customerName,customer_phone:d.customerPhone,customer_email:d.customerEmail||null,details:d.details,additional_notes:d.additionalNotes,payment_method:d.paymentMethod === "cash" ? "cash" : "transfer",final_price:price
+    customer_name:d.customerName,customer_phone:d.customerPhone,customer_email:d.customerEmail||null,details:d.details,additional_notes:d.additionalNotes,payment_method:d.paymentMethod === "cash" ? "cash" : "transfer",final_price:price,quote_options:d.quoteOptions
   }).select().single();
   if(error || !lead) return NextResponse.json({ok:false,error:"No se pudo guardar la solicitud."},{status:500});
   const notice=await notifyOwnerOfLead(lead,{adminUrl:`${process.env.NEXT_PUBLIC_SITE_URL||""}/admin`});

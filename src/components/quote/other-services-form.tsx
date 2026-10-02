@@ -70,7 +70,16 @@ export function OtherServicesForm() {
       .filter(Boolean)
       .join("\n");
 
-    window.location.href = `${BUSINESS.smsHref}?body=${encodeURIComponent(body)}`;
+    try {
+      const response = await fetch("/api/other-services", {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({services:selectedJobs,name,address,phone,email,comments})});
+      const result = await response.json();
+      if (!response.ok || !result.ok) throw new Error(result.error || (isEs ? "No se pudo guardar la solicitud." : "Could not save your request."));
+      window.location.href = `${BUSINESS.smsHref}?body=${encodeURIComponent(body)}`;
+    } catch (error) {
+      setSaveError(error instanceof Error ? error.message : "Error");
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (

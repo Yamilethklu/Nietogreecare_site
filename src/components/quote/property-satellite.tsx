@@ -93,7 +93,7 @@ export function PropertySatellite({ address, latitude, longitude, isEs, compact 
             strokeOpacity: 0.95,
             strokeWeight: 3,
             fillColor: "#22c55e",
-            fillOpacity: 0.08,
+            fillOpacity: 0,
             clickable: false,
           });
         }

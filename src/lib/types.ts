@@ -27,6 +27,8 @@ export type QuoteMeasurement = {
   polygon: PolygonPoint[];
   polygons?: PolygonPoint[][];
   parcelPolygons?: PolygonPoint[][];
+  geometryVersion?: number;
+  warning?: string;
   lawnGeometry?: LawnGeoJsonGeometry;
   polygonPath: string | null;
   bounds: MapBounds | null;

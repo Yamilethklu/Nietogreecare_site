@@ -14,7 +14,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FieldError, Input, Label, Textarea } from "@/components/ui/input";
 import { BUSINESS, SERVICES, ZIP_CITY_MAP } from "@/lib/constants";
 import { matchMowRate, type MowRate } from "@/lib/instant-pricing";
-import { getCoverageCitiesForWeekday } from "@/lib/service-schedule";
+import { texasToday } from "@/lib/operations/schedule";
+import { getCoverageCitiesForWeekday, isInitialServiceDate } from "@/lib/service-schedule";
 import { formatZodErrors, phoneSchema, step1Schema } from "@/lib/validation";
 import type { LawnGeoJsonGeometry, PaymentMethod, PolygonPoint } from "@/lib/types";
 import { buildMeasurement, pickSubmissionFields, TOTAL_STEPS, useQuoteStore, type MowFrequency, type QuoteStore } from "@/store/quote-store";
@@ -67,6 +68,8 @@ function resolveMeasurementError(error: string | undefined, isEs: boolean) {
       return isEs ? error : "Could not calculate the lawn area.";
     case INVALID_LAWN_ERROR:
       return isEs ? error : "The lawn area is not valid.";
+    case "building_footprint_unavailable":
+      return isEs ? "No hay una huella real de la casa disponible para calcular esta propiedad. Contacte al propietario para verificar la medida." : "No reliable building footprint is available for this property. Contact the owner to verify the measurement.";
     case "geocode_not_found":
       return isEs ? "No se pudo geocodificar esta dirección." : "Could not geocode this address.";
     case "lawn_detection_unavailable":
@@ -164,7 +167,7 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
   }, [gateAnswer, store.completedSteps, store.hasGateCode, store.step]);
 
   React.useEffect(() => {
-    if (store.measurement?.areaSelection && store.measurement.areaSelection !== store.areaSelection) {
+    if (store.measurement && (store.measurement.geometryVersion !== 2 || store.measurement.areaSelection !== store.areaSelection)) {
       store.clearMeasurement();
       return;
     }
@@ -207,6 +210,9 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
         }
         const measurement = buildMeasurement(polygons[0], areaSqFt, 2, 19, polygons, parcelPolygons.length ? parcelPolygons : undefined, payload.poligonoJardin);
         measurement.areaSelection = store.areaSelection;
+        measurement.geometryVersion = 2;
+        measurement.warning = payload.warning;
+        setMeasurementWarning(payload.warning || "");
         if (center) measurement.center = center;
         store.setMeasurement(measurement);
         setMeasurementWarning("");
@@ -241,7 +247,8 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
   ]);
 
   const rate = matchMowRate(rates, store.measurement?.areaSqFt ?? 0, store.mowFrequency);
-  const price = rate ? Number(rate.price) : null;
+  const price = rate ? Number(rate.price) + (store.bagGrass ? 10 : 0) : null;
+  const weeklyRate = matchMowRate(rates, store.measurement?.areaSqFt ?? 0, "weekly");
   const { descriptive: frequencyLabel, cadence: cadenceLabel } = getMowFrequencyLabels(store.mowFrequency, isEs);
   const resolveCoordinates = async () => {
     const current = useQuoteStore.getState();
@@ -310,7 +317,7 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
       setErrors({ requestedDate: isEs ? "No se pudo determinar la ciudad. Regrese al paso 1 y confirme su dirección y código postal." : "Could not determine the city. Go back to Step 1 and confirm your address and ZIP code." });
       return;
     }
-    if (current.step === 6 && !current.requestedDate) {
+    if (current.step === 6 && (!current.requestedDate || !isInitialServiceDate(current.requestedDate,current.city))) {
       setErrors({ requestedDate: isEs ? "Seleccione el día preferido para el corte." : "Choose your preferred service date." });
       return;
     }
@@ -480,10 +487,16 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
           {store.step === 5 && <section className="space-y-6">
             {measurementLoading && <p className="rounded-lg bg-slate-100 px-4 py-3 text-sm font-semibold text-slate-700">{isEs ? "Analizando tu propiedad por satélite..." : "Analyzing your property by satellite..."}</p>}
             <div className="grid gap-5 border-b border-emerald-100 pb-5 sm:grid-cols-[1fr_1fr]">
-              <div><h2 className="text-2xl font-extrabold text-emerald-950">{isEs ? "5. Resumen de cotización" : "5. Quote summary"}</h2><p className="mt-3 text-2xl font-bold text-emerald-800">{price !== null ? `$${price.toFixed(2)} / ${cadenceLabel}` : ""}</p><p className="mt-2 text-sm text-slate-600">{store.address}</p></div>
+              <div><h2 className="text-2xl font-extrabold text-emerald-950">{isEs ? "5. Resumen de cotización" : "5. Quote summary"}</h2><p className="mt-3 text-2xl font-bold text-emerald-800">{price !== null ? `$${price.toFixed(2)} / ${cadenceLabel}` : ""}</p><p className="mt-2 text-sm text-slate-600">{store.address}</p>
+                <h3 className="mt-5 font-bold text-emerald-950">{isEs ? "Servicios incluidos" : "Included services"}</h3>
+                <ul className="mt-2 space-y-2 text-sm text-slate-900">{(isEs ? ["Corte de césped", "Recorte con desbrozadora", "Perfilado de bordes", "Limpieza con sopladora"] : ["Mow Lawn", "Line Trim", "Edge", "Blow Debris"]).map(label => <li key={label}>✓ {label}</li>)}</ul>
+                <label className="mt-4 flex cursor-pointer items-center gap-2 text-sm font-semibold text-slate-900"><input type="checkbox" checked={Boolean(store.bagGrass)} onChange={event => store.setLawnOptions({bagGrass:event.target.checked})} />{isEs ? "Recoger el césped en bolsas (+$10 por corte)" : "Bag Grass (+$10 per cut)"}</label>
+                {store.mowFrequency === "bi_weekly" && weeklyRate && rate && Number(weeklyRate.price) < Number(rate.price) && <div className="mt-5 rounded-lg border border-lime-400 bg-lime-50 p-4 text-slate-950"><p className="font-bold">{isEs ? "Ahorra por corte con el servicio semanal" : "Save per cut with weekly service"}</p><p className="mt-2">${(Number(weeklyRate.price) + (store.bagGrass ? 10 : 0)).toFixed(2)} {isEs ? "por corte, cada 7 días" : "per cut, every 7 days"}</p><Button type="button" className="mt-3" onClick={() => store.setLawnOptions({mowFrequency:"weekly",serviceFrequency:"ongoing"})}>{isEs ? "Cambiar a semanal" : "Switch to weekly"}</Button></div>}
+              </div>
               <PropertySatellite address={store.address} latitude={store.latitude} longitude={store.longitude} isEs={isEs} compact polygon={polygon} geometry={lawnGeometry} parcelPolygons={store.measurement?.parcelPolygons} center={markerCenter} loadingText={isEs ? "Analizando tu propiedad por satélite..." : "Analyzing your property by satellite..."} showMarker={false} />
             </div>
             <FieldError>{errors.measurement}</FieldError>
+            {(measurementWarning || store.measurement?.warning) && <p className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">{isEs ? "La casa se excluye con datos de edificios. La banqueta y la división frente/atrás requieren verificación; el área es estimada." : "The house is excluded using building data. Sidewalk boundaries and the front/back split require verification; the area is estimated."}</p>}
             <div className="grid gap-3 text-sm sm:grid-cols-2">
               <p><strong>{isEs ? "Cliente" : "Customer"}:</strong> {store.customerName}</p><p><strong>{isEs ? "Teléfono" : "Phone"}:</strong> {store.customerPhone}</p>
               <p><strong>{isEs ? "Frecuencia" : "Frequency"}:</strong> {cadenceLabel}</p><p><strong>{isEs ? "Propiedad" : "Property"}:</strong> {store.propertyOccupancy === "occupied" ? (isEs ? "Ocupada" : "Occupied") : (isEs ? "Deshabitada" : "Vacant")}</p>
@@ -547,14 +560,8 @@ function Confirmation({ isEs, store, price, onReset }: { isEs: boolean; store: Q
 
 function MowingCalendar({ selected, city, isEs, onSelect, price }: { selected: string | null; city: string; isEs: boolean; onSelect: (date: string) => void; price: number | null }) {
   const normalizeCityKey = (value: string) => value.toLocaleLowerCase("en-US").replace(/[^a-z]/g, "");
-  const todayISO = () => {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-  };
+  const todayISO = texasToday;
   const [monthOffset, setMonthOffset] = React.useState(0);
-  const [occupiedDates, setOccupiedDates] = React.useState<Set<string>>(new Set());
-  const [availabilityReady, setAvailabilityReady] = React.useState(true);
-  const availabilityCacheRef = React.useRef<Record<string, string[]>>({});
   const now = new Date();
   const month = new Date(now.getFullYear(), now.getMonth() + monthOffset, 1);
   const firstDay = (month.getDay() + 6) % 7;
@@ -563,39 +570,6 @@ function MowingCalendar({ selected, city, isEs, onSelect, price }: { selected: s
   const monthKey = `${month.getFullYear()}-${String(month.getMonth() + 1).padStart(2, "0")}`;
   const cityQuery = city.trim();
   const normalizedCity = normalizeCityKey(city.trim());
-  const availabilityKey = `${monthKey}:${normalizedCity || "unknown"}`;
-
-  React.useEffect(() => {
-    let cancelled = false;
-    const cachedDates = availabilityCacheRef.current[availabilityKey];
-    if (cachedDates) {
-      setAvailabilityReady(true);
-      setOccupiedDates(new Set(cachedDates));
-      return () => { cancelled = true; };
-    }
-    setAvailabilityReady(false);
-    void fetch(`/api/availability?month=${monthKey}&city=${encodeURIComponent(cityQuery)}`, { cache: "no-store" })
-      .then(async (response) => {
-        const payload = (await response.json().catch(() => ({}))) as AvailabilityResponse;
-        if (!response.ok || !payload.ok) throw new Error("availability");
-        return payload.occupiedDates ?? [];
-      })
-      .then((dates) => {
-        availabilityCacheRef.current[availabilityKey] = dates;
-        if (!cancelled) {
-          setOccupiedDates(new Set(dates));
-          setAvailabilityReady(true);
-        }
-      })
-      .catch(() => {
-        delete availabilityCacheRef.current[availabilityKey];
-        if (!cancelled) {
-          setAvailabilityReady(false);
-          setOccupiedDates(new Set());
-        }
-      });
-    return () => { cancelled = true; };
-  }, [availabilityKey, cityQuery, monthKey]);
 
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-6" aria-label={isEs ? "Calendario de corte" : "Mowing calendar"}>
@@ -616,8 +590,8 @@ function MowingCalendar({ selected, city, isEs, onSelect, price }: { selected: s
             ? getCoverageCitiesForWeekday(weekday).some((coveredCity) => normalizeCityKey(coveredCity) === normalizedCity)
             : false;
           const isOutOfZone = isWeekend || !isCovered;
-          const isOccupied = occupiedDates.has(iso);
-          const disabled = iso < todayISO() || isOutOfZone || (availabilityReady && isOccupied);
+          const isOccupied = false;
+          const disabled = iso < todayISO() || isOutOfZone || index + 1 > 14;
           const occupiedClass = isOccupied ? "border-red-300 bg-red-50 text-red-700 line-through" : "";
           const unavailableClass = !isOccupied && disabled ? "border-slate-100 bg-slate-50 text-slate-300" : "";
           const selectedClass = selected === iso && !disabled ? "border-green-500 bg-emerald-50 text-emerald-900 ring-2 ring-emerald-200" : "";
@@ -634,8 +608,8 @@ function MowingCalendar({ selected, city, isEs, onSelect, price }: { selected: s
       </div>
       <div className="mt-4 space-y-1 text-xs text-slate-500">
         <p>{isEs ? "Días fuera de zona y fines de semana aparecen en gris." : "Out-of-zone days and weekends appear in gray."}</p>
-        <p>{isEs ? "Días ocupados aparecen en rojo y tachados." : "Occupied days appear in red with strikethrough."}</p>
-        {!availabilityReady && <p className="font-semibold text-amber-700">{isEs ? "No se pudo cargar la disponibilidad. Intente nuevamente en unos segundos." : "Could not load availability. Please try again in a few seconds."}</p>}
+        <p>{isEs ? "El primer servicio se puede elegir del día 1 al 14 de cada mes. Sin límite de solicitudes por día." : "Choose the first service between the 1st and 14th of each month. No daily booking limit."}</p>
+
       </div>
     </div>
   );

@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { futureVisits, nextSlot, addDays } from '../src/lib/operations/schedule.ts';
+import schedule from '../src/lib/operations/schedule.ts';
+const { futureVisits, nextSlot, addDays } = schedule;
 
 test('weekly and bi-weekly plans keep calendar dates across US daylight saving transitions', () => {
   assert.equal(addDays('2026-10-31', 7), '2026-11-07');

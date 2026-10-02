@@ -66,6 +66,7 @@ export type QuoteStateFields = {
   customerEmail: string;
   isCellphone: boolean;
   isGrassOver6: boolean;
+  bagGrass: boolean;
   isGrassOver12: boolean;
   hasCommunityGate: boolean;
   hasBackyardGate: boolean;
@@ -136,6 +137,7 @@ const initialFields: QuoteStateFields = {
   customerEmail: "",
   isCellphone: true,
   isGrassOver6: false,
+  bagGrass: false,
   isGrassOver12: false,
   hasCommunityGate: false,
   hasBackyardGate: false,
@@ -381,6 +383,7 @@ export function pickSubmissionFields(state: QuoteStore) {
     `Lote de esquina: ${state.isCornerLot ? "Sí" : "No"}`,
     `Es Celular: ${state.isCellphone ? "Sí" : "No"}`,
     `Grass > 6": ${state.isGrassOver6 ? "Sí" : "No"}`,
+    `Bag Grass (+$10): ${state.bagGrass ? "Sí" : "No"}`,
     `Portón comunidad: ${state.hasCommunityGate ? "Sí" : "No"}`,
     `Portón patio trasero: ${state.hasBackyardGate ? "Sí" : "No"}`,
     `Mascotas patio trasero: ${state.hasPetsInBackyard ? "Sí" : "No"}`,
@@ -423,6 +426,7 @@ export function pickSubmissionFields(state: QuoteStore) {
     quoteOptions: {
       serviceFrequency: state.serviceFrequency,
       mowFrequency: state.mowFrequency,
+      bagGrass: Boolean(state.bagGrass),
       areaSelection: state.areaSelection,
       isCornerLot: state.isCornerLot,
       propertyOccupancy: state.propertyOccupancy,

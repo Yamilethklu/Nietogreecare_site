@@ -17,7 +17,7 @@ export async function extendPlans(db:OpsDB, plans:ServicePlan[]) {
   for(const date of futureVisits(plan,all,plan.id,plan.first_date>horizon?plan.first_date:horizon,today)) {
    try {
     const slot=nextSlot(date,plan.preferred_start,plan.duration_minutes,plan.crew_member_id,all);
-    const order={plan_id:plan.id,lead_id:plan.lead_id,crew_member_id:plan.crew_member_id,...slot,status:'scheduled',price:Number(plan.price_per_visit),paid_amount:0};
+    const order={plan_id:plan.id,lead_id:plan.lead_id,crew_member_id:plan.crew_member_id,...slot,status:'scheduled',price:Number(plan.price_per_visit),paid_amount:0,notes:plan.notes};
     const {data,error:insertError}=await db.from('work_orders').upsert(order,{onConflict:'plan_id,service_date',ignoreDuplicates:true}).select().maybeSingle();
     if(insertError)throw Error(insertError.message);
     if(data){all.push(data as WorkOrder);created++;}
