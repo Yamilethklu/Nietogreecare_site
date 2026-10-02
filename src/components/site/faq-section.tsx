@@ -6,10 +6,11 @@ import { ChevronDown, HelpCircle } from "lucide-react";
 import { useLanguage } from "@/components/providers/language-provider";
 import { SectionHeading } from "@/components/site/section-heading";
 import { Card } from "@/components/ui/card";
+import { BUSINESS } from "@/lib/constants";
 
 type FAQItem = {
   question: string;
-  answer: string;
+  answer: React.ReactNode;
 };
 
 export function FaqSection() {
@@ -61,9 +62,17 @@ export function FaqSection() {
       question: isEs
         ? "¿Qué métodos de pago aceptan?"
         : "What payment methods do you accept?",
-      answer: isEs
-        ? "Aceptamos efectivo, Venmo (@gxrciaa_), Cash App ($JaimeNietoMorales) y Zelle. Preferimos el pago después de cada corte; máximo dos cortes sin pagar."
-        : "We accept Cash, Venmo (@gxrciaa_), Cash App ($JaimeNietoMorales), and Zelle. Payment after each cut is preferred; at most two cuts may remain unpaid.",
+      answer: (
+        <>
+          {isEs ? "Aceptamos efectivo, Venmo (@gxrciaa_), " : "We accept Cash, Venmo (@gxrciaa_), "}
+          <a href={BUSINESS.cashAppUrl} target="_blank" rel="noreferrer noopener" className="font-bold text-emerald-700 underline">
+            Cash App ({BUSINESS.cashAppTag})
+          </a>
+          {isEs
+            ? " y Zelle. Preferimos el pago después de cada corte; máximo dos cortes sin pagar."
+            : ", and Zelle. Payment after each cut is preferred; at most two cuts may remain unpaid."}
+        </>
+      ),
     },
   ];
 
