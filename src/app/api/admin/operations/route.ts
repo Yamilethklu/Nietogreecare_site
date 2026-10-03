@@ -40,6 +40,13 @@ export async function POST(request:Request){const {response,db}=await authorized
   if(!id.success||!parsed.success)return fail('Trabajador inválido.');
   const {data,error}=await db.from('crew_members').update(parsed.data).eq('id',id.data).select().single();return error?fail(error.message):NextResponse.json({ok:true,data});
  }
+ if(body.action==='mobile_house'){
+  const parsed=z.object({id:uuid.nullable(),house:manualLeadSchema,cadence:z.enum(['weekly','bi_weekly','one_time']),first_date:z.string().regex(/^\d{4}-\d{2}-\d{2}$/),price:z.number().finite().min(0).max(100000),notes:z.string().max(2000).nullable()}).safeParse(body);
+  if(!parsed.success)return fail('Revise nombre, teléfono, correo, dirección, ciudad, ZIP, frecuencia y precio.');
+  const value=parsed.data;
+  const {data,error}=await db.rpc('save_mobile_house',{p_id:value.id,p_house:value.house,p_cadence:value.cadence,p_date:value.first_date,p_price:value.price,p_notes:value.notes});
+  return error?fail('No se pudo guardar la casa y su agenda: '+error.message):NextResponse.json({ok:true,data});
+ }
  if(body.action==='house'){
   const parsed=manualLeadSchema.safeParse(body.house);if(!parsed.success)return fail('Revise el nombre, teléfono, dirección, ciudad y ZIP.');
   const reference_code=`OPS-${Date.now()}-${crypto.randomUUID().slice(0,6).toUpperCase()}`;
