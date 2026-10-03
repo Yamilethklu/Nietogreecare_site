@@ -101,7 +101,7 @@ export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult>
         subject: input.subject,
         html: input.html,
         replyTo: input.replyTo || replyToAddress(),
-        attachments: input.attachments,
+        attachments: input.attachments?.map(attachment => ({ ...attachment, encoding: "base64" })),
       });
 
       return { ok: true, provider: "smtp", id: info.messageId };
@@ -118,6 +118,6 @@ export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult>
     ok: false,
     provider: "none",
     error:
-      "Correo no configurado. Defina RESEND_API_KEY o las variables SMTP_* en .env.local.",
+      "No se envió el correo: falta configurar el servicio de correo en Vercel (Production). Configure Resend o SMTP y vuelva a desplegar.",
   };
 }

@@ -10,7 +10,7 @@ const fail=(error:string,status=422)=>NextResponse.json({ok:false,error},{status
 export async function POST(request:Request){
  const gate=await requireAdmin(request);if(gate.response)return gate.response;
  const db=getSupabaseAdminClient();if(!db)return fail('Base de datos no configurada.',503);
- const parsed=z.object({action:z.enum(['create','send','pay','edit']),order_id:z.string().uuid().optional(),invoice_id:z.string().uuid().optional(),payment_method:z.enum(['cash','cash_app','venmo','zelle','check','other']).optional(),items:z.array(z.object({orderId:z.string().uuid(),price:z.number().finite().min(0).max(100000)})).max(50).optional()}).safeParse(await request.json().catch(()=>null));
+ const parsed=z.object({action:z.enum(['create','send','pay','edit']),order_id:z.string().uuid().optional(),invoice_id:z.string().uuid().optional(),payment_method:z.enum(['cash','cash_app','venmo','zelle']).optional(),items:z.array(z.object({orderId:z.string().uuid(),price:z.number().finite().min(0).max(100000)})).max(50).optional()}).safeParse(await request.json().catch(()=>null));
  if(!parsed.success)return fail('Factura inválida.');
  const body=parsed.data;
  if(body.action==='create'){
