@@ -26,7 +26,7 @@ const extensionForType: Record<string, string> = {
 };
 
 export async function POST(request: Request) {
-  const gate = await requireAdmin();
+  const gate = await requireAdmin(request);
   if (gate.response) return gate.response;
   const body = await request.json().catch(() => null);
   const fileName = typeof body?.fileName === "string" ? body.fileName : "";

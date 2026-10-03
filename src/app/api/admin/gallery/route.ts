@@ -26,8 +26,8 @@ const extensionForType: Record<string, string> = {
   "video/webm": "webm",
 };
 
-export async function GET() {
-  const gate = await requireAdmin();
+export async function GET(request:Request) {
+  const gate = await requireAdmin(request);
   if (gate.response) return gate.response;
   const db = getSupabaseAdminClient();
   if (!db) return NextResponse.json({ ok: false, error: "Supabase no configurado." }, { status: 503 });
@@ -36,7 +36,7 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const gate = await requireAdmin();
+  const gate = await requireAdmin(request);
   if (gate.response) return gate.response;
   if (request.headers.get("content-type")?.includes("application/json")) {
     const body = await request.json().catch(() => null);
@@ -65,7 +65,7 @@ export async function POST(request: Request) {
 }
 
 export async function PATCH(request: Request) {
-  const gate = await requireAdmin();
+  const gate = await requireAdmin(request);
   if (gate.response) return gate.response;
   const body = await request.json().catch(() => null);
   const parsed = galleryUpdateSchema.safeParse(body?.changes);
@@ -77,7 +77,7 @@ export async function PATCH(request: Request) {
 }
 
 export async function DELETE(request: Request) {
-  const gate = await requireAdmin();
+  const gate = await requireAdmin(request);
   if (gate.response) return gate.response;
   const body = await request.json().catch(() => null);
   if (typeof body?.id !== "string") return NextResponse.json({ ok: false, error: "Datos inválidos." }, { status: 422 });
