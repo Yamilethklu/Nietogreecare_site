@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import * as turf from "@turf/turf";
 import { solarMaskFootprint, SolarFootprintError } from "@/lib/solar-footprint";
 import { selectLawnArea } from "@/lib/lawn-selection";
+import { getCensusRoadPoint } from "@/lib/road-reference";
 
 import { asAreaFeature, featureAreaSqFt, featureAreaSqM, featureCenter, findAreaFeature, subtractFootprint, type AreaFeature } from "@/lib/parcel-geometry";
 
@@ -84,6 +85,8 @@ async function getOverpassHouseFootprint(lat: number, lng: number, parcel: AreaF
 }
 
 async function getNearestRoadPoint(lat: number, lng: number, parcel: AreaFeature, address: string): Promise<LatLngPoint | null> {
+  const censusRoad = await getCensusRoadPoint(lat, lng, parcel, address);
+  if (censusRoad) return censusRoad;
   const query = `
     [out:json][timeout:25];
     way["highway"]["highway"!~"footway|path|cycleway|steps|track"](around:140,${lat},${lng});
