@@ -7,7 +7,7 @@ import { asAreaFeature, featureAreaSqFt, featureAreaSqM, featureCenter, findArea
 
 export const runtime = "nodejs";
 
-const GOOGLE_KEY = process.env.GOOGLE_MAPS_SERVER_API_KEY || process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "";
+const GOOGLE_KEY = process.env.GOOGLE_MAPS_SERVER_API_KEY || process.env.GOOGLE_MAPS_API_KEY || process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "";
 const SOLAR_KEY = process.env.GOOGLE_SOLAR_API_KEY || process.env.SOLAR_API_KEY || GOOGLE_KEY;
 const REGRID_TOKEN = process.env.REGRID_TOKEN || process.env.REGRID_API_TOKEN || process.env.NEXT_PUBLIC_REGRID_TOKEN || "";
 const NO_PARCEL_ERROR = "No hay datos catastrales para esta dirección";
