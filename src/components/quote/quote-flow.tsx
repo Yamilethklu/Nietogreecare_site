@@ -317,8 +317,8 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
         return;
       }
     }
-    if (current.step === 5 && !current.measurement) {
-      setErrors({ measurement: isEs ? "No se pudo estimar el área de la propiedad." : "Could not estimate the property area." });
+    if (current.step === 5 && (!current.measurement || !price)) {
+      setErrors({ measurement: isEs ? "La medición o la tarifa de esta propiedad está pendiente de confirmación." : "The measurement or rate for this property is awaiting confirmation." });
       return;
     }
     if (current.step === 6 && !current.city.trim()) {
@@ -495,7 +495,7 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
           {store.step === 5 && <section className="space-y-6">
             {measurementLoading && <p className="rounded-lg bg-slate-100 px-4 py-3 text-sm font-semibold text-slate-700">{isEs ? "Analizando tu propiedad por satélite..." : "Analyzing your property by satellite..."}</p>}
             <div className="grid gap-5 border-b border-emerald-100 pb-5 sm:grid-cols-[1fr_1fr]">
-              <div><h2 className="text-2xl font-extrabold text-emerald-950">{isEs ? "5. Resumen de cotización" : "5. Quote summary"}</h2><p className="mt-3 text-2xl font-bold text-emerald-800">{price !== null ? `$${price.toFixed(2)} / ${cadenceLabel}` : ""}</p><p className="mt-2 text-sm text-slate-600">{store.address}</p>
+              <div><h2 className="text-2xl font-extrabold text-emerald-950">{isEs ? "5. Resumen de cotización" : "5. Quote summary"}</h2><p className="mt-3 text-2xl font-bold text-emerald-800">{price !== null ? `$${price.toFixed(2)} / ${cadenceLabel}` : (isEs ? "Tarifa pendiente de confirmación" : "Rate awaiting confirmation")}</p><p className="mt-2 text-sm text-slate-600">{store.address}</p>
                 <h3 className="mt-5 font-bold text-emerald-950">{isEs ? "Servicios incluidos" : "Included services"}</h3>
                 <ul className="mt-2 space-y-2 text-sm text-slate-900">{(isEs ? ["Corte de césped", "Recorte con desbrozadora", "Perfilado de bordes", "Limpieza con sopladora"] : ["Mow Lawn", "Line Trim", "Edge", "Blow Debris"]).map(label => <li key={label}>✓ {label}</li>)}</ul>
                 <label className="mt-4 flex cursor-pointer items-center gap-2 text-sm font-semibold text-slate-900"><input type="checkbox" checked={Boolean(store.bagGrass)} onChange={event => store.setLawnOptions({bagGrass:event.target.checked})} />{isEs ? "Recoger el césped en bolsas (+$10 por corte)" : "Bag Grass (+$10 per cut)"}</label>
@@ -504,8 +504,8 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
                   {weeklyRate ? <>
                     <p className="mt-2">${(Number(weeklyRate.price) + (store.bagGrass ? 10 : 0)).toFixed(2)} {isEs ? "por corte, cada 7 días" : "per cut, every 7 days"}</p>
                     {rate && Number(weeklyRate.price) < Number(rate.price) && <p className="mt-1 text-sm font-semibold">{isEs ? "Ahorro por corte:" : "Savings per cut:"} ${(Number(rate.price) - Number(weeklyRate.price)).toFixed(2)}</p>}
-                  </> : <p className="mt-2 text-sm">{isEs ? "La tarifa semanal se mostrará cuando se complete la medición." : "The weekly rate will appear once the measurement is complete."}</p>}
-                  <Button type="button" className="mt-3" onClick={() => store.setLawnOptions({ mowFrequency: "weekly", serviceFrequency: "ongoing" })}>{isEs ? "Cambiar a semanal" : "Switch to weekly"}</Button>
+                  </> : <p className="mt-2 text-sm">{isEs ? "La tarifa semanal está pendiente de confirmación por el propietario." : "The weekly rate is awaiting confirmation from the owner."}</p>}
+                  <Button type="button" disabled={!weeklyRate} className="mt-3" onClick={() => store.setLawnOptions({ mowFrequency: "weekly", serviceFrequency: "ongoing" })}>{isEs ? "Cambiar a semanal" : "Switch to weekly"}</Button>
                 </div>}
               </div>
               <PropertySatellite address={store.address} latitude={store.latitude} longitude={store.longitude} isEs={isEs} compact polygon={polygon} geometry={lawnGeometry} parcelPolygons={store.measurement?.parcelPolygons ?? detectedParcel} center={markerCenter} loadingText={isEs ? "Analizando tu propiedad por satélite..." : "Analyzing your property by satellite..."} showMarker={false} />
@@ -570,7 +570,7 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
 function Confirmation({ isEs, store, price, onReset }: { isEs: boolean; store: QuoteStore; price: number | null; onReset: () => void }) {
   const smsBody = `${BUSINESS.name} - Folio ${store.referenceCode ?? ""}\n${store.address}\n${store.customerName} · ${store.customerPhone}`;
   const { cadence: cadenceLabel } = getMowFrequencyLabels(store.mowFrequency, isEs);
-  return <Card className="mx-auto max-w-2xl space-y-5 p-8 text-center"><CardContent className="space-y-5"><ShieldCheck className="mx-auto size-14 text-emerald-700" /><h1 className="text-2xl font-extrabold text-slate-950">{isEs ? "¡Muchas gracias por su preferencia! Su solicitud ha sido procesada." : "Thank you! Your request has been processed."}</h1><p className="text-sm text-slate-600">{isEs ? "La solicitud se guardó en Supabase. Si el SMS no se abrió automáticamente, use el botón de abajo para contactar al propietario." : "Your request was saved to Supabase. If the SMS app did not open automatically, use the button below to contact the owner."}</p><p className="text-xl font-bold text-emerald-800">{price !== null ? `$${price.toFixed(2)} / ${cadenceLabel}` : ""}</p><a href={`${BUSINESS.smsHref}?body=${encodeURIComponent(smsBody)}`} className="inline-flex items-center rounded-lg bg-emerald-700 px-4 py-3 font-bold text-white"><MessageSquare className="mr-2 size-4" />{isEs ? "Abrir SMS al propietario" : "Open owner SMS"}</a><div><Button variant="outline" onClick={onReset}><CheckCircle2 className="mr-2 size-4" />{isEs ? "Nueva cotización" : "New quote"}</Button></div></CardContent></Card>;
+  return <Card className="mx-auto max-w-2xl space-y-5 p-8 text-center"><CardContent className="space-y-5"><ShieldCheck className="mx-auto size-14 text-emerald-700" /><h1 className="text-2xl font-extrabold text-slate-950">{isEs ? "¡Muchas gracias por su preferencia! Su solicitud ha sido procesada." : "Thank you! Your request has been processed."}</h1><p className="text-sm text-slate-600">{isEs ? "La solicitud se guardó en Supabase. Si el SMS no se abrió automáticamente, use el botón de abajo para contactar al propietario." : "Your request was saved to Supabase. If the SMS app did not open automatically, use the button below to contact the owner."}</p><p className="text-xl font-bold text-emerald-800">{price !== null ? `$${price.toFixed(2)} / ${cadenceLabel}` : (isEs ? "Tarifa pendiente de confirmación" : "Rate awaiting confirmation")}</p><a href={`${BUSINESS.smsHref}?body=${encodeURIComponent(smsBody)}`} className="inline-flex items-center rounded-lg bg-emerald-700 px-4 py-3 font-bold text-white"><MessageSquare className="mr-2 size-4" />{isEs ? "Abrir SMS al propietario" : "Open owner SMS"}</a><div><Button variant="outline" onClick={onReset}><CheckCircle2 className="mr-2 size-4" />{isEs ? "Nueva cotización" : "New quote"}</Button></div></CardContent></Card>;
 }
 
 function MowingCalendar({ selected, city, isEs, onSelect, price }: { selected: string | null; city: string; isEs: boolean; onSelect: (date: string) => void; price: number | null }) {

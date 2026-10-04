@@ -47,11 +47,18 @@ export async function solarMaskFootprint(lat:number,lng:number,key:string,parcel
   else return null;
   const [ox,oy]=image.getOrigin(),[rx,ry]=image.getResolution();
   if(![ox,oy,rx,ry].every(Number.isFinite))return null;
+  // Google's GeoTIFF uses an affine matrix. Preserve its negative Y direction
+  // and rotation; getResolution() alone does not preserve the matrix transform.
+  const matrix = image.fileDirectory.ModelTransformation as ArrayLike<number> | undefined;
+  if(matrix && (matrix.length !== 16 || !Array.from(matrix).every(Number.isFinite)))return null;
+  const projectPixel = (x:number,y:number) => proj4(projection,'EPSG:4326',matrix
+   ? [matrix[0]*x+matrix[1]*y+matrix[3],matrix[4]*x+matrix[5]*y+matrix[7]]
+   : [ox+x*rx,oy+y*ry]);
   const pixels=await image.readRasters({samples:[0],interleave:true});
   const values=Array.from(pixels as ArrayLike<number>,value=>value===1?1:0);
   const shapes=contours().size([width,height]).thresholds([0.5]).smooth(false)(values)[0];
   if(!shapes?.coordinates.length)return null;
-  const coordinates=shapes.coordinates.map(polygon=>polygon.map(ring=>ring.map(([x,y])=>proj4(projection,'EPSG:4326',[ox+x*rx,oy+y*ry]))));
+  const coordinates=shapes.coordinates.map(polygon=>polygon.map(ring=>ring.map(([x,y])=>projectPixel(x,y))));
   const buildings=turf.multiPolygon(coordinates);
   const clipped=asAreaFeature(turf.intersect(turf.featureCollection([parcel,buildings])));
   if(!clipped||turf.area(clipped)<10)return null;

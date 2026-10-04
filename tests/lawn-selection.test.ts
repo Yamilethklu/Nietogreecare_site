@@ -35,3 +35,18 @@ test('Solar roof mask is georeferenced and clipped instead of replaced by a rect
   assert.ok(turf.area(footprint)>10&&turf.area(footprint)<20);
  }finally{globalThis.fetch=original;}
 });
+
+test('Solar affine transformation preserves the negative row direction',async()=>{
+ const projection='+proj=utm +zone=14 +datum=WGS84 +units=m +no_defs';
+ const origin=proj4('EPSG:4326',projection,[-97.8,30.5]);
+ const values=Array.from({length:64},(_,i)=>{const x=i%8,y=Math.floor(i/8);return x>=2&&x<6&&y>=2&&y<6?1:0;});
+ const buffer=writeArrayBuffer(values,{width:8,height:8,ModelTransformation:[1,0,0,origin[0],0,-1,0,origin[1],0,0,1,0,0,0,0,1],ProjectedCSTypeGeoKey:32614,GTModelTypeGeoKey:1,GeogCitationGeoKey:'WGS 84'});
+ const original=globalThis.fetch;
+ globalThis.fetch=async(input)=>String(input).includes('dataLayers:')?Response.json({maskUrl:'https://solar.googleapis.com/v1/geoTiff:test'}):new Response(buffer);
+ try{
+  const footprint=await solarMaskFootprint(30.5,-97.8,'test',turf.bboxPolygon([-97.8002,30.4998,-97.7998,30.5002]));
+  assert.ok(footprint);
+  assert.ok(turf.center(footprint).geometry.coordinates[1] < 30.5);
+  assert.ok(turf.area(footprint)>10&&turf.area(footprint)<20);
+ }finally{globalThis.fetch=original;}
+});
