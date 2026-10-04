@@ -33,7 +33,7 @@ const replyToAddress = () => process.env.EMAIL_REPLY_TO || process.env.EMAIL_TO 
 
 export function isEmailConfigured(): boolean {
   return Boolean(
-    process.env.RESEND_API_KEY || (process.env.SMTP_HOST && process.env.SMTP_USER),
+    process.env.RESEND_API_KEY || (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS),
   );
 }
 
@@ -54,7 +54,9 @@ export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult>
     return { ok: false, provider: "none", error: "No hay destinatarios de correo." };
   }
 
-  const resend = getResend();
+  // Prefer SMTP when configured; a previously saved Resend key need not be deleted.
+  const smtpConfigured = Boolean(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS);
+  const resend = smtpConfigured ? null : getResend();
 
   if (resend) {
     try {
@@ -84,8 +86,7 @@ export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult>
     }
   }
 
-  // Fallback SMTP con Nodemailer
-  if (process.env.SMTP_HOST && process.env.SMTP_USER) {
+  if (smtpConfigured) {
     try {
       const { default: nodemailer } = await import("nodemailer");
       const transporter = nodemailer.createTransport({
@@ -96,7 +97,7 @@ export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult>
       });
 
       const info = await transporter.sendMail({
-        from: fromAddress(),
+        from: process.env.SMTP_FROM || `Nieto Green Care <${process.env.SMTP_USER}>`,
         to: validRecipients.join(", "),
         subject: input.subject,
         html: input.html,
