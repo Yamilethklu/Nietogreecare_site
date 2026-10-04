@@ -173,7 +173,7 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
   }, [gateAnswer, store.completedSteps, store.hasGateCode, store.step]);
 
   React.useEffect(() => {
-    if (store.measurement && (store.measurement.geometryVersion !== 2 || store.measurement.areaSelection !== store.areaSelection)) {
+    if (store.measurement && (store.measurement.geometryVersion !== 3 || store.measurement.areaSelection !== store.areaSelection)) {
       store.clearMeasurement();
       return;
     }
@@ -218,7 +218,7 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
         }
         const measurement = buildMeasurement(polygons[0], areaSqFt, 2, 19, polygons, parcelPolygons.length ? parcelPolygons : undefined, payload.poligonoJardin);
         measurement.areaSelection = store.areaSelection;
-        measurement.geometryVersion = 2;
+        measurement.geometryVersion = 3;
         measurement.warning = payload.warning;
         setMeasurementWarning(payload.warning || "");
         if (center) measurement.center = center;
