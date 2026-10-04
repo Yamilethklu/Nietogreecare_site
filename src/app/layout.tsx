@@ -13,14 +13,16 @@ import "./globals.css";
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
 
-export const metadata: Metadata = {
+export async function generateMetadata(): Promise<Metadata> {
+  const isEs = normalizeLocale((await cookies()).get(LOCALE_COOKIE)?.value) === "es";
+  return {
   metadataBase: new URL(siteUrl),
   title: {
-    default: "Nieto Green Care LLC | Paisajismo de lujo en Austin, TX",
+    default: isEs ? "Nieto Green Care LLC | Paisajismo de lujo en Austin, TX" : "Nieto Green Care LLC | Luxury landscaping in Austin, TX",
     template: "%s | Nieto Green Care LLC",
   },
   description:
-    "Corte de césped y jardinería en Liberty Hill, Cedar Park, Leander, Georgetown, Hutto, Round Rock y Jarrell. Cotización de yarda en línea.",
+    isEs ? "Corte de césped y jardinería en Liberty Hill, Cedar Park, Leander, Georgetown, Hutto, Round Rock y Jarrell. Cotización de yarda en línea." : "Lawn mowing and landscaping in Liberty Hill, Cedar Park, Leander, Georgetown, Hutto, Round Rock and Jarrell. Get a lawn quote online.",
   keywords: [
     "landscaping Austin TX",
     "lawn care Austin",
@@ -38,22 +40,23 @@ export const metadata: Metadata = {
   applicationName: BUSINESS.name,
   openGraph: {
     type: "website",
-    locale: "es_US",
-    alternateLocale: ["en_US"],
+    locale: isEs ? "es_US" : "en_US",
+    alternateLocale: [isEs ? "en_US" : "es_US"],
     url: siteUrl,
     siteName: BUSINESS.name,
-    title: "Nieto Green Care LLC | Paisajismo de lujo en Austin, TX",
+    title: isEs ? "Nieto Green Care LLC | Paisajismo de lujo en Austin, TX" : "Nieto Green Care LLC | Luxury landscaping in Austin, TX",
     description:
-      "Cotiza tu corte de césped en cuatro pasos. Austin, Liberty Hill, Cedar Park, Leander, Georgetown, Hutto, Round Rock y Jarrell.",
+      isEs ? "Cotiza tu corte de césped en cuatro pasos. Austin, Liberty Hill, Cedar Park, Leander, Georgetown, Hutto, Round Rock y Jarrell." : "Get your lawn mowing quote in four steps. Austin, Liberty Hill, Cedar Park, Leander, Georgetown, Hutto, Round Rock and Jarrell.",
   },
   twitter: {
     card: "summary_large_image",
     title: "Nieto Green Care LLC",
-    description: "Paisajismo de lujo y cuidado profesional de areas verdes en Austin, TX.",
+    description: isEs ? "Paisajismo de lujo y cuidado profesional de areas verdes en Austin, TX." : "Luxury landscaping and professional lawn care in Austin, TX.",
   },
   robots: { index: true, follow: true },
   category: "Landscaping",
-};
+  };
+}
 
 export const viewport: Viewport = {
   themeColor: "#ffffff",

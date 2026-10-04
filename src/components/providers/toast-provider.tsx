@@ -3,6 +3,7 @@
 import * as React from "react";
 import { AlertTriangle, CheckCircle2, Info, X } from "lucide-react";
 
+import { useLanguage } from "@/components/providers/language-provider";
 import { cn } from "@/lib/utils";
 
 type ToastVariant = "success" | "error" | "info";
@@ -35,6 +36,7 @@ const STYLES: Record<ToastVariant, string> = {
 
 /** Notificaciones emergentes elegantes (verde bosque + negro + dorado). */
 export function ToastProvider({ children }: { children: React.ReactNode }) {
+  const { isEs } = useLanguage();
   const [toasts, setToasts] = React.useState<Toast[]>([]);
 
   const dismiss = React.useCallback((id: string) => {
@@ -79,7 +81,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
               type="button"
               onClick={() => dismiss(item.id)}
               className="rounded-full p-1 text-ink-400 transition-colors hover:text-white"
-              aria-label="Cerrar notificacion"
+              aria-label={isEs ? "Cerrar notificacion" : "Close notification"}
             >
               <X className="size-3.5" />
             </button>
