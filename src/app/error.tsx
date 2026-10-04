@@ -4,6 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import { AlertTriangle, ArrowLeft, RefreshCw } from "lucide-react";
 
+import { useLanguage } from "@/components/providers/language-provider";
 import { Button } from "@/components/ui/button";
 import { LuxuryCard } from "@/components/ui/card";
 
@@ -14,6 +15,7 @@ export default function GlobalErrorPage({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  const { isEs } = useLanguage();
   React.useEffect(() => {
     console.error("Excepción en la aplicación:", error);
   }, [error]);
@@ -28,18 +30,18 @@ export default function GlobalErrorPage({
           Nieto Green Care LLC
         </h1>
         <p className="mt-3 text-sm leading-relaxed text-ink-300">
-          No pudimos procesar la vista solicitada. Presione reintentar o vuelva a la página principal.
+          {isEs ? "No pudimos procesar la vista solicitada. Presione reintentar o vuelva a la página principal." : "We could not load the requested page. Try again or return to the home page."}
         </p>
 
         <div className="mt-8 flex flex-wrap justify-center gap-3">
           <Button onClick={() => reset()} variant="gold">
             <RefreshCw className="size-4" />
-            Reintentar
+            {isEs ? "Reintentar" : "Try again"}
           </Button>
           <Button asChild variant="outline">
             <Link href="/">
               <ArrowLeft className="size-4" />
-              Inicio
+              {isEs ? "Inicio" : "Home"}
             </Link>
           </Button>
         </div>

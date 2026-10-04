@@ -4,6 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import { AlertTriangle, ArrowLeft, RefreshCw } from "lucide-react";
 
+import { useLanguage } from "@/components/providers/language-provider";
 import { Button } from "@/components/ui/button";
 import { LuxuryCard } from "@/components/ui/card";
 import { useQuoteStore } from "@/store/quote-store";
@@ -15,6 +16,7 @@ export default function QuoteError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  const { isEs } = useLanguage();
   React.useEffect(() => {
     console.error("Error en el cotizador:", error);
   }, [error]);
@@ -35,21 +37,21 @@ export default function QuoteError({
           <AlertTriangle className="size-8 text-gold-300" />
         </div>
         <h1 className="mt-5 font-display text-2xl font-semibold text-white sm:text-3xl">
-          Cotizador interactivo
+          {isEs ? "Cotizador interactivo" : "Interactive quote"}
         </h1>
         <p className="mt-3 text-sm leading-relaxed text-ink-300">
-          Ocurrió un inconveniente al cargar el formulario. Puede reintentar la carga o reiniciar los datos para continuar.
+          {isEs ? "Ocurrió un inconveniente al cargar el formulario. Puede reintentar la carga o reiniciar los datos para continuar." : "There was a problem loading the form. Try loading it again or reset your details to continue."}
         </p>
 
         <div className="mt-8 flex flex-wrap justify-center gap-3">
           <Button onClick={handleResetAll} variant="gold">
             <RefreshCw className="size-4" />
-            Reiniciar cotizador
+            {isEs ? "Reiniciar cotizador" : "Reset quote"}
           </Button>
           <Button asChild variant="outline">
             <Link href="/">
               <ArrowLeft className="size-4" />
-              Volver al inicio
+              {isEs ? "Volver al inicio" : "Back to home"}
             </Link>
           </Button>
         </div>
