@@ -4,6 +4,20 @@ import proj4 from 'proj4';
 import * as turf from '@turf/turf';
 import { asAreaFeature, type AreaFeature } from './parcel-geometry';
 
+export class SolarFootprintError extends Error {
+ constructor(public readonly code: 'solar_access_denied' | 'solar_quota_exceeded' | 'solar_temporarily_unavailable') {
+  super(code);
+ }
+}
+
+async function checkSolarResponse(response: Response) {
+ if (response.ok || response.status === 404) return;
+ // Report categories only: upstream errors can contain credential-bearing URLs.
+ if (response.status === 401 || response.status === 403) throw new SolarFootprintError('solar_access_denied');
+ if (response.status === 429) throw new SolarFootprintError('solar_quota_exceeded');
+ throw new SolarFootprintError('solar_temporarily_unavailable');
+}
+
 /** Vectorize Google's rooftop mask in its declared CRS, then clip to the parcel. */
 export async function solarMaskFootprint(lat:number,lng:number,key:string,parcel:AreaFeature):Promise<AreaFeature|null>{
  if(!key)return null;
@@ -14,12 +28,14 @@ export async function solarMaskFootprint(lat:number,lng:number,key:string,parcel
   const url=new URL('https://solar.googleapis.com/v1/dataLayers:get');
   url.search=new URLSearchParams({'location.latitude':String(lat),'location.longitude':String(lng),radiusMeters:String(Math.max(30,Math.ceil(radius))),view:'IMAGERY_LAYERS',pixelSizeMeters:'0.1',key}).toString();
   const response=await fetch(url,{cache:'no-store',signal:AbortSignal.timeout(10000)});
+  await checkSolarResponse(response);
   if(!response.ok)return null;
   const data=await response.json();if(typeof data.maskUrl!=='string')return null;
   const maskUrl=new URL(data.maskUrl);
   if(maskUrl.protocol!=='https:'||maskUrl.hostname!=='solar.googleapis.com')return null;
   maskUrl.searchParams.set('key',key);
   const mask=await fetch(maskUrl,{cache:'no-store',signal:AbortSignal.timeout(10000)});
+  await checkSolarResponse(mask);
   if(!mask.ok)return null;
   const tiff=await fromArrayBuffer(await mask.arrayBuffer()),image=await tiff.getImage();
   const width=image.getWidth(),height=image.getHeight();if(width*height>5000000)return null;
@@ -40,5 +56,9 @@ export async function solarMaskFootprint(lat:number,lng:number,key:string,parcel
   const clipped=asAreaFeature(turf.intersect(turf.featureCollection([parcel,buildings])));
   if(!clipped||turf.area(clipped)<10)return null;
   return asAreaFeature(turf.rewind(turf.simplify(clipped,{tolerance:0.0000005,highQuality:true})));
- }catch{return null;}
+ }catch(error){
+  if(error instanceof SolarFootprintError)throw error;
+  console.warn('solar_footprint_processing_failed');
+  return null;
+ }
 }

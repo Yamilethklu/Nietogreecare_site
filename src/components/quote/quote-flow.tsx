@@ -70,6 +70,11 @@ function resolveMeasurementError(error: string | undefined, isEs: boolean) {
       return isEs ? error : "The lawn area is not valid.";
     case "building_footprint_unavailable":
       return isEs ? "No hay una huella real de la casa disponible para calcular esta propiedad. Contacte al propietario para verificar la medida." : "No reliable building footprint is available for this property. Contact the owner to verify the measurement.";
+    case "solar_access_denied":
+      return isEs ? "La medición está temporalmente no disponible: el proveedor no autorizó la consulta de la casa. Contacte al propietario." : "Measurement is temporarily unavailable: the provider did not authorize the building lookup. Please contact the owner.";
+    case "solar_quota_exceeded":
+    case "solar_temporarily_unavailable":
+      return isEs ? "El proveedor de medición está temporalmente no disponible. Intente nuevamente más tarde." : "The measurement provider is temporarily unavailable. Please try again later.";
     case "geocode_not_found":
       return isEs ? "No se pudo geocodificar esta dirección." : "Could not geocode this address.";
     case "lawn_detection_unavailable":
@@ -116,6 +121,7 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
   const [gateAnswer, setGateAnswer] = React.useState<"yes" | "no" | "">("");
   const [measurementWarning, setMeasurementWarning] = React.useState("");
   const [measurementLoading, setMeasurementLoading] = React.useState(false);
+  const [detectedParcel, setDetectedParcel] = React.useState<PolygonPoint[][]>();
 
   React.useEffect(() => {
     void fetch("/api/lawn-rates", { cache: "no-store" })
@@ -176,6 +182,7 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
     setErrors((current) => ({ ...current, measurement: "" }));
     setMeasurementWarning("");
     setMeasurementLoading(true);
+    setDetectedParcel(undefined);
     const detectUrl = new URL("/api/lawn-detect", window.location.origin);
     detectUrl.searchParams.set("address", store.formattedAddress || store.address);
     detectUrl.searchParams.set("lat", String(store.latitude));
@@ -184,6 +191,7 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
     void fetch(detectUrl.toString(), { cache: "no-store" })
       .then(async (response) => {
         const payload = (await response.json().catch(() => ({}))) as LawnDetectionResponse;
+        if (!cancelled && payload.poligonoParcela) setDetectedParcel(geoJsonGeometryToPolygons(payload.poligonoParcela));
         if (!response.ok) throw new Error(resolveMeasurementError(payload.error, isEs));
         return payload;
       })
@@ -491,9 +499,16 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
                 <h3 className="mt-5 font-bold text-emerald-950">{isEs ? "Servicios incluidos" : "Included services"}</h3>
                 <ul className="mt-2 space-y-2 text-sm text-slate-900">{(isEs ? ["Corte de césped", "Recorte con desbrozadora", "Perfilado de bordes", "Limpieza con sopladora"] : ["Mow Lawn", "Line Trim", "Edge", "Blow Debris"]).map(label => <li key={label}>✓ {label}</li>)}</ul>
                 <label className="mt-4 flex cursor-pointer items-center gap-2 text-sm font-semibold text-slate-900"><input type="checkbox" checked={Boolean(store.bagGrass)} onChange={event => store.setLawnOptions({bagGrass:event.target.checked})} />{isEs ? "Recoger el césped en bolsas (+$10 por corte)" : "Bag Grass (+$10 per cut)"}</label>
-                {store.mowFrequency === "bi_weekly" && weeklyRate && rate && Number(weeklyRate.price) < Number(rate.price) && <div className="mt-5 rounded-lg border border-lime-400 bg-lime-50 p-4 text-slate-950"><p className="font-bold">{isEs ? "Ahorra por corte con el servicio semanal" : "Save per cut with weekly service"}</p><p className="mt-2">${(Number(weeklyRate.price) + (store.bagGrass ? 10 : 0)).toFixed(2)} {isEs ? "por corte, cada 7 días" : "per cut, every 7 days"}</p><Button type="button" className="mt-3" onClick={() => store.setLawnOptions({mowFrequency:"weekly",serviceFrequency:"ongoing"})}>{isEs ? "Cambiar a semanal" : "Switch to weekly"}</Button></div>}
+                {store.mowFrequency === "bi_weekly" && <div className="mt-5 rounded-lg border border-lime-400 bg-lime-50 p-4 text-slate-950">
+                  <p className="font-bold">{weeklyRate && rate && Number(weeklyRate.price) < Number(rate.price) ? (isEs ? "Ahorra por corte con el servicio semanal" : "Save per cut with weekly service") : (isEs ? "Conoce la opción de servicio semanal" : "Explore weekly lawn service")}</p>
+                  {weeklyRate ? <>
+                    <p className="mt-2">${(Number(weeklyRate.price) + (store.bagGrass ? 10 : 0)).toFixed(2)} {isEs ? "por corte, cada 7 días" : "per cut, every 7 days"}</p>
+                    {rate && Number(weeklyRate.price) < Number(rate.price) && <p className="mt-1 text-sm font-semibold">{isEs ? "Ahorro por corte:" : "Savings per cut:"} ${(Number(rate.price) - Number(weeklyRate.price)).toFixed(2)}</p>}
+                  </> : <p className="mt-2 text-sm">{isEs ? "La tarifa semanal se mostrará cuando se complete la medición." : "The weekly rate will appear once the measurement is complete."}</p>}
+                  <Button type="button" className="mt-3" onClick={() => store.setLawnOptions({ mowFrequency: "weekly", serviceFrequency: "ongoing" })}>{isEs ? "Cambiar a semanal" : "Switch to weekly"}</Button>
+                </div>}
               </div>
-              <PropertySatellite address={store.address} latitude={store.latitude} longitude={store.longitude} isEs={isEs} compact polygon={polygon} geometry={lawnGeometry} parcelPolygons={store.measurement?.parcelPolygons} center={markerCenter} loadingText={isEs ? "Analizando tu propiedad por satélite..." : "Analyzing your property by satellite..."} showMarker={false} />
+              <PropertySatellite address={store.address} latitude={store.latitude} longitude={store.longitude} isEs={isEs} compact polygon={polygon} geometry={lawnGeometry} parcelPolygons={store.measurement?.parcelPolygons ?? detectedParcel} center={markerCenter} loadingText={isEs ? "Analizando tu propiedad por satélite..." : "Analyzing your property by satellite..."} showMarker={false} />
             </div>
             <FieldError>{errors.measurement}</FieldError>
             {(measurementWarning || store.measurement?.warning) && <p className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">{isEs ? "La casa se excluye con datos de edificios. La banqueta y la división frente/atrás requieren verificación; el área es estimada." : "The house is excluded using building data. Sidewalk boundaries and the front/back split require verification; the area is estimated."}</p>}
@@ -501,7 +516,7 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
               <p><strong>{isEs ? "Cliente" : "Customer"}:</strong> {store.customerName}</p><p><strong>{isEs ? "Teléfono" : "Phone"}:</strong> {store.customerPhone}</p>
               <p><strong>{isEs ? "Frecuencia" : "Frequency"}:</strong> {cadenceLabel}</p><p><strong>{isEs ? "Propiedad" : "Property"}:</strong> {store.propertyOccupancy === "occupied" ? (isEs ? "Ocupada" : "Occupied") : (isEs ? "Deshabitada" : "Vacant")}</p>
               <p><strong>{isEs ? "Área elegida" : "Selected area"}:</strong> {store.areaSelection === "front_back" ? (isEs ? "Adelante y atrás" : "Front & Back") : store.areaSelection === "front_only" ? (isEs ? "Adelante" : "Front") : (isEs ? "Atrás" : "Back")}</p>
-              <p><strong>{isEs ? "Césped calculado" : "Calculated lawn"}:</strong> {lawnAreaSqFt.toLocaleString()} ft² / {lawnAreaSqM.toLocaleString(undefined, { maximumFractionDigits: 1 })} m²</p>
+              <p><strong>{isEs ? "Césped calculado" : "Calculated lawn"}:</strong> {store.measurement ? `${lawnAreaSqFt.toLocaleString()} ft² / ${lawnAreaSqM.toLocaleString(undefined, { maximumFractionDigits: 1 })} m²` : (isEs ? "Pendiente de medición" : "Measurement pending")}</p>
               <p><strong>{isEs ? "Mascotas" : "Pets"}:</strong> {store.hasPetsInBackyard ? (isEs ? "Sí" : "Yes") : "No"}</p><p><strong>{isEs ? "Cerradura" : "Lock"}:</strong> {store.hasGateCode ? `${isEs ? "Sí" : "Yes"} (${store.gateCode})` : "No"}</p>
             </div>
             {(store.additionalNotes.trim() || store.details.trim()) && <div className="rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-700">{store.additionalNotes.trim() && <p><strong>{isEs ? "Nota" : "Note"}:</strong> {store.additionalNotes}</p>}{store.details.trim() && <p className="mt-2"><strong>{isEs ? "Trabajo adicional" : "Additional work"}:</strong> {store.details}</p>}</div>}

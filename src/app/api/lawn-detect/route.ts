@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import * as turf from "@turf/turf";
-import { solarMaskFootprint } from "@/lib/solar-footprint";
+import { solarMaskFootprint, SolarFootprintError } from "@/lib/solar-footprint";
 import { selectLawnArea } from "@/lib/lawn-selection";
 
 import { asAreaFeature, featureAreaSqFt, featureAreaSqM, featureCenter, findAreaFeature, subtractFootprint, type AreaFeature } from "@/lib/parcel-geometry";
@@ -8,6 +8,7 @@ import { asAreaFeature, featureAreaSqFt, featureAreaSqM, featureCenter, findArea
 export const runtime = "nodejs";
 
 const GOOGLE_KEY = process.env.GOOGLE_MAPS_SERVER_API_KEY || process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "";
+const SOLAR_KEY = process.env.GOOGLE_SOLAR_API_KEY || process.env.SOLAR_API_KEY || GOOGLE_KEY;
 const REGRID_TOKEN = process.env.REGRID_TOKEN || process.env.REGRID_API_TOKEN || process.env.NEXT_PUBLIC_REGRID_TOKEN || "";
 const NO_PARCEL_ERROR = "No hay datos catastrales para esta dirección";
 const LAWN_COMPUTE_ERROR = "No se pudo calcular el área del jardín";
@@ -276,12 +277,19 @@ export async function GET(request: Request) {
       house = await getOverpassHouseFootprint(latitude, longitude, parcel);
     }
 
+    let footprintError = "building_footprint_unavailable";
     if (!house) {
-      house = await solarMaskFootprint(latitude, longitude, GOOGLE_KEY, parcel);
+      try {
+        house = await solarMaskFootprint(latitude, longitude, SOLAR_KEY, parcel);
+      } catch (error) {
+        if (!(error instanceof SolarFootprintError)) throw error;
+        footprintError = error.code;
+        console.warn("lawn_detection", error.code);
+      }
     }
 
     if (!house) {
-      return NextResponse.json({ok:false,error:"building_footprint_unavailable",poligonoParcela:parcel.geometry,formattedAddress,latitude,longitude},{status:422});
+      return NextResponse.json({ok:false,error:footprintError,poligonoParcela:parcel.geometry,formattedAddress,latitude,longitude},{status:422});
     }
 
     const houseFootprint = house;
