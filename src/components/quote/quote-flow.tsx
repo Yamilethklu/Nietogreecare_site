@@ -511,7 +511,6 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
               <PropertySatellite address={store.address} latitude={store.latitude} longitude={store.longitude} isEs={isEs} compact polygon={polygon} geometry={lawnGeometry} parcelPolygons={store.measurement?.parcelPolygons ?? detectedParcel} center={markerCenter} loadingText={isEs ? "Analizando tu propiedad por satélite..." : "Analyzing your property by satellite..."} showMarker={false} />
             </div>
             <FieldError>{errors.measurement}</FieldError>
-            {(measurementWarning || store.measurement?.warning) && <p className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">{isEs ? "La casa se excluye con datos de edificios. La banqueta y la división frente/atrás requieren verificación; el área es estimada." : "The house is excluded using building data. Sidewalk boundaries and the front/back split require verification; the area is estimated."}</p>}
             <div className="grid gap-3 text-sm sm:grid-cols-2">
               <p><strong>{isEs ? "Cliente" : "Customer"}:</strong> {store.customerName}</p><p><strong>{isEs ? "Teléfono" : "Phone"}:</strong> {store.customerPhone}</p>
               <p><strong>{isEs ? "Frecuencia" : "Frequency"}:</strong> {cadenceLabel}</p><p><strong>{isEs ? "Propiedad" : "Property"}:</strong> {store.propertyOccupancy === "occupied" ? (isEs ? "Ocupada" : "Occupied") : (isEs ? "Deshabitada" : "Vacant")}</p>
