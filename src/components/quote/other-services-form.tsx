@@ -3,6 +3,7 @@
 import * as React from "react";
 import { MessageSquare, Wrench } from "lucide-react";
 
+import { publicError } from "@/lib/i18n/public-errors";
 import { useLanguage } from "@/components/providers/language-provider";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -73,7 +74,7 @@ export function OtherServicesForm() {
     try {
       const response = await fetch("/api/other-services", {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({services:selectedJobs,name,address,phone,email,comments})});
       const result = await response.json();
-      if (!response.ok || !result.ok) throw new Error(result.error || (isEs ? "No se pudo guardar la solicitud." : "Could not save your request."));
+      if (!response.ok || !result.ok) throw new Error(publicError(result.error, isEs, isEs ? "No se pudo guardar la solicitud." : "Could not save your request."));
       window.location.href = `${BUSINESS.smsHref}?body=${encodeURIComponent(body)}`;
     } catch (error) {
       setSaveError(error instanceof Error ? error.message : "Error");

@@ -78,7 +78,7 @@ export default async function HomePage() {
         <GalleryCarousel items={slides.length ? slides : [{ id: "lawn-photo", url: "/hero-bg.jpg", title: "Nieto Green Care LLC", description: null, location: null }]} />
         <Reviews />
         <PaymentsSection />
-        <div className="container flex flex-wrap gap-5 border-t border-emerald-200 py-6 text-sm font-semibold text-emerald-900"><Link href="/admin">Acceso administradores</Link><Link href="/crew">Acceso trabajadores</Link></div>
+        <div className="container flex flex-wrap gap-5 border-t border-emerald-200 py-6 text-sm font-semibold text-emerald-900"><Link href="/admin">{locale === "es" ? "Acceso administradores" : "Administrator access"}</Link><Link href="/crew">{locale === "es" ? "Acceso trabajadores" : "Worker access"}</Link></div>
       </main>
     </>
   );

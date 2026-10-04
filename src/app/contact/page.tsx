@@ -1,9 +1,16 @@
+import { cookies } from "next/headers";
+import { LOCALE_COOKIE } from "@/lib/i18n/config";
+import { normalizeLocale } from "@/lib/i18n";
 import { ContactSection } from "@/components/site/contact-section";
 import { PublicPage } from "@/components/site/public-page";
 import { PhotoShowcase } from "@/components/site/photo-showcase";
 
-export const metadata = { title: "Contacto | Nieto Green Care LLC" };
+export async function generateMetadata() {
+  const isEs = normalizeLocale((await cookies()).get(LOCALE_COOKIE)?.value) === "es";
+  return { title: `${isEs ? "Contacto" : "Contact"} | Nieto Green Care LLC` };
+}
 
-export default function ContactPage() {
-  return <PublicPage><ContactSection /><PhotoShowcase heading="Jardines cuidados por nuestro equipo" start={2} /></PublicPage>;
+export default async function ContactPage() {
+  const isEs = normalizeLocale((await cookies()).get(LOCALE_COOKIE)?.value) === "es";
+  return <PublicPage><ContactSection /><PhotoShowcase heading={isEs ? "Jardines cuidados por nuestro equipo" : "Yards cared for by our team"} start={2} /></PublicPage>;
 }

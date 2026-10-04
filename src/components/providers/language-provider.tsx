@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useRouter } from "next/navigation";
 
 import { dictionaries } from "@/lib/i18n";
 import { DEFAULT_LOCALE, LOCALE_COOKIE, type Locale } from "@/lib/i18n/config";
@@ -35,6 +36,7 @@ export function LanguageProvider({
   children: React.ReactNode;
   initialLocale?: Locale;
 }) {
+  const router = useRouter();
   const [locale, setLocaleState] = React.useState<Locale>(initialLocale);
 
   React.useEffect(() => {
@@ -42,11 +44,13 @@ export function LanguageProvider({
   }, [locale]);
 
   const setLocale = React.useCallback((next: Locale) => {
+    applyLocaleToDocument(next);
     setLocaleState(next);
     if (typeof window !== "undefined") {
-      window.localStorage.setItem(LOCALE_COOKIE, next);
+      try { window.localStorage.setItem(LOCALE_COOKIE, next); } catch { /* Cookies remain the source of truth when storage is blocked. */ }
     }
-  }, []);
+    router.refresh();
+  }, [router]);
 
   const toggleLocale = React.useCallback(() => {
     setLocale(locale === "es" ? "en" : "es");

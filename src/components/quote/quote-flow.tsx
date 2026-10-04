@@ -16,6 +16,7 @@ import { BUSINESS, SERVICES, ZIP_CITY_MAP } from "@/lib/constants";
 import { matchMowRate, type MowRate } from "@/lib/instant-pricing";
 import { texasToday } from "@/lib/operations/schedule";
 import { getCoverageCitiesForWeekday, isInitialServiceDate } from "@/lib/service-schedule";
+import { publicError } from "@/lib/i18n/public-errors";
 import { formatZodErrors, phoneSchema, step1Schema } from "@/lib/validation";
 import type { LawnGeoJsonGeometry, PaymentMethod, PolygonPoint } from "@/lib/types";
 import { buildMeasurement, pickSubmissionFields, TOTAL_STEPS, useQuoteStore, type MowFrequency, type QuoteStore } from "@/store/quote-store";
@@ -81,7 +82,7 @@ function resolveMeasurementError(error: string | undefined, isEs: boolean) {
     case "lawn_detection_failed":
       return isEs ? LAWN_COMPUTE_ERROR : "Could not calculate the lawn area.";
     default:
-      return error || (isEs ? LAWN_COMPUTE_ERROR : "Could not calculate the lawn area.");
+      return publicError(error, isEs, isEs ? LAWN_COMPUTE_ERROR : "Could not calculate the lawn area.");
   }
 }
 
@@ -283,7 +284,7 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
     if (current.step === 1) {
       const result = step1Schema.safeParse(current);
       if (!result.success) {
-        setErrors(formatZodErrors(result.error));
+        setErrors(Object.fromEntries(Object.entries(formatZodErrors(result.error)).map(([field, message]) => [field, publicError(message, isEs, "Please check this field.")])));
         toast({ title: isEs ? "Revise la dirección y el código postal" : "Review the address and ZIP code", variant: "error" });
         return;
       }
@@ -349,7 +350,7 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
         body: JSON.stringify({ ...pickSubmissionFields(useQuoteStore.getState()), referenceCode, quotedPrice: price, snapshotUrl: null }),
       });
       const payload = await response.json().catch(() => ({}));
-      if (!response.ok || !payload.ok) throw new Error(payload.error ?? (isEs ? "No se pudo enviar la solicitud." : "Failed to send the request."));
+      if (!response.ok || !payload.ok) throw new Error(publicError(payload.error, isEs, isEs ? "No se pudo enviar la solicitud." : "Failed to send the request."));
 
       const submitted = useQuoteStore.getState();
       const jobNames = submitted.selectedServices.map((key) => {
