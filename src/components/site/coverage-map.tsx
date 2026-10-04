@@ -24,7 +24,7 @@ export function CoverageMap({ className }: { className?: string }) {
       <div className="relative aspect-[4/3] overflow-hidden rounded-2xl border border-white/20 bg-white">
         <iframe
           title={isEs ? "Vista satelital de la zona de cobertura" : "Satellite view of the service area"}
-          src={SATELLITE_EMBED_SRC}
+          src={`${SATELLITE_EMBED_SRC}&hl=${isEs ? "es" : "en"}`}
           loading="lazy"
           referrerPolicy="no-referrer-when-downgrade"
           className="pointer-events-none absolute inset-0 size-full border-0 saturate-[0.82] contrast-125"

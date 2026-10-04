@@ -77,7 +77,7 @@ export function CallButton({
         sizeClass,
         className,
       )}
-      aria-label={`${label} — llamada telefonica`}
+      aria-label={label}
     >
       <Phone className="size-4 transition-transform duration-300 group-hover:rotate-12" />
       {label}
