@@ -18,8 +18,8 @@ export function ContactSection() {
   const [zipInput, setZipInput] = React.useState("");
 
   const smsHrefWithZip = zipInput.trim()
-    ? `sms:${BUSINESS.ownerSmsNumber}?body=${encodeURIComponent(`Hola Nieto Green Care LLC, mi Zip Code es ${zipInput}. Me gustaría solicitar servicio de césped.`)}`
-    : `sms:${BUSINESS.ownerSmsNumber}?body=${encodeURIComponent("Hola Nieto Green Care LLC, me gustaría solicitar servicio de cuidado de césped.")}`;
+    ? `sms:${BUSINESS.ownerSmsNumber}?body=${encodeURIComponent(isEs ? `Hola Nieto Green Care LLC, mi Zip Code es ${zipInput}. Me gustaría solicitar servicio de césped.` : `Hello Nieto Green Care LLC, my ZIP code is ${zipInput}. I would like to request lawn care service.`)}`
+    : `sms:${BUSINESS.ownerSmsNumber}?body=${encodeURIComponent(isEs ? "Hola Nieto Green Care LLC, me gustaría solicitar servicio de cuidado de césped." : "Hello Nieto Green Care LLC, I would like to request lawn care service.")}`;
 
   return (
     <section id="contacto" className="ngc-section scroll-mt-24">
