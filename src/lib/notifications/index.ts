@@ -3,6 +3,7 @@ import type { Lead } from "../types";
 import { formatDate, toNumber } from "../utils";
 import { customerConfirmationEmail, ownerLeadEmail, type EmailLeadPayload } from "./templates";
 import { sendEmail } from "./email";
+import { sendSms } from "./sms";
 
 export type AppointmentNotificationLead = LeadLike & {
   customer_email?: string | null;
@@ -40,7 +41,7 @@ export type LeadLike = Pick<
 >;
 
 export type ChannelResult = {
-  channel: "email";
+  channel: "email" | "sms";
   target: string;
   ok: boolean;
   provider: string;
@@ -50,6 +51,7 @@ export type ChannelResult = {
 export type NotificationSummary = {
   results: ChannelResult[];
   emailSent: boolean;
+  smsSent?: boolean;
   errors: string[];
 };
 
@@ -118,9 +120,14 @@ export async function notifyOwnerOfLead(
     error: email.error,
   });
 
+  const smsBody = `Nueva cotización ${lead.reference_code}: ${lead.customer_name} tel ${lead.customer_phone}, ${lead.address}. Contáctelo.`;
+  const sms = await sendSms(smsBody);
+  results.push({ channel: "sms", target: sms.target, ok: sms.ok, provider: sms.provider, error: sms.error });
+
   return {
     results,
     emailSent: results[0]?.ok ?? false,
+    smsSent: sms.ok,
     errors: results
       .filter((item) => !item.ok && item.error)
       .map((item) => `${item.channel}: ${item.error}`),
