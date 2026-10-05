@@ -1,31 +1,32 @@
 /**
- * SMS al dueño con Twilio (opcional). Si faltan las variables de entorno no se envía
- * y se devuelve el motivo; nunca rompe la petición.
+ * SMS directo al dueño sin proveedor externo: se envía un correo de texto por el SMTP
+ * propio a la pasarela email-a-SMS de la operadora del dueño (p. ej. 7373144215@tmomail.net).
+ * Si falta la configuración no se envía y se devuelve el motivo; nunca rompe la petición.
  */
-export type SendSmsResult = { ok: boolean; provider: "twilio" | "none"; error?: string };
+export type SendSmsResult = { ok: boolean; provider: "smtp-gateway" | "none"; error?: string };
 
-export function isSmsConfigured(): boolean {
-  return Boolean(process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN && process.env.TWILIO_FROM_NUMBER);
-}
-
-export async function sendSms(to: string, body: string): Promise<SendSmsResult> {
-  const sid = process.env.TWILIO_ACCOUNT_SID;
-  const token = process.env.TWILIO_AUTH_TOKEN;
-  const from = process.env.TWILIO_FROM_NUMBER;
-  if (!sid || !token || !from) return { ok: false, provider: "none", error: "SMS no configurado (TWILIO_*)" };
+export async function sendSms(body: string): Promise<SendSmsResult & { target: string }> {
+  const target = (process.env.OWNER_SMS_GATEWAY_EMAIL || "").trim();
+  if (!target) return { ok: false, provider: "none", target, error: "Falta OWNER_SMS_GATEWAY_EMAIL" };
+  if (!(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS)) {
+    return { ok: false, provider: "none", target, error: "Falta configuración SMTP" };
+  }
   try {
-    const response = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${encodeURIComponent(sid)}/Messages.json`, {
-      method: "POST",
-      headers: {
-        Authorization: `Basic ${Buffer.from(`${sid}:${token}`).toString("base64")}`,
-        "Content-Type": "application/x-www-form-urlencoded",
-      },
-      body: new URLSearchParams({ To: to, From: from, Body: body.slice(0, 600) }),
-      signal: AbortSignal.timeout(8000),
+    const { default: nodemailer } = await import("nodemailer");
+    const transporter = nodemailer.createTransport({
+      host: process.env.SMTP_HOST,
+      port: Number.parseInt(process.env.SMTP_PORT ?? "465", 10),
+      secure: (process.env.SMTP_SECURE ?? "true") === "true",
+      auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
     });
-    if (!response.ok) return { ok: false, provider: "twilio", error: `Twilio ${response.status}` };
-    return { ok: true, provider: "twilio" };
+    await transporter.sendMail({
+      from: process.env.SMTP_FROM || `Nieto Green Care <${process.env.SMTP_USER}>`,
+      to: target,
+      subject: "Nueva cotización",
+      text: body.slice(0, 300),
+    });
+    return { ok: true, provider: "smtp-gateway", target };
   } catch (error) {
-    return { ok: false, provider: "twilio", error: error instanceof Error ? error.message : "Error de SMS" };
+    return { ok: false, provider: "smtp-gateway", target, error: error instanceof Error ? error.message : "Error de SMS" };
   }
 }

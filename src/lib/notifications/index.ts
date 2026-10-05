@@ -120,10 +120,9 @@ export async function notifyOwnerOfLead(
     error: email.error,
   });
 
-  const ownerPhone = process.env.OWNER_SMS_NUMBER || process.env.NEXT_PUBLIC_OWNER_SMS_NUMBER || BUSINESS.phoneE164 || "";
-  const smsBody = `Nueva cotización ${lead.reference_code}: ${lead.customer_name}, tel ${lead.customer_phone}, ${lead.address}. Contáctelo para confirmar.`;
-  const sms = ownerPhone ? await sendSms(ownerPhone, smsBody) : { ok: false, provider: "none" as const, error: "Falta número del dueño" };
-  results.push({ channel: "sms", target: ownerPhone, ok: sms.ok, provider: sms.provider, error: sms.error });
+  const smsBody = `Nueva cotización ${lead.reference_code}: ${lead.customer_name} tel ${lead.customer_phone}, ${lead.address}. Contáctelo.`;
+  const sms = await sendSms(smsBody);
+  results.push({ channel: "sms", target: sms.target, ok: sms.ok, provider: sms.provider, error: sms.error });
 
   return {
     results,
