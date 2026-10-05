@@ -395,6 +395,7 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
   const markerCenter = store.measurement?.center ?? null;
   const lawnGeometry = store.measurement?.lawnGeometry;
   const lawnAreaSqFt = Math.round(store.measurement?.areaSqFt ?? 0);
+  const lawnAreaSqYd = Math.round(((store.measurement?.areaSqFt ?? 0) / 9) * 10) / 10;
   const lawnAreaSqM = Math.round(((store.measurement?.areaSqFt ?? 0) / SQ_FT_PER_SQ_M) * 100) / 100;
 
   return (
@@ -512,11 +513,14 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
               <PropertySatellite address={store.address} latitude={store.latitude} longitude={store.longitude} isEs={isEs} compact polygon={polygon} geometry={lawnGeometry} parcelPolygons={store.measurement?.parcelPolygons ?? detectedParcel} center={markerCenter} loadingText={isEs ? "Analizando tu propiedad por satélite..." : "Analyzing your property by satellite..."} showMarker={false} />
             </div>
             <FieldError>{errors.measurement}</FieldError>
+            {!store.measurement && !measurementLoading && <p className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900">{isEs ? "Aún no hay medición satelital, por lo que no se muestra un precio definitivo. El propietario confirmará la medida y la tarifa." : "There is no satellite measurement yet, so no final price is shown. The owner will confirm the measurement and rate."}</p>}
+            {store.measurement?.warning === "sidewalk_estimate" && <p className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">{isEs ? "Nota: la banqueta se excluyó con una franja estimada de 2.4 m; la medida puede variar ligeramente." : "Note: the sidewalk was excluded using an estimated 2.4 m strip; the measurement may vary slightly."}</p>}
+            {store.measurement?.warning === "sidewalk_not_excluded" && <p className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">{isEs ? "Nota: no se pudo ubicar la calle, por lo que la banqueta no se excluyó; la medida es una estimación." : "Note: the street could not be located, so the sidewalk was not excluded; the measurement is an estimate."}</p>}
             <div className="grid gap-3 text-sm sm:grid-cols-2">
               <p><strong>{isEs ? "Cliente" : "Customer"}:</strong> {store.customerName}</p><p><strong>{isEs ? "Teléfono" : "Phone"}:</strong> {store.customerPhone}</p>
               <p><strong>{isEs ? "Frecuencia" : "Frequency"}:</strong> {cadenceLabel}</p><p><strong>{isEs ? "Propiedad" : "Property"}:</strong> {store.propertyOccupancy === "occupied" ? (isEs ? "Ocupada" : "Occupied") : (isEs ? "Deshabitada" : "Vacant")}</p>
               <p><strong>{isEs ? "Área elegida" : "Selected area"}:</strong> {store.areaSelection === "front_back" ? (isEs ? "Adelante y atrás" : "Front & Back") : store.areaSelection === "front_only" ? (isEs ? "Adelante" : "Front") : (isEs ? "Atrás" : "Back")}</p>
-              <p><strong>{isEs ? "Césped calculado" : "Calculated lawn"}:</strong> {store.measurement ? `${lawnAreaSqFt.toLocaleString()} ft² / ${lawnAreaSqM.toLocaleString(undefined, { maximumFractionDigits: 1 })} m²` : (isEs ? "Pendiente de medición" : "Measurement pending")}</p>
+              <p><strong>{isEs ? "Césped calculado" : "Calculated lawn"}:</strong> {store.measurement ? `${lawnAreaSqFt.toLocaleString()} ft² / ${lawnAreaSqYd.toLocaleString(undefined, { maximumFractionDigits: 1 })} yd² / ${lawnAreaSqM.toLocaleString(undefined, { maximumFractionDigits: 1 })} m²` : (isEs ? "Pendiente de medición" : "Measurement pending")}</p>
               <p><strong>{isEs ? "Mascotas" : "Pets"}:</strong> {store.hasPetsInBackyard ? (isEs ? "Sí" : "Yes") : "No"}</p><p><strong>{isEs ? "Cerradura" : "Lock"}:</strong> {store.hasGateCode ? `${isEs ? "Sí" : "Yes"} (${store.gateCode})` : "No"}</p>
             </div>
             {(store.additionalNotes.trim() || store.details.trim()) && <div className="rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-700">{store.additionalNotes.trim() && <p><strong>{isEs ? "Nota" : "Note"}:</strong> {store.additionalNotes}</p>}{store.details.trim() && <p className="mt-2"><strong>{isEs ? "Trabajo adicional" : "Additional work"}:</strong> {store.details}</p>}</div>}

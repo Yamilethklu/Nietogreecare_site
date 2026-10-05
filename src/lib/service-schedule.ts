@@ -1,9 +1,10 @@
+/** Austin y Pflugerville se agendan los días de las ciudades vecinas más cercanas (Cedar Park el miércoles; Round Rock/Hutto jueves y viernes). */
 const COVERAGE_BY_WEEKDAY: Record<number, readonly string[]> = {
   1: ["Liberty Hill", "Georgetown"],
   2: ["Liberty Hill", "Georgetown"],
-  3: ["Leander", "Cedar Park", "Georgetown", "Liberty Hill"],
-  4: ["Hutto", "Round Rock", "Georgetown", "Liberty Hill", "Leander"],
-  5: ["Hutto", "Round Rock", "Georgetown", "Liberty Hill", "Leander"],
+  3: ["Leander", "Cedar Park", "Georgetown", "Liberty Hill", "Austin"],
+  4: ["Hutto", "Round Rock", "Georgetown", "Liberty Hill", "Leander", "Austin", "Pflugerville"],
+  5: ["Hutto", "Round Rock", "Georgetown", "Liberty Hill", "Leander", "Austin", "Pflugerville"],
 };
 
 const COVERAGE_NOTE_GROUPS = [
