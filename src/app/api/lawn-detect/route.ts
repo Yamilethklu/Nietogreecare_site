@@ -19,6 +19,7 @@ const INVALID_LAWN_ERROR = "El área del jardín no es válida";
 const LAWN_DETECTION_UNAVAILABLE = "lawn_detection_unavailable";
 const LAWN_DETECTION_FAILED = "lawn_detection_failed";
 const GEOCODE_NOT_FOUND = "geocode_not_found";
+const OVERPASS_ENDPOINTS = ["https://overpass-api.de/api/interpreter", "https://overpass.kumi.systems/api/interpreter", "https://overpass.private.coffee/api/interpreter"];
 const SIDEWALK_SETBACK_METERS = 2.4;
 const AREA_SELECTIONS = ["front_back", "front_only", "back_only"] as const;
 type AreaSelection = (typeof AREA_SELECTIONS)[number];
@@ -51,18 +52,21 @@ async function getOverpassHouseFootprint(lat: number, lng: number, parcel: AreaF
   `;
 
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 4000);
+  const timeout = setTimeout(() => controller.abort(), 12000);
 
   try {
-    const response = await fetch("https://overpass-api.de/api/interpreter", {
-      method: "POST",
-      headers: { "Content-Type": "text/plain" },
-      body: query,
-      cache: "no-store",
-      signal: controller.signal,
-    });
-    if (!response.ok) return null;
-    const payload = await response.json();
+    let payload: any = null;
+    for (const endpoint of OVERPASS_ENDPOINTS) {
+      try {
+        const response = await fetch(endpoint, { method: "POST", headers: { "Content-Type": "text/plain" }, body: query, cache: "no-store", signal: controller.signal });
+        if (!response.ok) continue;
+        payload = await response.json();
+        break;
+      } catch {
+        if (controller.signal.aborted) break;
+      }
+    }
+    if (!payload) return null;
     const point = turf.point([lng, lat]);
     const candidates = (Array.isArray(payload?.elements) ? payload.elements : []).flatMap((element: any) => {
       const vertices = Array.isArray(element?.geometry) ? element.geometry : [];
@@ -84,6 +88,27 @@ async function getOverpassHouseFootprint(lat: number, lng: number, parcel: AreaF
     return null;
   } finally {
     clearTimeout(timeout);
+  }
+}
+
+/** Respaldo real: Google Solar ubica el edificio más cercano y devuelve su caja delimitadora. */
+async function getSolarBuildingBox(lat: number, lng: number, parcel: AreaFeature): Promise<AreaFeature | null> {
+  if (!SOLAR_KEY) return null;
+  try {
+    const url = new URL("https://solar.googleapis.com/v1/buildingInsights:findClosest");
+    url.searchParams.set("location.latitude", String(lat));
+    url.searchParams.set("location.longitude", String(lng));
+    url.searchParams.set("key", SOLAR_KEY);
+    const response = await fetch(url, { cache: "no-store", signal: AbortSignal.timeout(8000) });
+    if (!response.ok) return null;
+    const box = (await response.json())?.boundingBox;
+    const sw = box?.sw, ne = box?.ne;
+    if (![sw?.latitude, sw?.longitude, ne?.latitude, ne?.longitude].every(Number.isFinite)) return null;
+    const rectangle = turf.bboxPolygon([sw.longitude, sw.latitude, ne.longitude, ne.latitude]);
+    const clipped = asAreaFeature(turf.intersect(turf.featureCollection([parcel, rectangle])));
+    return clipped && turf.area(clipped) >= 20 ? clipped : null;
+  } catch {
+    return null;
   }
 }
 
@@ -315,6 +340,8 @@ export async function GET(request: Request) {
         console.warn("lawn_detection", error.code);
       }
     }
+
+    if (!house) house = await getSolarBuildingBox(latitude, longitude, parcel);
 
     if (!house) {
       return NextResponse.json({ok:false,error:footprintError,poligonoParcela:parcel.geometry,formattedAddress,latitude,longitude},{status:422});
