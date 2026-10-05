@@ -3,6 +3,8 @@ import * as turf from "@turf/turf";
 import { solarMaskFootprint, SolarFootprintError } from "@/lib/solar-footprint";
 import { selectLawnArea } from "@/lib/lawn-selection";
 import { getCensusRoadPoint } from "@/lib/road-reference";
+import { COUNTY_PARCEL_SERVICES, countyLookupOrder, extractLocality } from "@/lib/county-parcels";
+import type { CountyName } from "@/lib/constants";
 
 import { asAreaFeature, featureAreaSqFt, featureAreaSqM, featureCenter, findAreaFeature, subtractFootprint, type AreaFeature } from "@/lib/parcel-geometry";
 
@@ -17,6 +19,7 @@ const INVALID_LAWN_ERROR = "El área del jardín no es válida";
 const LAWN_DETECTION_UNAVAILABLE = "lawn_detection_unavailable";
 const LAWN_DETECTION_FAILED = "lawn_detection_failed";
 const GEOCODE_NOT_FOUND = "geocode_not_found";
+const SIDEWALK_SETBACK_METERS = 2.4;
 const AREA_SELECTIONS = ["front_back", "front_only", "back_only"] as const;
 type AreaSelection = (typeof AREA_SELECTIONS)[number];
 type LatLngPoint = { lat: number; lng: number };
@@ -156,7 +159,7 @@ function excludeSidewalkStrip(lawn: AreaFeature, parcel: AreaFeature, house: Are
     const directionLng = unitLng * span;
     const directionLat = unitLat * span;
     const bearing = turf.bearing(turf.point(houseCenter), turf.point([roadPoint.lng, roadPoint.lat]));
-    const setbackPoint = turf.destination(turf.point(houseCenter), 2.4, bearing, { units: "meters" }).geometry.coordinates;
+    const setbackPoint = turf.destination(turf.point(houseCenter), SIDEWALK_SETBACK_METERS, bearing, { units: "meters" }).geometry.coordinates;
     const setbackProjection = Math.abs((setbackPoint[0] - houseCenter[0]) * unitLng + (setbackPoint[1] - houseCenter[1]) * unitLat);
     if (!Number.isFinite(setbackProjection) || setbackProjection <= 0) return lawn;
 
@@ -186,12 +189,15 @@ function excludeSidewalkStrip(lawn: AreaFeature, parcel: AreaFeature, house: Are
   }
 }
 
-async function getWilliamsonParcel(latitude: number, longitude: number): Promise<{ parcel: AreaFeature; payload: unknown } | null> {
+async function getCountyParcel(county: CountyName, latitude: number, longitude: number): Promise<{ parcel: AreaFeature; payload: unknown } | null> {
+  const endpoint = COUNTY_PARCEL_SERVICES[county];
+  if (!endpoint) return null;
   const queryParcel = async (spatialRel: string) => {
-    const parcelUrl = new URL("https://gis.wilco.org/arcgis/rest/services/public/county_wcad_parcels/MapServer/0/query");
+    const parcelUrl = new URL(endpoint);
     parcelUrl.searchParams.set("geometry", `${longitude},${latitude}`);
     parcelUrl.searchParams.set("geometryType", "esriGeometryPoint");
     parcelUrl.searchParams.set("inSR", "4326");
+    parcelUrl.searchParams.set("outSR", "4326");
     parcelUrl.searchParams.set("spatialRel", spatialRel);
     parcelUrl.searchParams.set("outFields", "*");
     parcelUrl.searchParams.set("f", "geojson");
@@ -204,6 +210,21 @@ async function getWilliamsonParcel(latitude: number, longitude: number): Promise
   };
 
   return (await queryParcel("esriSpatialRelWithin")) ?? queryParcel("esriSpatialRelIntersects");
+}
+
+async function getLocality(latitude: number, longitude: number) {
+  if (!GOOGLE_KEY) return extractLocality(undefined);
+  try {
+    const url = new URL("https://maps.googleapis.com/maps/api/geocode/json");
+    url.searchParams.set("latlng", `${latitude},${longitude}`);
+    url.searchParams.set("key", GOOGLE_KEY);
+    const response = await fetch(url, { cache: "no-store", signal: AbortSignal.timeout(4000) });
+    const payload = await response.json();
+    const result = payload?.results?.find((item: any) => item?.address_components?.some((c: any) => c?.types?.includes("administrative_area_level_2"))) ?? payload?.results?.[0];
+    return extractLocality(result?.address_components);
+  } catch {
+    return extractLocality(undefined);
+  }
 }
 
 async function getRegridParcel(latitude: number, longitude: number): Promise<{ parcel: AreaFeature; payload: unknown } | null> {
@@ -222,9 +243,12 @@ async function getRegridParcel(latitude: number, longitude: number): Promise<{ p
   return parcel && turf.booleanPointInPolygon(turf.point([longitude,latitude]),parcel) ? { parcel, payload: parcelPayload } : null;
 }
 
-async function getParcelGeometry(latitude: number, longitude: number): Promise<{ parcel: AreaFeature; payload: unknown } | null> {
-  const county=await getWilliamsonParcel(latitude, longitude).catch(()=>null);
-  return county ?? getRegridParcel(latitude, longitude).catch(()=>null);
+async function getParcelGeometry(latitude: number, longitude: number, locality: ReturnType<typeof extractLocality>): Promise<{ parcel: AreaFeature; payload: unknown } | null> {
+  for (const county of countyLookupOrder(locality)) {
+    const found = await getCountyParcel(county, latitude, longitude).catch(() => null);
+    if (found) return found;
+  }
+  return getRegridParcel(latitude, longitude).catch(()=>null);
 }
 
 export async function GET(request: Request) {
@@ -266,7 +290,8 @@ export async function GET(request: Request) {
   }
 
   try {
-    const parcelLookup = await getParcelGeometry(latitude, longitude);
+    const locality = await getLocality(latitude, longitude);
+    const parcelLookup = await getParcelGeometry(latitude, longitude, locality);
     if (!parcelLookup) {
       return NextResponse.json({ ok: false, error: NO_PARCEL_ERROR, formattedAddress, latitude, longitude }, { status: 404 });
     }
@@ -300,7 +325,7 @@ export async function GET(request: Request) {
     const roadPoint = await getNearestRoadPoint(latitude, longitude, parcel, formattedAddress);
     const mowableLawn = fullLawn ? excludeSidewalkStrip(fullLawn, parcel, houseFootprint, roadPoint) : null;
     const jardin = mowableLawn ? selectLawnArea(mowableLawn, houseFootprint, roadPoint, areaSelection) : null;
-    warning = "sidewalk_estimate";
+    warning = roadPoint ? "sidewalk_estimate" : "sidewalk_not_excluded";
     if (!jardin?.geometry) {
       return NextResponse.json({ ok: false, error: LAWN_COMPUTE_ERROR, formattedAddress, latitude, longitude, warning }, { status: 422 });
     }

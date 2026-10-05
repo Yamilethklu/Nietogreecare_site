@@ -61,6 +61,7 @@ export const SERVICE_CITIES = [
   "Hutto",
   "Round Rock",
   "Jarrell",
+  "Pflugerville",
 ] as const;
 
 export const NEARBY_CITIES: readonly string[] = [];
@@ -77,6 +78,14 @@ export const SERVICE_ZIP_CODES: string[] = [
   "78613", "78630",
   // Leander, Liberty Hill y Jarrell
   "78641", "78645", "78646", "78642", "76537",
+  // Pflugerville
+  "78660", "78691",
+  // Austin (Travis y Williamson)
+  "78701", "78702", "78703", "78704", "78705", "78712", "78717", "78719",
+  "78721", "78722", "78723", "78724", "78725", "78726", "78727", "78728", "78729",
+  "78730", "78731", "78732", "78733", "78734", "78735", "78736", "78737", "78738", "78739",
+  "78741", "78742", "78744", "78745", "78746", "78747", "78748", "78749",
+  "78750", "78751", "78752", "78753", "78754", "78756", "78757", "78758", "78759",
 ];
 
 /** Mapa ZIP -> ciudad principal, usado para mostrar la cobertura en el cotizador. */
@@ -101,6 +110,32 @@ export const ZIP_CITY_MAP: Record<string, string> = {
   "78642": "Liberty Hill",
   "76537": "Jarrell",
   "78653": "Manor",
+  ...Object.fromEntries(SERVICE_ZIP_CODES.filter((zip) => zip.startsWith("787")).map((zip) => [zip, "Austin"])),
+};
+
+export type CountyName = "Williamson" | "Travis" | "Hays" | "Bastrop" | "Burnet";
+
+/** Condado principal por ciudad de servicio (Austin y Round Rock/Cedar Park/Leander/Pflugerville se cruzan con otros condados; la lectura de Google tiene prioridad). */
+export const COUNTY_BY_CITY: Record<string, CountyName> = {
+  "Austin": "Travis",
+  "Pflugerville": "Travis",
+  "Manor": "Travis",
+  "Liberty Hill": "Williamson",
+  "Cedar Park": "Williamson",
+  "Leander": "Williamson",
+  "Georgetown": "Williamson",
+  "Hutto": "Williamson",
+  "Round Rock": "Williamson",
+  "Jarrell": "Williamson",
+};
+
+const WILLIAMSON_ZIPS = ["78634", "78664", "78665", "78681", "78682", "78683", "78626", "78627", "78628", "78633", "78613", "78630", "78641", "78645", "78646", "78642", "76537", "78717", "78727", "78728", "78729", "78750", "78759"];
+const TRAVIS_ZIPS = SERVICE_ZIP_CODES.filter((zip) => !WILLIAMSON_ZIPS.includes(zip)).concat("78653");
+
+/** Condado probable por ZIP (los ZIPs compartidos de Austin se resuelven con el condado de Google o consultando ambos catastros). */
+export const COUNTY_BY_ZIP: Record<string, CountyName> = {
+  ...Object.fromEntries(TRAVIS_ZIPS.map((zip) => [zip, "Travis" as CountyName])),
+  ...Object.fromEntries(WILLIAMSON_ZIPS.map((zip) => [zip, "Williamson" as CountyName])),
 };
 
 export const COVERAGE_RADIUS_MILES = 45;

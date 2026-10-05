@@ -106,8 +106,8 @@ export function PropertySatellite({ address, latitude, longitude, isEs, compact 
             strokeColor: "#14532d",
             strokeOpacity: 0.95,
             strokeWeight: 2,
-            fillColor: "#166534",
-            fillOpacity: 0.6,
+            fillColor: "#14532d",
+            fillOpacity: 0.45,
             clickable: false,
           });
         }
