@@ -16,3 +16,9 @@ test("calendar coverage rejects invalid or out-of-route dates", () => {
   assert.equal(isDateCoveredForCity("not-a-date", "Georgetown"), false);
   assert.equal(isDateCoveredForCity("2026-10-03", "Hutto"), false);
 });
+
+test("Austin and Pflugerville can book on days of nearby cities", () => {
+  assert.equal(isDateCoveredForCity("2026-09-30", "Austin"), true);
+  assert.equal(isDateCoveredForCity("2026-10-02", "Pflugerville"), true);
+  assert.equal(isDateCoveredForCity("2026-09-28", "Austin"), false);
+});
