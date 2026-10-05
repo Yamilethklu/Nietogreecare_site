@@ -26,7 +26,9 @@ export async function solarMaskFootprint(lat:number,lng:number,key:string,parcel
   const radius=Math.max(...[[bbox[0],bbox[1]],[bbox[2],bbox[3]]].map(point=>turf.distance(turf.point([lng,lat]),turf.point(point),{units:'meters'})))+5;
   if(radius>100)return null;
   const url=new URL('https://solar.googleapis.com/v1/dataLayers:get');
-  url.search=new URLSearchParams({'location.latitude':String(lat),'location.longitude':String(lng),radiusMeters:String(Math.max(30,Math.ceil(radius))),view:'IMAGERY_LAYERS',pixelSizeMeters:'0.1',key}).toString();
+  // MEDIUM is a minimum: Google still returns HIGH where available. Leaving
+  // quality unspecified excludes valid coverage in Jarrell and Liberty Hill.
+  url.search=new URLSearchParams({'location.latitude':String(lat),'location.longitude':String(lng),radiusMeters:String(Math.max(30,Math.ceil(radius))),view:'IMAGERY_LAYERS',pixelSizeMeters:'0.1',requiredQuality:'MEDIUM',exactQualityRequired:'false',key}).toString();
   const response=await fetch(url,{cache:'no-store',signal:AbortSignal.timeout(10000)});
   await checkSolarResponse(response);
   if(!response.ok)return null;
