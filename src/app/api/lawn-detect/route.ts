@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import * as turf from "@turf/turf";
 import { solarMaskFootprint, SolarFootprintError } from "@/lib/solar-footprint";
 import { selectLawnArea } from "@/lib/lawn-selection";
+import { countyFromGeocodeName, countyFromCity, parcelLookupOrder, type CountyKey } from "@/lib/county-coverage";
 import { getCensusRoadPoint } from "@/lib/road-reference";
 
 import { asAreaFeature, featureAreaSqFt, featureAreaSqM, featureCenter, findAreaFeature, subtractFootprint, type AreaFeature } from "@/lib/parcel-geometry";
@@ -206,6 +207,22 @@ async function getWilliamsonParcel(latitude: number, longitude: number): Promise
   return (await queryParcel("esriSpatialRelWithin")) ?? queryParcel("esriSpatialRelIntersects");
 }
 
+async function getTravisParcel(latitude: number, longitude: number): Promise<{ parcel: AreaFeature; payload: unknown } | null> {
+  const parcelUrl = new URL("https://gis.traviscountytx.gov/server1/rest/services/Boundaries_and_Jurisdictions/TCAD_public/MapServer/0/query");
+  parcelUrl.searchParams.set("geometry", `${longitude},${latitude}`);
+  parcelUrl.searchParams.set("geometryType", "esriGeometryPoint");
+  parcelUrl.searchParams.set("inSR", "4326");
+  parcelUrl.searchParams.set("spatialRel", "esriSpatialRelIntersects");
+  parcelUrl.searchParams.set("outFields", "*");
+  parcelUrl.searchParams.set("outSR", "4326");
+  parcelUrl.searchParams.set("f", "geojson");
+  const response = await fetch(parcelUrl, { cache: "no-store", signal: AbortSignal.timeout(5000) });
+  if (!response.ok) return null;
+  const payload = await response.json();
+  const parcel = findAreaFeature(payload);
+  return parcel && turf.booleanPointInPolygon(turf.point([longitude, latitude]), parcel) ? { parcel, payload } : null;
+}
+
 async function getRegridParcel(latitude: number, longitude: number): Promise<{ parcel: AreaFeature; payload: unknown } | null> {
   if (!REGRID_TOKEN) return null;
 
@@ -222,9 +239,35 @@ async function getRegridParcel(latitude: number, longitude: number): Promise<{ p
   return parcel && turf.booleanPointInPolygon(turf.point([longitude,latitude]),parcel) ? { parcel, payload: parcelPayload } : null;
 }
 
-async function getParcelGeometry(latitude: number, longitude: number): Promise<{ parcel: AreaFeature; payload: unknown } | null> {
-  const county=await getWilliamsonParcel(latitude, longitude).catch(()=>null);
-  return county ?? getRegridParcel(latitude, longitude).catch(()=>null);
+const COUNTY_PARCEL_LOOKUPS: Partial<Record<CountyKey, typeof getWilliamsonParcel>> = {
+  williamson: getWilliamsonParcel,
+  travis: getTravisParcel,
+};
+
+async function getParcelGeometry(latitude: number, longitude: number, county: CountyKey | null): Promise<{ parcel: AreaFeature; payload: unknown } | null> {
+  for (const key of parcelLookupOrder(county)) {
+    const found = await COUNTY_PARCEL_LOOKUPS[key]?.(latitude, longitude).catch(() => null);
+    if (found) return found;
+  }
+  return getRegridParcel(latitude, longitude).catch(()=>null);
+}
+
+async function detectCounty(latitude: number, longitude: number, address: string, geocodeCounty: string | null): Promise<CountyKey | null> {
+  const fromGeocode = countyFromGeocodeName(geocodeCounty);
+  if (fromGeocode) return fromGeocode;
+  if (GOOGLE_KEY) {
+    try {
+      const url = new URL("https://maps.googleapis.com/maps/api/geocode/json");
+      url.searchParams.set("latlng", `${latitude},${longitude}`);
+      url.searchParams.set("key", GOOGLE_KEY);
+      const data = await (await fetch(url, { cache: "no-store", signal: AbortSignal.timeout(3000) })).json();
+      const components: any[] = data?.results?.[0]?.address_components ?? [];
+      const found = countyFromGeocodeName(components.find((c) => c.types?.includes("administrative_area_level_2"))?.long_name);
+      if (found) return found;
+    } catch {}
+  }
+  const city = address.split(",")[1];
+  return countyFromCity(city);
 }
 
 export async function GET(request: Request) {
@@ -242,6 +285,7 @@ export async function GET(request: Request) {
   let latitude = latParam;
   let longitude = lngParam;
   let formattedAddress = address;
+  let geocodeCounty: string | null = null;
 
   if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
     if (!address || !GOOGLE_KEY) {
@@ -263,10 +307,12 @@ export async function GET(request: Request) {
     latitude = Number(location.lat);
     longitude = Number(location.lng);
     formattedAddress = String(result.formatted_address ?? address);
+    geocodeCounty = (result.address_components ?? []).find((c: any) => c.types?.includes("administrative_area_level_2"))?.long_name ?? null;
   }
 
   try {
-    const parcelLookup = await getParcelGeometry(latitude, longitude);
+    const county = await detectCounty(latitude, longitude, formattedAddress, geocodeCounty);
+    const parcelLookup = await getParcelGeometry(latitude, longitude, county);
     if (!parcelLookup) {
       return NextResponse.json({ ok: false, error: NO_PARCEL_ERROR, formattedAddress, latitude, longitude }, { status: 404 });
     }
@@ -321,6 +367,7 @@ export async function GET(request: Request) {
       centro,
       huellaCasaSimulada: simulated,
       warning,
+      county,
       formattedAddress,
       latitude,
       longitude,

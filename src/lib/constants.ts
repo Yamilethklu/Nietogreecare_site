@@ -67,6 +67,8 @@ export const NEARBY_CITIES: readonly string[] = [];
 
 /** ZIP codes atendidos (Austin + Hutto + Round Rock + Georgetown + Cedar Park y alrededores). */
 export const SERVICE_ZIP_CODES: string[] = [
+  // Austin
+  "78701", "78702", "78703", "78704", "78705", "78717", "78726", "78727", "78728", "78729", "78730", "78731", "78750", "78751", "78756", "78757", "78758", "78759",
   // Hutto
   "78634",
   // Round Rock
@@ -81,6 +83,10 @@ export const SERVICE_ZIP_CODES: string[] = [
 
 /** Mapa ZIP -> ciudad principal, usado para mostrar la cobertura en el cotizador. */
 export const ZIP_CITY_MAP: Record<string, string> = {
+  "78701": "Austin", "78702": "Austin", "78703": "Austin", "78704": "Austin", "78705": "Austin",
+  "78717": "Austin", "78726": "Austin", "78727": "Austin", "78728": "Austin", "78729": "Austin",
+  "78730": "Austin", "78731": "Austin", "78750": "Austin", "78751": "Austin", "78756": "Austin",
+  "78757": "Austin", "78758": "Austin", "78759": "Austin",
   "78634": "Hutto",
   "78664": "Round Rock",
   "78665": "Round Rock",
