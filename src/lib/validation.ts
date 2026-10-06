@@ -58,8 +58,10 @@ export const measurementSchema = z.object({
   polygon: z.array(polygonPointSchema).max(10000).default([]),
   polygons: z.array(z.array(polygonPointSchema).min(3).max(10000)).max(100).optional(),
   parcelPolygons: z.array(z.array(polygonPointSchema).min(3).max(10000)).max(100).optional(),
-  footprintSource: z.enum(["catastro", "osm", "microsoft", "solar_mask", "solar_box", "regrid", "manual"]).optional(),
+  footprintSource: z.enum(["catastro", "osm", "microsoft", "solar_mask", "solar_box", "regrid", "parcel_estimate", "manual"]).optional(),
   confidence: z.enum(["alta", "media", "baja"]).optional(),
+  reviewRecommended: z.boolean().optional(),
+  areaSelectionEstimated: z.boolean().optional(),
   sidewalk: z.object({
     valor: z.number().min(0),
     tipo: z.enum(["estimado", "no_excluido"]),

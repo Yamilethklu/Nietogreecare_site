@@ -3,6 +3,7 @@ import * as turf from "@turf/turf";
 import { solarMaskFootprint, SolarFootprintError } from "@/lib/solar-footprint";
 import { getMicrosoftFootprint } from "@/lib/microsoft-footprint";
 import { getRegridBuilding } from "@/lib/regrid-building";
+import { estimateHouseFootprint } from "@/lib/estimated-footprint";
 import { selectLawnArea } from "@/lib/lawn-selection";
 import { getCensusRoadPoint } from "@/lib/road-reference";
 import { COUNTY_PARCEL_SERVICES, countyLookupOrder, extractLocality } from "@/lib/county-parcels";
@@ -26,7 +27,7 @@ const SIDEWALK_SETBACK_METERS = 2.4;
 const AREA_SELECTIONS = ["front_back", "front_only", "back_only"] as const;
 type AreaSelection = (typeof AREA_SELECTIONS)[number];
 type LatLngPoint = { lat: number; lng: number };
-type FootprintSource = "catastro" | "osm" | "microsoft" | "solar_mask" | "solar_box" | "regrid" | "manual";
+type FootprintSource = "catastro" | "osm" | "microsoft" | "solar_mask" | "solar_box" | "regrid" | "parcel_estimate" | "manual";
 type FootprintConfidence = "alta" | "media" | "baja";
 
 function findBuildingFeature(payload: any): AreaFeature | null {
@@ -265,6 +266,8 @@ function lawnResponse(
   source: FootprintSource,
   confidence: FootprintConfidence,
   roadPoint: LatLngPoint | null,
+  reviewRecommended = false,
+  areaSelectionEstimated = false,
 ) {
   return {
     ok: true,
@@ -277,6 +280,8 @@ function lawnResponse(
     fuenteHuella: source,
     confianza: confidence,
     requiereRevisionManual: false,
+    revisionPropietarioRecomendada: reviewRecommended,
+    seleccionAreaEstimada: areaSelectionEstimated,
     sidewalk: roadPoint
       ? { valor: SIDEWALK_SETBACK_METERS, tipo: "estimado", fuente: "franja_fija_2.4m" }
       : { valor: 0, tipo: "no_excluido", fuente: "sin_referencia_vial" },
@@ -419,30 +424,32 @@ export async function GET(request: Request) {
       if (house) footprintSource = "regrid";
     }
 
+    if (!house) {
+      house = estimateHouseFootprint(parcel);
+      if (house) footprintSource = "parcel_estimate";
+    }
     if (!house || !footprintSource) {
       return NextResponse.json({
-        ok: true,
+        ok: false,
+        error: footprintError === "building_footprint_unavailable" ? "automatic_estimate_unavailable" : footprintError,
+        motivo: "automatic_estimate_unavailable",
         poligonoParcela: parcel.geometry,
-        poligonoJardin: null,
-        areaMetros: null,
-        areaPies: null,
-        fuenteHuella: null,
-        confianza: "sin_huella",
-        requiereRevisionManual: true,
-        motivo: footprintError === "building_footprint_unavailable" ? "footprint_unavailable" : footprintError,
-        sidewalk: { valor: 0, tipo: "no_excluido", motivo: "sin_huella_casa" },
-        warning: "sidewalk_not_excluded",
         formattedAddress,
         latitude,
         longitude,
-      });
+      }, { status: 422 });
     }
 
     const houseFootprint = house;
     const fullLawn = subtractFootprint(parcel, houseFootprint);
     const roadPoint = await getNearestRoadPoint(latitude, longitude, parcel, formattedAddress);
     const mowableLawn = fullLawn ? excludeSidewalkStrip(fullLawn, parcel, houseFootprint, roadPoint) : null;
-    const jardin = mowableLawn ? selectLawnArea(mowableLawn, houseFootprint, roadPoint, areaSelection) : null;
+    const areaSelectionEstimated = !roadPoint && areaSelection !== "front_back";
+    const jardin = mowableLawn
+      ? areaSelectionEstimated
+        ? mowableLawn
+        : selectLawnArea(mowableLawn, houseFootprint, roadPoint, areaSelection)
+      : null;
     if (!jardin?.geometry) {
       const error = !roadPoint && areaSelection !== "front_back" ? "no_road_point" : LAWN_COMPUTE_ERROR;
       return NextResponse.json({ ok: false, error, motivo: error, formattedAddress, latitude, longitude }, { status: 422 });
@@ -455,10 +462,22 @@ export async function GET(request: Request) {
 
     const confidence: FootprintConfidence = footprintSource === "catastro"
       ? "alta"
-      : footprintSource === "solar_box"
+      : footprintSource === "solar_box" || footprintSource === "parcel_estimate"
         ? "baja"
         : "media";
-    return NextResponse.json(lawnResponse(parcel, jardin, formattedAddress, latitude, longitude, footprintSource, confidence, roadPoint));
+    const reviewRecommended = footprintSource === "parcel_estimate" || areaSelectionEstimated;
+    return NextResponse.json(lawnResponse(
+      parcel,
+      jardin,
+      formattedAddress,
+      latitude,
+      longitude,
+      footprintSource,
+      confidence,
+      roadPoint,
+      reviewRecommended,
+      areaSelectionEstimated,
+    ));
   } catch {
     return NextResponse.json({ ok: false, error: LAWN_DETECTION_FAILED, formattedAddress, latitude, longitude }, { status: 500 });
   }

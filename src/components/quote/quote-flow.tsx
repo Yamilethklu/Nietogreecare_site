@@ -49,6 +49,8 @@ type LawnDetectionResponse = {
   confianza?: QuoteMeasurement["confidence"] | "sin_huella";
   sidewalk?: QuoteMeasurement["sidewalk"];
   requiereRevisionManual?: boolean;
+  revisionPropietarioRecomendada?: boolean;
+  seleccionAreaEstimada?: boolean;
   motivo?: string;
   polygons?: PolygonPoint[][];
   areaSqM?: number;
@@ -85,6 +87,8 @@ function resolveMeasurementError(error: string | undefined, isEs: boolean) {
       return isEs ? "El polígono dibujado no es válido. Dibuje nuevamente el contorno de la casa." : "The drawn polygon is invalid. Draw the house outline again.";
     case "manual_footprint_outside_parcel":
       return isEs ? "La huella dibujada no coincide con el predio. Ajuste el polígono y vuelva a intentarlo." : "The drawn footprint does not overlap the parcel. Adjust the polygon and try again.";
+    case "automatic_estimate_unavailable":
+      return isEs ? "No se pudo calcular una medición automática confiable para esta propiedad. El propietario deberá confirmar la medida." : "An automatic measurement could not be calculated reliably for this property. The owner will need to confirm it.";
     case "solar_access_denied":
       return isEs ? "La medición está temporalmente no disponible: el proveedor no autorizó la consulta de la casa. Contacte al propietario." : "Measurement is temporarily unavailable: the provider did not authorize the building lookup. Please contact the owner.";
     case "solar_quota_exceeded":
@@ -136,9 +140,6 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
   const [gateAnswer, setGateAnswer] = React.useState<"yes" | "no" | "">("");
   const [measurementLoading, setMeasurementLoading] = React.useState(false);
   const [detectedParcel, setDetectedParcel] = React.useState<PolygonPoint[][]>();
-  const [manualReview, setManualReview] = React.useState(false);
-  const [manualSubmitting, setManualSubmitting] = React.useState(false);
-  const [manualError, setManualError] = React.useState("");
   const lastMeasurementAttempt = React.useRef<string | null>(null);
   const measurementEnabled = store.step >= MOWING_AREA_STEP;
   const address = store.address;
@@ -150,60 +151,6 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
   const clearMeasurement = store.clearMeasurement;
   const setAddress = store.setAddress;
   const setMeasurement = store.setMeasurement;
-
-  const submitManualFootprint = React.useCallback(async (geometry: LawnGeoJsonGeometry) => {
-    if (latitude == null || longitude == null) return;
-    setManualSubmitting(true);
-    setManualError("");
-    try {
-      const response = await fetch("/api/lawn-detect", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        cache: "no-store",
-        body: JSON.stringify({
-          address: formattedAddress || address,
-          latitude,
-          longitude,
-          areaSelection,
-          geometry,
-        }),
-      });
-      const payload = (await response.json().catch(() => ({}))) as LawnDetectionResponse;
-      if (!response.ok || !payload.ok) throw new Error(resolveMeasurementError(payload.error ?? payload.motivo, isEs));
-      const polygons = geoJsonGeometryToPolygons(payload.poligonoJardin);
-      const parcelPolygons = geoJsonGeometryToPolygons(payload.poligonoParcela);
-      const areaSqFt = Number(payload.areaPies);
-      if (!polygons.length || !Number.isFinite(areaSqFt) || areaSqFt <= 0) {
-        throw new Error(resolveMeasurementError(undefined, isEs));
-      }
-      const nextMeasurement = buildMeasurement(
-        polygons[0],
-        areaSqFt,
-        2,
-        19,
-        polygons,
-        parcelPolygons.length ? parcelPolygons : undefined,
-        payload.poligonoJardin,
-      );
-      nextMeasurement.areaSelection = areaSelection;
-      nextMeasurement.geometryVersion = 3;
-      nextMeasurement.warning = payload.warning;
-      nextMeasurement.footprintSource = payload.fuenteHuella ?? "manual";
-      nextMeasurement.confidence =
-        payload.confianza === "alta" || payload.confianza === "media" || payload.confianza === "baja"
-          ? payload.confianza
-          : "baja";
-      nextMeasurement.sidewalk = payload.sidewalk;
-      if (payload.centro) nextMeasurement.center = payload.centro;
-      setMeasurement(nextMeasurement);
-      setManualReview(false);
-      setErrors((current) => ({ ...current, measurement: "" }));
-    } catch (error) {
-      setManualError(error instanceof Error ? error.message : resolveMeasurementError(undefined, isEs));
-    } finally {
-      setManualSubmitting(false);
-    }
-  }, [address, areaSelection, formattedAddress, isEs, latitude, longitude, setMeasurement]);
 
   React.useEffect(() => {
     void fetch("/api/lawn-rates", { cache: "no-store" })
@@ -272,8 +219,6 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
     setErrors((current) => ({ ...current, measurement: "" }));
     setMeasurementLoading(true);
     setDetectedParcel(undefined);
-    setManualReview(false);
-    setManualError("");
     const detectUrl = new URL("/api/lawn-detect", window.location.origin);
     detectUrl.searchParams.set("address", formattedAddress || address);
     detectUrl.searchParams.set("lat", String(latitude));
@@ -289,7 +234,6 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
       .then((payload) => {
         if (cancelled) return;
         if (payload.requiereRevisionManual) {
-          setManualReview(true);
           setErrors((current) => ({
             ...current,
             measurement: resolveMeasurementError(payload.motivo ?? payload.error, isEs),
@@ -311,6 +255,14 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
         nextMeasurement.areaSelection = areaSelection;
         nextMeasurement.geometryVersion = 3;
         nextMeasurement.warning = payload.warning;
+        nextMeasurement.footprintSource = payload.fuenteHuella ?? undefined;
+        nextMeasurement.confidence =
+          payload.confianza === "alta" || payload.confianza === "media" || payload.confianza === "baja"
+            ? payload.confianza
+            : undefined;
+        nextMeasurement.reviewRecommended = payload.revisionPropietarioRecomendada ?? false;
+        nextMeasurement.areaSelectionEstimated = payload.seleccionAreaEstimada ?? false;
+        nextMeasurement.sidewalk = payload.sidewalk;
         if (center) nextMeasurement.center = center;
         const resolvedAddress = {
           ...(payload.formattedAddress && payload.formattedAddress !== formattedAddress
@@ -424,11 +376,9 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
     if (current.step === QUOTE_SUMMARY_STEP && !current.measurement) {
       setErrors((currentErrors) => ({
         ...currentErrors,
-        measurement: currentErrors.measurement || (manualReview
-          ? resolveMeasurementError("footprint_unavailable", isEs)
-          : (isEs
-            ? "La medición de esta propiedad está pendiente de confirmación."
-            : "The measurement for this property is awaiting confirmation.")),
+        measurement: currentErrors.measurement || (isEs
+          ? "La medición automática de esta propiedad no está disponible. El propietario deberá confirmar el área."
+          : "Automatic measurement is unavailable for this property. The owner will need to confirm the area."),
       }));
       return;
     }
@@ -518,11 +468,7 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
     geometry: lawnGeometry,
     parcelPolygons,
     center: markerCenter,
-    manualReview,
-    manualSubmitting,
-    manualError,
     areaSqFt: measurement?.areaSqFt,
-    onManualFootprint: submitManualFootprint,
   };
   const lawnAreaSqFt = Math.round(measurement?.areaSqFt ?? 0);
   const lawnAreaSqYd = Math.round(((measurement?.areaSqFt ?? 0) / 9) * 10) / 10;
@@ -650,12 +596,14 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
             {!store.measurement && !measurementLoading && <p className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900">{isEs ? "Aún no hay medición satelital, por lo que no se muestra un precio definitivo. El propietario confirmará la medida y la tarifa." : "There is no satellite measurement yet, so no final price is shown. The owner will confirm the measurement and rate."}</p>}
             {store.measurement?.warning === "sidewalk_estimate" && <p className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">{isEs ? "Banquetas (estimado ±10%): se excluyó una franja fija estimada de 2.4 m; la medida puede variar." : "Sidewalks (estimated ±10%): an estimated fixed 2.4 m strip was excluded; the measurement may vary."}</p>}
             {store.measurement?.warning === "sidewalk_not_excluded" && <p className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">{isEs ? "Banquetas (estimado ±10%): no se pudo ubicar la calle, por lo que no se excluyó la banqueta." : "Sidewalks (estimated ±10%): the street could not be located, so the sidewalk was not excluded."}</p>}
+            {store.measurement?.reviewRecommended && <p className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">{isEs ? "Medición automática aproximada (confianza baja). El propietario podrá revisar esta estimación; no necesitas dibujar nada." : "Approximate automatic measurement (low confidence). The owner can review this estimate; you do not need to draw anything."}</p>}
+            {store.measurement?.areaSelectionEstimated && <p className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">{isEs ? "No se pudo ubicar la calle para separar frente y atrás; se midió el césped disponible de todo el predio." : "The street could not be located to split front and back; the available lawn across the whole parcel was measured."}</p>}
             <div className="grid gap-3 text-sm sm:grid-cols-2">
               <p><strong>{isEs ? "Cliente" : "Customer"}:</strong> {store.customerName}</p><p><strong>{isEs ? "Teléfono" : "Phone"}:</strong> {store.customerPhone}</p>
               <p><strong>{isEs ? "Frecuencia" : "Frequency"}:</strong> {cadenceLabel}</p><p><strong>{isEs ? "Propiedad" : "Property"}:</strong> {store.propertyOccupancy === "occupied" ? (isEs ? "Ocupada" : "Occupied") : (isEs ? "Deshabitada" : "Vacant")}</p>
               <p><strong>{isEs ? "Área elegida" : "Selected area"}:</strong> {store.areaSelection === "front_back" ? (isEs ? "Adelante y atrás" : "Front & Back") : store.areaSelection === "front_only" ? (isEs ? "Adelante" : "Front") : (isEs ? "Atrás" : "Back")}</p>
               <p><strong>{isEs ? "Césped calculado" : "Calculated lawn"}:</strong> {store.measurement ? `${lawnAreaSqFt.toLocaleString()} ft² / ${lawnAreaSqYd.toLocaleString(undefined, { maximumFractionDigits: 1 })} yd² / ${lawnAreaSqM.toLocaleString(undefined, { maximumFractionDigits: 1 })} m²` : (isEs ? "Pendiente de medición" : "Measurement pending")}</p>
-              {store.measurement?.footprintSource && <p><strong>{isEs ? "Huella" : "Footprint"}:</strong> {store.measurement.footprintSource} · {isEs ? "confianza" : "confidence"} {store.measurement.confidence ?? (isEs ? "desconocida" : "unknown")}</p>}
+              {store.measurement?.footprintSource && <p><strong>{isEs ? "Huella" : "Footprint"}:</strong> {store.measurement.footprintSource === "parcel_estimate" ? (isEs ? "estimación automática del predio" : "automatic parcel estimate") : store.measurement.footprintSource} · {isEs ? "confianza" : "confidence"} {store.measurement.confidence ?? (isEs ? "desconocida" : "unknown")}</p>}
               <p><strong>{isEs ? "Mascotas" : "Pets"}:</strong> {store.hasPetsInBackyard ? (isEs ? "Sí" : "Yes") : "No"}</p><p><strong>{isEs ? "Cerradura" : "Lock"}:</strong> {store.hasGateCode ? `${isEs ? "Sí" : "Yes"} (${store.gateCode})` : "No"}</p>
             </div>
             {(store.additionalNotes.trim() || store.details.trim()) && <div className="rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-700">{store.additionalNotes.trim() && <p><strong>{isEs ? "Nota" : "Note"}:</strong> {store.additionalNotes}</p>}{store.details.trim() && <p className="mt-2"><strong>{isEs ? "Trabajo adicional" : "Additional work"}:</strong> {store.details}</p>}</div>}
