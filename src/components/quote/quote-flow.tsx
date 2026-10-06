@@ -232,10 +232,19 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
         nextMeasurement.geometryVersion = 3;
         nextMeasurement.warning = payload.warning;
         if (center) nextMeasurement.center = center;
+        const resolvedAddress = {
+          ...(payload.formattedAddress && payload.formattedAddress !== formattedAddress
+            ? { formattedAddress: payload.formattedAddress }
+            : {}),
+          ...(typeof payload.latitude === "number" && payload.latitude !== latitude
+            ? { latitude: payload.latitude }
+            : {}),
+          ...(typeof payload.longitude === "number" && payload.longitude !== longitude
+            ? { longitude: payload.longitude }
+            : {}),
+        };
+        if (Object.keys(resolvedAddress).length > 0) setAddress(resolvedAddress);
         setMeasurement(nextMeasurement);
-        if (payload.formattedAddress && payload.formattedAddress !== formattedAddress) {
-          setAddress({ formattedAddress: payload.formattedAddress });
-        }
       })
       .catch((error: unknown) => {
         if (!cancelled) {
@@ -491,7 +500,6 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
             </div>
             {measurementLoading && <p className="rounded-lg bg-slate-100 px-4 py-3 text-sm font-semibold text-slate-700">{isEs ? "Midiendo el área seleccionada y excluyendo la casa..." : "Measuring the selected area and excluding the house..."}</p>}
             <PropertySatellite {...satelliteMapProps} loadingText={isEs ? "Cargando el mapa y midiendo el área..." : "Loading the map and measuring the area..."} />
-            {errors.measurement && <FieldError>{errors.measurement}</FieldError>}
             {measurement && <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-950">{isEs ? `Área seleccionada: ${Math.round(measurement.areaSqFt).toLocaleString()} ft²` : `Selected area: ${Math.round(measurement.areaSqFt).toLocaleString()} sq ft`}</p>}
             {measurement?.warning === "sidewalk_estimate" && <p className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">{isEs ? "La banqueta se excluyó con una franja estimada; la medida puede variar ligeramente." : "The sidewalk was excluded using an estimated strip; the measurement may vary slightly."}</p>}
             {measurement?.warning === "sidewalk_not_excluded" && <p className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">{isEs ? "No se pudo ubicar la calle, por lo que la banqueta no se excluyó; la medida es una estimación." : "The street could not be located, so the sidewalk was not excluded; the measurement is an estimate."}</p>}
@@ -533,7 +541,6 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
               </div>
               <PropertySatellite {...satelliteMapProps} compact loadingText={isEs ? "Analizando tu propiedad por satélite..." : "Analyzing your property by satellite..."} />
             </div>
-            <FieldError>{errors.measurement}</FieldError>
             {!store.measurement && !measurementLoading && <p className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900">{isEs ? "Aún no hay medición satelital, por lo que no se muestra un precio definitivo. El propietario confirmará la medida y la tarifa." : "There is no satellite measurement yet, so no final price is shown. The owner will confirm the measurement and rate."}</p>}
             {store.measurement?.warning === "sidewalk_estimate" && <p className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">{isEs ? "Nota: la banqueta se excluyó con una franja estimada de 2.4 m; la medida puede variar ligeramente." : "Note: the sidewalk was excluded using an estimated 2.4 m strip; the measurement may vary slightly."}</p>}
             {store.measurement?.warning === "sidewalk_not_excluded" && <p className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">{isEs ? "Nota: no se pudo ubicar la calle, por lo que la banqueta no se excluyó; la medida es una estimación." : "Note: the street could not be located, so the sidewalk was not excluded; the measurement is an estimate."}</p>}
@@ -581,6 +588,8 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
             </div>
             <p className="text-sm text-slate-600">{isEs ? "Al enviar, se guarda la solicitud y se abre el mensaje SMS con la cotización completa." : "When sending, the request is saved and the SMS message opens with the complete quote."}</p>
           </section>}
+
+          {errors.measurement && (store.step === 3 || store.step === 5) && <FieldError>{errors.measurement}</FieldError>}
 
           <div className="flex justify-between gap-3 border-t border-slate-200 pt-5">
             {store.step > 1 ? <Button type="button" variant="outline" onClick={store.goBack}>{isEs ? "Anterior" : "Back"}</Button> : <span />}
