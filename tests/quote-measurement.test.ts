@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { measurementSchema } from "../src/lib/validation.ts";
-import { buildMeasurement } from "../src/store/quote-store.ts";
+import { buildMeasurement, useQuoteStore } from "../src/store/quote-store.ts";
 
 test("buildMeasurement preserves parcel polygons for satellite rendering", () => {
   const selectedPolygon = [
@@ -53,4 +53,20 @@ test("measurementSchema accepts optional parcel polygons", () => {
   });
 
   assert.equal(parsed.parcelPolygons?.length, 1);
+});
+
+test("changing the selected address clears its previous lawn measurement", () => {
+  const store = useQuoteStore.getState();
+  const polygon = [
+    { lat: 30.5, lng: -97.7 },
+    { lat: 30.5, lng: -97.6995 },
+    { lat: 30.5005, lng: -97.6995 },
+  ];
+
+  store.setAddress({ address: "123 Old Street", latitude: 30.5, longitude: -97.7 });
+  store.setMeasurement(buildMeasurement(polygon, 1200));
+  useQuoteStore.getState().setAddress({ address: "456 New Street", latitude: 30.51, longitude: -97.71 });
+
+  assert.equal(useQuoteStore.getState().measurement, null);
+  useQuoteStore.getState().reset();
 });
