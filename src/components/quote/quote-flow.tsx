@@ -56,6 +56,7 @@ type AvailabilityResponse = {
 };
 
 const SQ_FT_PER_SQ_M = 10.7639;
+const MOWING_AREA_STEP = 3;
 const NO_PARCEL_ERROR = "No hay datos catastrales para esta dirección";
 const LAWN_COMPUTE_ERROR = "No se pudo calcular el área del jardín";
 const INVALID_LAWN_ERROR = "El área del jardín no es válida";
@@ -123,7 +124,7 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
   const [measurementWarning, setMeasurementWarning] = React.useState("");
   const [measurementLoading, setMeasurementLoading] = React.useState(false);
   const [detectedParcel, setDetectedParcel] = React.useState<PolygonPoint[][]>();
-  const [measurementEnabled, setMeasurementEnabled] = React.useState(false);
+  const measurementEnabled = store.step >= MOWING_AREA_STEP;
   const address = store.address;
   const formattedAddress = store.formattedAddress;
   const latitude = store.latitude;
@@ -131,12 +132,7 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
   const measurement = store.measurement;
   const areaSelection = store.areaSelection;
   const clearMeasurement = store.clearMeasurement;
-  const setAddress = store.setAddress;
   const setMeasurement = store.setMeasurement;
-
-  React.useEffect(() => {
-    if (store.step >= 3) setMeasurementEnabled(true);
-  }, [store.step]);
 
   React.useEffect(() => {
     void fetch("/api/lawn-rates", { cache: "no-store" })
@@ -224,13 +220,6 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
           }));
           return;
         }
-        if (typeof payload.latitude === "number" && typeof payload.longitude === "number") {
-          setAddress({
-            formattedAddress: payload.formattedAddress || formattedAddress,
-            latitude: payload.latitude,
-            longitude: payload.longitude,
-          });
-        }
         const measurement = buildMeasurement(polygons[0], areaSqFt, 2, 19, polygons, parcelPolygons.length ? parcelPolygons : undefined, payload.poligonoJardin);
         measurement.areaSelection = areaSelection;
         measurement.geometryVersion = 3;
@@ -262,7 +251,6 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
     measurement,
     areaSelection,
     clearMeasurement,
-    setAddress,
     setMeasurement,
     measurementEnabled,
     isEs,
