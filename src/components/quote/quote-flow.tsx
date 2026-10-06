@@ -121,7 +121,6 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
   const [rates, setRates] = React.useState<MowRate[]>([]);
   const [sending, setSending] = React.useState(false);
   const [gateAnswer, setGateAnswer] = React.useState<"yes" | "no" | "">("");
-  const [measurementWarning, setMeasurementWarning] = React.useState("");
   const [measurementLoading, setMeasurementLoading] = React.useState(false);
   const [detectedParcel, setDetectedParcel] = React.useState<PolygonPoint[][]>();
   const lastMeasurementAttempt = React.useRef<string | null>(null);
@@ -199,8 +198,8 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
     if (lastMeasurementAttempt.current === attemptKey) return;
     lastMeasurementAttempt.current = attemptKey;
     let cancelled = false;
+    let settled = false;
     setErrors((current) => ({ ...current, measurement: "" }));
-    setMeasurementWarning("");
     setMeasurementLoading(true);
     setDetectedParcel(undefined);
     const detectUrl = new URL("/api/lawn-detect", window.location.origin);
@@ -222,7 +221,6 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
         const areaSqFt = Number(payload.areaPies);
         const center = payload.centro && Number.isFinite(payload.centro.lat) && Number.isFinite(payload.centro.lng) ? payload.centro : null;
         if (!payload.ok || !polygons.length || !Number.isFinite(areaSqFt) || areaSqFt <= 0) {
-          setMeasurementWarning(payload.warning || "");
           setErrors((current) => ({
             ...current,
             measurement: resolveMeasurementError(payload.error, isEs),
@@ -233,13 +231,11 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
         nextMeasurement.areaSelection = areaSelection;
         nextMeasurement.geometryVersion = 3;
         nextMeasurement.warning = payload.warning;
-        setMeasurementWarning(payload.warning || "");
         if (center) nextMeasurement.center = center;
         setMeasurement(nextMeasurement);
         if (payload.formattedAddress && payload.formattedAddress !== formattedAddress) {
           setAddress({ formattedAddress: payload.formattedAddress });
         }
-        setMeasurementWarning("");
       })
       .catch((error: unknown) => {
         if (!cancelled) {
@@ -248,15 +244,15 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
             ...current,
             measurement: message,
           }));
-          setMeasurementWarning("");
         }
       })
       .finally(() => {
+        settled = true;
         if (!cancelled) setMeasurementLoading(false);
       });
     return () => {
       cancelled = true;
-      if (lastMeasurementAttempt.current === attemptKey) lastMeasurementAttempt.current = null;
+      if (!settled && lastMeasurementAttempt.current === attemptKey) lastMeasurementAttempt.current = null;
     };
   }, [
     address,
@@ -497,6 +493,8 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
             <PropertySatellite {...satelliteMapProps} loadingText={isEs ? "Cargando el mapa y midiendo el área..." : "Loading the map and measuring the area..."} />
             {errors.measurement && <FieldError>{errors.measurement}</FieldError>}
             {measurement && <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-950">{isEs ? `Área seleccionada: ${Math.round(measurement.areaSqFt).toLocaleString()} ft²` : `Selected area: ${Math.round(measurement.areaSqFt).toLocaleString()} sq ft`}</p>}
+            {measurement?.warning === "sidewalk_estimate" && <p className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">{isEs ? "La banqueta se excluyó con una franja estimada; la medida puede variar ligeramente." : "The sidewalk was excluded using an estimated strip; the measurement may vary slightly."}</p>}
+            {measurement?.warning === "sidewalk_not_excluded" && <p className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">{isEs ? "No se pudo ubicar la calle, por lo que la banqueta no se excluyó; la medida es una estimación." : "The street could not be located, so the sidewalk was not excluded; the measurement is an estimate."}</p>}
             <fieldset className="border-t border-slate-200 pt-5">
               <legend className="text-sm font-bold text-black">{isEs ? "¿El césped mide más de 6 pulgadas de alto?" : "Is the grass over 6 inches tall?"}</legend>
               <div className="mt-3 flex gap-3">
