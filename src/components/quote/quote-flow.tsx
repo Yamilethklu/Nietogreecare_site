@@ -62,7 +62,6 @@ type AvailabilityResponse = {
   occupiedDates?: string[];
 };
 
-const SQ_FT_PER_SQ_M = 10.7639;
 const MOWING_AREA_STEP = 3;
 const QUOTE_SUMMARY_STEP = 5;
 const NO_PARCEL_ERROR = "No hay datos catastrales para esta dirección";
@@ -460,7 +459,6 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
   const lawnGeometry = measurement?.lawnGeometry;
   const parcelPolygons = measurement?.parcelPolygons ?? detectedParcel;
   const satelliteMapProps = {
-    address,
     latitude,
     longitude,
     isEs,
@@ -468,11 +466,8 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
     geometry: lawnGeometry,
     parcelPolygons,
     center: markerCenter,
-    areaSqFt: measurement?.areaSqFt,
   };
   const lawnAreaSqFt = Math.round(measurement?.areaSqFt ?? 0);
-  const lawnAreaSqYd = Math.round(((measurement?.areaSqFt ?? 0) / 9) * 10) / 10;
-  const lawnAreaSqM = Math.round(((measurement?.areaSqFt ?? 0) / SQ_FT_PER_SQ_M) * 100) / 100;
   const selectedServiceDate = store.requestedDate ? new Date(`${store.requestedDate}T12:00:00`) : null;
   const hasSelectedServiceDate = selectedServiceDate && !Number.isNaN(selectedServiceDate.getTime());
   const pendingDateLabel = isEs ? "Pendiente" : "Pending";
@@ -593,7 +588,7 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
             </div>
             <div className="grid grid-cols-3 gap-3 border-b border-slate-200 py-6 text-sm">
               <div className="min-w-0"><h3 className="text-xs font-extrabold uppercase tracking-wide">{isEs ? "Dirección" : "Address"}</h3><p className="mt-1 break-words">{store.address || "—"}</p><p className="text-slate-500">{[store.city, store.state, store.zipCode].filter(Boolean).join(", ")}</p></div>
-              <div className="min-w-0"><h3 className="text-xs font-extrabold uppercase tracking-wide">{isEs ? "Pies cuadrados de césped" : "Lawn square footage"}</h3><p className="mt-1">{store.measurement ? `${lawnAreaSqFt.toLocaleString()} ft²` : pendingMeasurementLabel}</p></div>
+              <div className="min-w-0"><h3 className="text-xs font-extrabold uppercase tracking-wide">{isEs ? "Pies cuadrados de césped" : "Lawn square footage"}</h3><p className="mt-1">{store.measurement ? `${lawnAreaSqFt.toLocaleString()} ${isEs ? "ft²" : "sq ft"}` : pendingMeasurementLabel}</p></div>
               <div className="min-w-0"><h3 className="text-xs font-extrabold uppercase tracking-wide">{isEs ? "Fecha de inicio" : "Start date"}</h3><p className="mt-1">{hasSelectedServiceDate ? selectedServiceDate.toLocaleDateString(isEs ? "es-US" : "en-US", { month: "long", day: "numeric", year: "numeric" }) : pendingDateLabel}</p></div>
             </div>
             <div className="grid grid-cols-3 gap-3 border-b border-slate-200 py-6 text-sm">
@@ -604,7 +599,7 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
             <div className="border-b border-slate-200 py-6">
               <h3 className="text-xs font-extrabold uppercase tracking-wide">{isEs ? "Servicios incluidos" : "Included services"}</h3>
               <ul className="mt-3 space-y-2 text-sm">
-                {(isEs ? ["Corte de césped", "Recorte con desbrozadora", "Perfilado de bordes", "Limpieza con sopladora"] : ["Mow Lawn", "Line Trim", "Edge", "Blow Debris"]).map(label => <li key={label} className="flex items-center gap-2"><CheckCircle2 aria-hidden="true" className="size-5 shrink-0 text-green-700" />{label}</li>)}
+                {(isEs ? ["Corte de césped", "Recorte con desbrozadora", "Perfilado de bordes", "Limpieza con sopladora", "Soporte por texto 24/7"] : ["Mow Lawn", "Line Trim", "Edge", "Blow Debris", "24/7 Text Support"]).map(label => <li key={label} className="flex items-center gap-2"><CheckCircle2 aria-hidden="true" className="size-5 shrink-0 text-green-700" />{label}</li>)}
               </ul>
               <label className="mt-4 flex cursor-pointer items-center gap-2 text-sm font-semibold"><input type="checkbox" checked={Boolean(store.bagGrass)} onChange={event => store.setLawnOptions({bagGrass:event.target.checked})} />{isEs ? "Recoger el césped en bolsas (+$10 por corte)" : "Bag Grass (+$10 per cut)"}</label>
               {store.mowFrequency === "bi_weekly" && <div className="mt-5 rounded-lg border border-lime-400 bg-lime-50 p-4 text-slate-950">
@@ -625,7 +620,6 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
               <div className="grid gap-3 text-sm sm:grid-cols-2">
                 <p><strong>{isEs ? "Cliente" : "Customer"}:</strong> {store.customerName}</p><p><strong>{isEs ? "Teléfono" : "Phone"}:</strong> {store.customerPhone}</p>
                 <p><strong>{isEs ? "Propiedad" : "Property"}:</strong> {store.propertyOccupancy === "occupied" ? (isEs ? "Ocupada" : "Occupied") : (isEs ? "Deshabitada" : "Vacant")}</p>
-                <p><strong>{isEs ? "Césped calculado" : "Calculated lawn"}:</strong> {store.measurement ? `${lawnAreaSqFt.toLocaleString()} ft² / ${lawnAreaSqYd.toLocaleString(undefined, { maximumFractionDigits: 1 })} yd² / ${lawnAreaSqM.toLocaleString(undefined, { maximumFractionDigits: 1 })} m²` : pendingMeasurementLabel}</p>
                 {store.measurement?.footprintSource && <p><strong>{isEs ? "Huella" : "Footprint"}:</strong> {store.measurement.footprintSource === "parcel_estimate" ? (isEs ? "estimación automática del predio" : "automatic parcel estimate") : store.measurement.footprintSource} · {isEs ? "confianza" : "confidence"} {store.measurement.confidence ?? (isEs ? "desconocida" : "unknown")}</p>}
                 <p><strong>{isEs ? "Mascotas" : "Pets"}:</strong> {store.hasPetsInBackyard ? (isEs ? "Sí" : "Yes") : "No"}</p><p><strong>{isEs ? "Cerradura" : "Lock"}:</strong> {store.hasGateCode ? `${isEs ? "Sí" : "Yes"} (${store.gateCode})` : "No"}</p>
               </div>

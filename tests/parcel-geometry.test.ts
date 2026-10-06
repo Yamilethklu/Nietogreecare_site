@@ -1,7 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import * as turf from "@turf/turf";
 
-import { featureAreaSqFt, findAreaFeature, subtractFootprint } from "../src/lib/parcel-geometry.ts";
+import { featureAreaSqFt, findAreaFeature, subtractFootprint, subtractSidewalkStrip } from "../src/lib/parcel-geometry.ts";
 
 test("findAreaFeature returns the first polygon from geojson feature collections", () => {
   const feature = findAreaFeature({
@@ -144,4 +145,26 @@ test("subtractFootprint keeps the parcel unchanged when the building is outside 
   assert.ok(usable);
   assert.equal(usable.geometry.type, "Polygon");
   assert.equal(featureAreaSqFt(usable), featureAreaSqFt(parcel));
+});
+
+test("subtractSidewalkStrip clips only the road-facing edge by the configured setback", () => {
+  const parcel = findAreaFeature(turf.bboxPolygon([-97.701, 30.5, -97.699, 30.501]));
+  const house = findAreaFeature(turf.bboxPolygon([-97.7007, 30.5003, -97.7003, 30.5007]));
+  assert.ok(parcel);
+  assert.ok(house);
+
+  const fullLawn = subtractFootprint(parcel, house);
+  assert.ok(fullLawn);
+  const clipped = subtractSidewalkStrip(fullLawn, parcel, house, { lat: 30.5005, lng: -97.698 }, 2.4);
+  assert.ok(clipped);
+
+  const eastEdge = turf.point([-97.699, 30.5005]);
+  const inSidewalk = turf.destination(eastEdge, 1, 270, { units: "meters" });
+  const beyondSetback = turf.destination(eastEdge, 4, 270, { units: "meters" });
+  const oppositeSide = turf.point([-97.7009, 30.5005]);
+
+  assert.equal(turf.booleanPointInPolygon(inSidewalk, clipped), false);
+  assert.equal(turf.booleanPointInPolygon(beyondSetback, clipped), true);
+  assert.equal(turf.booleanPointInPolygon(oppositeSide, clipped), true);
+  assert.ok(featureAreaSqFt(clipped) < featureAreaSqFt(fullLawn));
 });
