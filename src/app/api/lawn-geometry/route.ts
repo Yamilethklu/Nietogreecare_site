@@ -38,6 +38,12 @@ export async function POST(request: Request) {
       areaPies: payload.areaPies,
       centro: payload.centro,
       huellaCasaSimulada: payload.huellaCasaSimulada,
+      fuenteHuella: payload.fuenteHuella,
+      confianza: payload.confianza,
+      requiereRevisionManual: payload.requiereRevisionManual,
+      motivo: payload.motivo,
+      poligonoParcela: payload.poligonoParcela,
+      sidewalk: payload.sidewalk,
       warning: payload.warning,
     });
   } catch {

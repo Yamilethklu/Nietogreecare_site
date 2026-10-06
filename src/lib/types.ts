@@ -29,6 +29,16 @@ export type QuoteMeasurement = {
   parcelPolygons?: PolygonPoint[][];
   geometryVersion?: number;
   warning?: string;
+  footprintSource?: "catastro" | "osm" | "microsoft" | "solar_mask" | "solar_box" | "regrid" | "parcel_estimate" | "manual";
+  confidence?: "alta" | "media" | "baja";
+  reviewRecommended?: boolean;
+  areaSelectionEstimated?: boolean;
+  sidewalk?: {
+    valor: number;
+    tipo: "estimado" | "no_excluido";
+    fuente?: string;
+    motivo?: string;
+  };
   lawnGeometry?: LawnGeoJsonGeometry;
   polygonPath: string | null;
   bounds: MapBounds | null;
