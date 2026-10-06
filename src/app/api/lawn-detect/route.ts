@@ -9,7 +9,7 @@ import { getCensusRoadPoint } from "@/lib/road-reference";
 import { COUNTY_PARCEL_SERVICES, countyLookupOrder, extractLocality } from "@/lib/county-parcels";
 import type { CountyName } from "@/lib/constants";
 
-import { asAreaFeature, featureAreaSqFt, featureAreaSqM, featureCenter, findAreaFeature, subtractFootprint, type AreaFeature } from "@/lib/parcel-geometry";
+import { asAreaFeature, featureAreaSqFt, featureAreaSqM, featureCenter, findAreaFeature, subtractFootprint, subtractSidewalkStrip, type AreaFeature } from "@/lib/parcel-geometry";
 
 export const runtime = "nodejs";
 
@@ -169,56 +169,6 @@ async function getNearestRoadPoint(lat: number, lng: number, parcel: AreaFeature
   }
 }
 
-function excludeSidewalkStrip(lawn: AreaFeature, parcel: AreaFeature, house: AreaFeature, roadPoint: LatLngPoint | null): AreaFeature {
-  if (!roadPoint) return lawn;
-  try {
-    const [west, south, east, north] = turf.bbox(parcel as any);
-    const width = Math.abs(east - west);
-    const height = Math.abs(north - south);
-    const span = Math.max(width, height) * 4;
-    const houseCenter = turf.center(house as any).geometry.coordinates;
-    const vectorLng = roadPoint.lng - houseCenter[0];
-    const vectorLat = roadPoint.lat - houseCenter[1];
-    const vectorLength = Math.hypot(vectorLng, vectorLat);
-    if (vectorLength <= 0) return lawn;
-
-    const unitLng = vectorLng / vectorLength;
-    const unitLat = vectorLat / vectorLength;
-    const sideLng = -unitLat * span;
-    const sideLat = unitLng * span;
-    const directionLng = unitLng * span;
-    const directionLat = unitLat * span;
-    const bearing = turf.bearing(turf.point(houseCenter), turf.point([roadPoint.lng, roadPoint.lat]));
-    const setbackPoint = turf.destination(turf.point(houseCenter), SIDEWALK_SETBACK_METERS, bearing, { units: "meters" }).geometry.coordinates;
-    const setbackProjection = Math.abs((setbackPoint[0] - houseCenter[0]) * unitLng + (setbackPoint[1] - houseCenter[1]) * unitLat);
-    if (!Number.isFinite(setbackProjection) || setbackProjection <= 0) return lawn;
-
-    const parcelCoordinates = turf.coordAll(parcel as any);
-    const frontProjection = Math.max(
-      ...parcelCoordinates
-        .filter((position) => Number.isFinite(position[0]) && Number.isFinite(position[1]))
-        .map((position) => (position[0] - houseCenter[0]) * unitLng + (position[1] - houseCenter[1]) * unitLat),
-    );
-    if (!Number.isFinite(frontProjection)) return lawn;
-
-    const stripProjection = frontProjection - setbackProjection;
-    const stripLng = houseCenter[0] + unitLng * stripProjection;
-    const stripLat = houseCenter[1] + unitLat * stripProjection;
-    const sideA = [stripLng + sideLng, stripLat + sideLat];
-    const sideB = [stripLng - sideLng, stripLat - sideLat];
-    const sidewalkStrip = turf.polygon([[
-      sideA,
-      sideB,
-      [sideB[0] + directionLng, sideB[1] + directionLat],
-      [sideA[0] + directionLng, sideA[1] + directionLat],
-      sideA,
-    ]]) as AreaFeature;
-    return subtractFootprint(lawn, sidewalkStrip) ?? lawn;
-  } catch {
-    return lawn;
-  }
-}
-
 async function getCountyParcel(county: CountyName, latitude: number, longitude: number): Promise<{ parcel: AreaFeature; payload: unknown } | null> {
   const endpoint = COUNTY_PARCEL_SERVICES[county];
   if (!endpoint) return null;
@@ -309,8 +259,10 @@ async function calculateLawnFromManualFootprint(
   if (!clippedHouse || featureAreaSqM(clippedHouse) < 10) return null;
   const fullLawn = subtractFootprint(parcel, clippedHouse);
   const roadPoint = await getNearestRoadPoint(latitude, longitude, parcel, address);
-  const mowableLawn = fullLawn ? excludeSidewalkStrip(fullLawn, parcel, clippedHouse, roadPoint) : null;
-  const lawn = mowableLawn ? selectLawnArea(mowableLawn, clippedHouse, roadPoint, areaSelection) : null;
+  const selectedLawn = fullLawn ? selectLawnArea(fullLawn, clippedHouse, roadPoint, areaSelection) : null;
+  const lawn = selectedLawn && roadPoint && areaSelection !== "back_only"
+    ? subtractSidewalkStrip(selectedLawn, parcel, clippedHouse, roadPoint, SIDEWALK_SETBACK_METERS)
+    : selectedLawn;
   if (!lawn?.geometry) {
     return { error: !roadPoint && areaSelection !== "front_back" ? "no_road_point" : LAWN_COMPUTE_ERROR };
   }
@@ -443,13 +395,15 @@ export async function GET(request: Request) {
     const houseFootprint = house;
     const fullLawn = subtractFootprint(parcel, houseFootprint);
     const roadPoint = await getNearestRoadPoint(latitude, longitude, parcel, formattedAddress);
-    const mowableLawn = fullLawn ? excludeSidewalkStrip(fullLawn, parcel, houseFootprint, roadPoint) : null;
     const areaSelectionEstimated = !roadPoint && areaSelection !== "front_back";
-    const jardin = mowableLawn
+    const selectedLawn = fullLawn
       ? areaSelectionEstimated
-        ? mowableLawn
-        : selectLawnArea(mowableLawn, houseFootprint, roadPoint, areaSelection)
+        ? fullLawn
+        : selectLawnArea(fullLawn, houseFootprint, roadPoint, areaSelection)
       : null;
+    const jardin = selectedLawn && roadPoint && areaSelection !== "back_only"
+      ? subtractSidewalkStrip(selectedLawn, parcel, houseFootprint, roadPoint, SIDEWALK_SETBACK_METERS)
+      : selectedLawn;
     if (!jardin?.geometry) {
       const error = !roadPoint && areaSelection !== "front_back" ? "no_road_point" : LAWN_COMPUTE_ERROR;
       return NextResponse.json({ ok: false, error, motivo: error, formattedAddress, latitude, longitude }, { status: 422 });

@@ -45,6 +45,59 @@ export function subtractFootprint(parcel: AreaFeature, building: AreaFeature | n
   return asAreaFeature(result);
 }
 
+export function subtractSidewalkStrip(
+  lawn: AreaFeature,
+  parcel: AreaFeature,
+  house: AreaFeature,
+  roadPoint: { lat: number; lng: number },
+  setbackMeters: number,
+): AreaFeature | null {
+  try {
+    const origin = turf.center(house as any).geometry.coordinates;
+    const originPoint = turf.point(origin);
+    const roadBearing = turf.bearing(originPoint, turf.point([roadPoint.lng, roadPoint.lat]));
+    const projections = turf.coordAll(parcel as any)
+      .filter(([lng, lat]) => Number.isFinite(lng) && Number.isFinite(lat))
+      .map((coordinate) => {
+        const point = turf.point(coordinate);
+        const distance = turf.distance(originPoint, point, { units: "meters" });
+        const bearingOffset = ((turf.bearing(originPoint, point) - roadBearing + 540) % 360) - 180;
+        const angle = (bearingOffset * Math.PI) / 180;
+        return {
+          forward: distance * Math.cos(angle),
+          perpendicular: distance * Math.sin(angle),
+        };
+      });
+    if (!projections.length || !Number.isFinite(setbackMeters) || setbackMeters <= 0) {
+      return turf.feature(lawn.geometry, lawn.properties) as AreaFeature;
+    }
+
+    const maxForward = Math.max(...projections.map(({ forward }) => forward));
+    const minForward = Math.min(...projections.map(({ forward }) => forward));
+    const maxPerpendicular = Math.max(...projections.map(({ perpendicular }) => Math.abs(perpendicular)));
+    const span = Math.max(maxForward - minForward, maxPerpendicular * 2, setbackMeters, 10);
+    const toCoordinate = (forward: number, perpendicular: number) => turf.destination(
+      originPoint,
+      Math.hypot(forward, perpendicular),
+      roadBearing + (Math.atan2(perpendicular, forward) * 180) / Math.PI,
+      { units: "meters" },
+    ).geometry.coordinates;
+    const cutoff = maxForward - setbackMeters;
+    const halfWidth = maxPerpendicular + span;
+    const sidewalkStrip = turf.polygon([[
+      toCoordinate(cutoff, -halfWidth),
+      toCoordinate(cutoff, halfWidth),
+      toCoordinate(maxForward + span, halfWidth),
+      toCoordinate(maxForward + span, -halfWidth),
+      toCoordinate(cutoff, -halfWidth),
+    ]]) as AreaFeature;
+
+    return subtractFootprint(lawn, sidewalkStrip);
+  } catch {
+    return turf.feature(lawn.geometry, lawn.properties) as AreaFeature;
+  }
+}
+
 export function featureAreaSqM(feature: AreaFeature): number {
   return turf.area(feature as any);
 }

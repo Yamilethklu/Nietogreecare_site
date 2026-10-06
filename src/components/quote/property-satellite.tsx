@@ -7,7 +7,6 @@ import type { LawnGeoJsonGeometry, PolygonPoint } from "@/lib/types";
 import { GOOGLE_MAPS_API_KEY, loadGoogleMaps } from "@/lib/google-maps";
 
 type Props = {
-  address: string;
   latitude: number | null;
   longitude: number | null;
   isEs: boolean;
@@ -18,7 +17,6 @@ type Props = {
   center?: PolygonPoint | null;
   loadingText?: string;
   showMarker?: boolean;
-  areaSqFt?: number;
 };
 
 function getBounds(paths?: PolygonPoint[][]) {
@@ -57,7 +55,6 @@ function geometryToGooglePaths(geometry?: LawnGeoJsonGeometry): PolygonPoint[][]
 }
 
 export function PropertySatellite({
-  address,
   latitude,
   longitude,
   isEs,
@@ -68,7 +65,6 @@ export function PropertySatellite({
   center,
   loadingText,
   showMarker = true,
-  areaSqFt,
 }: Props) {
   const container = React.useRef<HTMLDivElement>(null);
   const mapRef = React.useRef<any>(null);
@@ -128,12 +124,6 @@ export function PropertySatellite({
           });
         }
       });
-      if (flatPaths.length && areaSqFt && areaSqFt > 0) {
-        new window.google.maps.InfoWindow({
-          content: `${Math.round(areaSqFt).toLocaleString()} ft²`,
-          position: mapCenter ?? position,
-        }).open({ map });
-      }
       if (lawnBounds) {
         const bounds = new window.google.maps.LatLngBounds(
           { lat: lawnBounds.south, lng: lawnBounds.west },
@@ -154,14 +144,13 @@ export function PropertySatellite({
       cancelled = true;
       mapRef.current = null;
     };
-  }, [address, areaSqFt, flatPaths.length, hasCoordinates, latitude, longitude, lawnBounds, mapCenter, mapPaths, parcelPaths, showMarker]);
+  }, [hasCoordinates, latitude, longitude, lawnBounds, mapCenter, mapPaths, parcelPaths, showMarker]);
 
   return (
     <div className={`relative overflow-hidden rounded-2xl border-2 border-lime-400 bg-emerald-950 shadow-lg ${compact ? "min-h-56" : "min-h-72 sm:min-h-96"}`}>
       {!hasCoordinates && <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-6 text-center text-white"><MapPin className="size-9 text-lime-400" /><p className="font-semibold">{isEs ? "Selecciona una dirección sugerida para ubicar el trabajo en el satélite." : "Select a suggested address to locate the job on satellite view."}</p></div>}
       {hasCoordinates && !available && <div className="absolute inset-0 grid place-items-center p-6 text-center text-sm font-semibold text-white">{GOOGLE_MAPS_API_KEY ? (loadingText ?? (isEs ? "Cargando mapa satelital..." : "Loading satellite map...")) : (isEs ? "Falta configurar NEXT_PUBLIC_GOOGLE_MAPS_API_KEY en Vercel para mostrar el mapa satelital." : "NEXT_PUBLIC_GOOGLE_MAPS_API_KEY is missing in Vercel for the satellite map.")}</div>}
       <div ref={container} className={`absolute inset-0 ${available ? "opacity-100" : "pointer-events-none opacity-0"}`} aria-label={isEs ? "Mapa satelital de la propiedad" : "Property satellite map"} />
-      {hasCoordinates && <div className="pointer-events-none absolute bottom-3 left-3 right-3 flex items-center gap-2 rounded-xl bg-white/95 px-3 py-2 text-xs font-semibold text-slate-900 shadow"><MapPin className="size-4 shrink-0 text-green-600" /><span className="truncate">{address}</span></div>}
     </div>
   );
 }
