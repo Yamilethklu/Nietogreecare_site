@@ -57,6 +57,7 @@ type AvailabilityResponse = {
 
 const SQ_FT_PER_SQ_M = 10.7639;
 const MOWING_AREA_STEP = 3;
+const QUOTE_SUMMARY_STEP = 5;
 const NO_PARCEL_ERROR = "No hay datos catastrales para esta dirección";
 const LAWN_COMPUTE_ERROR = "No se pudo calcular el área del jardín";
 const INVALID_LAWN_ERROR = "El área del jardín no es válida";
@@ -244,6 +245,7 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
             : {}),
         };
         if (Object.keys(resolvedAddress).length > 0) setAddress(resolvedAddress);
+        if (cancelled) return;
         setMeasurement(nextMeasurement);
       })
       .catch((error: unknown) => {
@@ -340,7 +342,7 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
         return;
       }
     }
-    if (current.step === 5 && (!current.measurement || !price)) {
+    if (current.step === QUOTE_SUMMARY_STEP && (!current.measurement || !price)) {
       setErrors({ measurement: isEs ? "La medición o la tarifa de esta propiedad está pendiente de confirmación." : "The measurement or rate for this property is awaiting confirmation." });
       return;
     }
@@ -483,7 +485,7 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
             </div>
           </section>}
 
-          {store.step === 3 && <section className="space-y-6">
+          {store.step === MOWING_AREA_STEP && <section className="space-y-6">
             <div className="text-center"><h2 className="text-2xl font-extrabold text-emerald-700">{isEs ? "3. Área de corte" : "3. Mowing area"}</h2><p className="mt-2 text-slate-700">{isEs ? "Selecciona únicamente el área que requiere corte." : "Select only the area that needs mowing."}</p></div>
             <div className="space-y-4">
               {[
@@ -523,7 +525,7 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
             <div><Label htmlFor="quote-notes">{isEs ? "Nota: escriba algo que requiera" : "Note: write anything you need"}</Label><Textarea id="quote-notes" rows={3} maxLength={2000} value={store.additionalNotes} onChange={(event) => store.setPersonal({ additionalNotes: event.target.value })} className="mt-2" /></div>
           </section>}
 
-          {store.step === 5 && <section className="space-y-6">
+          {store.step === QUOTE_SUMMARY_STEP && <section className="space-y-6">
             {measurementLoading && <p className="rounded-lg bg-slate-100 px-4 py-3 text-sm font-semibold text-slate-700">{isEs ? "Analizando tu propiedad por satélite..." : "Analyzing your property by satellite..."}</p>}
             <div className="grid gap-5 border-b border-emerald-100 pb-5 sm:grid-cols-[1fr_1fr]">
               <div><h2 className="text-2xl font-extrabold text-emerald-950">{isEs ? "5. Resumen de cotización" : "5. Quote summary"}</h2><p className="mt-3 text-2xl font-bold text-emerald-800">{price !== null ? `$${price.toFixed(2)} / ${cadenceLabel}` : (isEs ? "Tarifa pendiente de confirmación" : "Rate awaiting confirmation")}</p><p className="mt-2 text-sm text-slate-600">{store.address}</p>
@@ -589,7 +591,7 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
             <p className="text-sm text-slate-600">{isEs ? "Al enviar, se guarda la solicitud y se abre el mensaje SMS con la cotización completa." : "When sending, the request is saved and the SMS message opens with the complete quote."}</p>
           </section>}
 
-          {errors.measurement && (store.step === 3 || store.step === 5) && <FieldError>{errors.measurement}</FieldError>}
+          {errors.measurement && (store.step === MOWING_AREA_STEP || store.step === QUOTE_SUMMARY_STEP) && <FieldError>{errors.measurement}</FieldError>}
 
           <div className="flex justify-between gap-3 border-t border-slate-200 pt-5">
             {store.step > 1 ? <Button type="button" variant="outline" onClick={store.goBack}>{isEs ? "Anterior" : "Back"}</Button> : <span />}

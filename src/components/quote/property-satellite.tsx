@@ -65,7 +65,7 @@ export function PropertySatellite({ address, latitude, longitude, isEs, compact 
   const mapPaths = googlePaths.length ? googlePaths : fallbackPaths;
   const flatPaths = React.useMemo(() => mapPaths.flat(), [mapPaths]);
   const allFlatPaths = React.useMemo(() => [...parcelPaths.flat(), ...flatPaths], [parcelPaths, flatPaths]);
-  const lawnCenter = React.useMemo(() => center ?? getCenter(flatPaths) ?? getCenter(allFlatPaths), [center, flatPaths, allFlatPaths]);
+  const mapCenter = React.useMemo(() => center ?? getCenter(flatPaths) ?? getCenter(allFlatPaths), [center, flatPaths, allFlatPaths]);
   const lawnBounds = React.useMemo(() => getBounds(allFlatPaths), [allFlatPaths]);
 
   React.useEffect(() => {
@@ -76,7 +76,7 @@ export function PropertySatellite({ address, latitude, longitude, isEs, compact 
       if (cancelled || !ready || !container.current || !window.google?.maps) return;
       const position = { lat: latitude!, lng: longitude! };
       const map = new window.google.maps.Map(container.current, {
-        center: lawnCenter ?? position,
+        center: mapCenter ?? position,
         zoom: 19,
         mapTypeId: "satellite",
         streetViewControl: false,
@@ -129,7 +129,7 @@ export function PropertySatellite({ address, latitude, longitude, isEs, compact 
       setAvailable(true);
     });
     return () => { cancelled = true; };
-  }, [address, hasCoordinates, latitude, longitude, lawnBounds, lawnCenter, mapPaths, parcelPaths, showMarker]);
+  }, [address, hasCoordinates, latitude, longitude, lawnBounds, mapCenter, mapPaths, parcelPaths, showMarker]);
 
   return (
     <div className={`relative overflow-hidden rounded-2xl border-2 border-lime-400 bg-emerald-950 shadow-lg ${compact ? "min-h-56" : "min-h-72 sm:min-h-96"}`}>
