@@ -6,6 +6,7 @@ import { getRegridBuilding } from "@/lib/regrid-building";
 import { estimateHouseFootprint } from "@/lib/estimated-footprint";
 import { selectLawnArea } from "@/lib/lawn-selection";
 import { getCensusRoadPoint } from "@/lib/road-reference";
+import { getSidewalkReport } from "@/lib/sidewalk-report";
 import { COUNTY_PARCEL_SERVICES, countyLookupOrder, extractLocality } from "@/lib/county-parcels";
 import type { CountyName } from "@/lib/constants";
 
@@ -216,9 +217,11 @@ function lawnResponse(
   source: FootprintSource,
   confidence: FootprintConfidence,
   roadPoint: LatLngPoint | null,
+  areaSelection: AreaSelection,
   reviewRecommended = false,
   areaSelectionEstimated = false,
 ) {
+  const sidewalkReport = getSidewalkReport(areaSelection, Boolean(roadPoint), SIDEWALK_SETBACK_METERS);
   return {
     ok: true,
     poligonoParcela: parcel.geometry,
@@ -232,10 +235,8 @@ function lawnResponse(
     requiereRevisionManual: false,
     revisionPropietarioRecomendada: reviewRecommended,
     seleccionAreaEstimada: areaSelectionEstimated,
-    sidewalk: roadPoint
-      ? { valor: SIDEWALK_SETBACK_METERS, tipo: "estimado", fuente: "franja_fija_2.4m" }
-      : { valor: 0, tipo: "no_excluido", fuente: "sin_referencia_vial" },
-    warning: roadPoint ? "sidewalk_estimate" : "sidewalk_not_excluded",
+    sidewalk: sidewalkReport.sidewalk,
+    warning: sidewalkReport.warning,
     formattedAddress: address,
     latitude,
     longitude,
@@ -268,7 +269,7 @@ async function calculateLawnFromManualFootprint(
   }
   const areaSqM = featureAreaSqM(lawn);
   if (!Number.isFinite(areaSqM) || areaSqM <= 0) return { error: INVALID_LAWN_ERROR };
-  return { result: lawnResponse(parcel, lawn, address, latitude, longitude, "manual", "baja", roadPoint) };
+  return { result: lawnResponse(parcel, lawn, address, latitude, longitude, "manual", "baja", roadPoint, areaSelection) };
 }
 
 async function getRegridParcel(latitude: number, longitude: number): Promise<{ parcel: AreaFeature; payload: unknown } | null> {
@@ -429,6 +430,7 @@ export async function GET(request: Request) {
       footprintSource,
       confidence,
       roadPoint,
+      areaSelection,
       reviewRecommended,
       areaSelectionEstimated,
     ));

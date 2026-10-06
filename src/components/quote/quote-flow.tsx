@@ -15,6 +15,7 @@ import { FieldError, Input, Label, Textarea } from "@/components/ui/input";
 import { BUSINESS, SERVICES, ZIP_CITY_MAP } from "@/lib/constants";
 import { matchMowRate, type MowRate } from "@/lib/instant-pricing";
 import { texasToday } from "@/lib/operations/schedule";
+import { BACK_ONLY_SIDEWALK_REASON } from "@/lib/sidewalk-report";
 import { getCoverageCitiesForWeekday, isInitialServiceDate } from "@/lib/service-schedule";
 import { publicError } from "@/lib/i18n/public-errors";
 import { formatZodErrors, phoneSchema, step1Schema } from "@/lib/validation";
@@ -549,10 +550,9 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
                 </button>;
               })}
             </div>
-            {measurementLoading && <p className="rounded-lg bg-slate-100 px-4 py-3 text-sm font-semibold text-slate-700">{isEs ? "Midiendo el área seleccionada y excluyendo la casa..." : "Measuring the selected area and excluding the house..."}</p>}
             {measurement && <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-950">{isEs ? `Área seleccionada: ${Math.round(measurement.areaSqFt).toLocaleString()} ft²` : `Selected area: ${Math.round(measurement.areaSqFt).toLocaleString()} sq ft`}</p>}
             {measurement?.warning === "sidewalk_estimate" && <p className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">{isEs ? "Banquetas (estimado ±10%): se excluyó una franja fija estimada de 2.4 m; la medida puede variar." : "Sidewalks (estimated ±10%): an estimated fixed 2.4 m strip was excluded; the measurement may vary."}</p>}
-            {measurement?.warning === "sidewalk_not_excluded" && <p className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">{isEs ? "Banquetas (estimado ±10%): no se pudo ubicar la calle, por lo que no se excluyó la banqueta." : "Sidewalks (estimated ±10%): the street could not be located, so the sidewalk was not excluded."}</p>}
+            {measurement?.warning === "sidewalk_not_excluded" && measurement.sidewalk?.motivo !== BACK_ONLY_SIDEWALK_REASON && <p className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">{isEs ? "Banquetas (estimado ±10%): no se pudo ubicar la calle, por lo que no se excluyó la banqueta." : "Sidewalks (estimated ±10%): the street could not be located, so the sidewalk was not excluded."}</p>}
             <fieldset className="border-t border-slate-200 pt-5">
               <legend className="text-sm font-bold text-black">{isEs ? "¿El césped mide más de 6 pulgadas de alto?" : "Is the grass over 6 inches tall?"}</legend>
               <div className="mt-3 flex gap-3">
@@ -614,7 +614,7 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
             <div className="space-y-3 py-6">
               {!store.measurement && !measurementLoading && <p className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900">{isEs ? "Aún no hay medición satelital, por lo que no se muestra un precio definitivo. El propietario confirmará la medida y la tarifa." : "There is no satellite measurement yet, so no final price is shown. The owner will confirm the measurement and rate."}</p>}
               {store.measurement?.warning === "sidewalk_estimate" && <p className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">{isEs ? "Banquetas (estimado ±10%): se excluyó una franja fija estimada de 2.4 m; la medida puede variar." : "Sidewalks (estimated ±10%): an estimated fixed 2.4 m strip was excluded; the measurement may vary."}</p>}
-              {store.measurement?.warning === "sidewalk_not_excluded" && <p className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">{isEs ? "Banquetas (estimado ±10%): no se pudo ubicar la calle, por lo que no se excluyó la banqueta." : "Sidewalks (estimated ±10%): the street could not be located, so the sidewalk was not excluded."}</p>}
+              {store.measurement?.warning === "sidewalk_not_excluded" && store.measurement.sidewalk?.motivo !== BACK_ONLY_SIDEWALK_REASON && <p className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">{isEs ? "Banquetas (estimado ±10%): no se pudo ubicar la calle, por lo que no se excluyó la banqueta." : "Sidewalks (estimated ±10%): the street could not be located, so the sidewalk was not excluded."}</p>}
               {store.measurement?.reviewRecommended && <p className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">{isEs ? "Medición automática aproximada (confianza baja); el área real puede variar. No necesitas dibujar nada." : "Approximate automatic measurement (low confidence); the actual area may vary. You do not need to draw anything."}</p>}
               {store.measurement?.areaSelectionEstimated && <p className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">{isEs ? "No se pudo ubicar la calle para separar frente y atrás; se midió el césped disponible de todo el predio." : "The street could not be located to split front and back; the available lawn across the whole parcel was measured."}</p>}
               <div className="grid gap-3 text-sm sm:grid-cols-2">
