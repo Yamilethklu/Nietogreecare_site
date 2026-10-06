@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import * as turf from "@turf/turf";
 import { solarMaskFootprint, SolarFootprintError } from "@/lib/solar-footprint";
+import { getMicrosoftFootprint } from "@/lib/microsoft-footprint";
+import { getRegridBuilding } from "@/lib/regrid-building";
 import { selectLawnArea } from "@/lib/lawn-selection";
 import { getCensusRoadPoint } from "@/lib/road-reference";
 import { COUNTY_PARCEL_SERVICES, countyLookupOrder, extractLocality } from "@/lib/county-parcels";
@@ -24,6 +26,8 @@ const SIDEWALK_SETBACK_METERS = 2.4;
 const AREA_SELECTIONS = ["front_back", "front_only", "back_only"] as const;
 type AreaSelection = (typeof AREA_SELECTIONS)[number];
 type LatLngPoint = { lat: number; lng: number };
+type FootprintSource = "catastro" | "osm" | "microsoft" | "solar_mask" | "solar_box" | "regrid" | "manual";
+type FootprintConfidence = "alta" | "media" | "baja";
 
 function findBuildingFeature(payload: any): AreaFeature | null {
   const feature = payload?.features?.[0] ?? payload?.parcels?.features?.[0] ?? payload?.data?.features?.[0] ?? payload?.parcel ?? null;
@@ -252,6 +256,59 @@ async function getLocality(latitude: number, longitude: number) {
   }
 }
 
+function lawnResponse(
+  parcel: AreaFeature,
+  lawn: AreaFeature,
+  address: string,
+  latitude: number,
+  longitude: number,
+  source: FootprintSource,
+  confidence: FootprintConfidence,
+  roadPoint: LatLngPoint | null,
+) {
+  return {
+    ok: true,
+    poligonoParcela: parcel.geometry,
+    poligonoJardin: lawn.geometry,
+    areaMetros: featureAreaSqM(lawn),
+    areaPies: featureAreaSqFt(lawn),
+    centro: featureCenter(lawn),
+    huellaCasaSimulada: false,
+    fuenteHuella: source,
+    confianza: confidence,
+    requiereRevisionManual: false,
+    sidewalk: roadPoint
+      ? { valor: SIDEWALK_SETBACK_METERS, tipo: "estimado", fuente: "franja_fija_2.4m" }
+      : { valor: 0, tipo: "no_excluido", fuente: "sin_referencia_vial" },
+    warning: roadPoint ? "sidewalk_estimate" : "sidewalk_not_excluded",
+    formattedAddress: address,
+    latitude,
+    longitude,
+  };
+}
+
+async function calculateLawnFromManualFootprint(
+  parcel: AreaFeature,
+  house: AreaFeature,
+  latitude: number,
+  longitude: number,
+  address: string,
+  areaSelection: AreaSelection,
+) {
+  const clippedHouse = asAreaFeature(turf.intersect(turf.featureCollection([parcel, house])));
+  if (!clippedHouse || featureAreaSqM(clippedHouse) < 10) return null;
+  const fullLawn = subtractFootprint(parcel, clippedHouse);
+  const roadPoint = await getNearestRoadPoint(latitude, longitude, parcel, address);
+  const mowableLawn = fullLawn ? excludeSidewalkStrip(fullLawn, parcel, clippedHouse, roadPoint) : null;
+  const lawn = mowableLawn ? selectLawnArea(mowableLawn, clippedHouse, roadPoint, areaSelection) : null;
+  if (!lawn?.geometry) {
+    return { error: !roadPoint && areaSelection !== "front_back" ? "no_road_point" : LAWN_COMPUTE_ERROR };
+  }
+  const areaSqM = featureAreaSqM(lawn);
+  if (!Number.isFinite(areaSqM) || areaSqM <= 0) return { error: INVALID_LAWN_ERROR };
+  return { result: lawnResponse(parcel, lawn, address, latitude, longitude, "manual", "baja", roadPoint) };
+}
+
 async function getRegridParcel(latitude: number, longitude: number): Promise<{ parcel: AreaFeature; payload: unknown } | null> {
   if (!REGRID_TOKEN) return null;
 
@@ -323,17 +380,25 @@ export async function GET(request: Request) {
     const { parcel, payload: parcelPayload } = parcelLookup;
 
     let house = findBuildingFeature(parcelPayload);
+    let footprintSource: FootprintSource | null = house ? "catastro" : null;
     let simulated = false;
     let warning: string | undefined;
 
     if (!house) {
       house = await getOverpassHouseFootprint(latitude, longitude, parcel);
+      if (house) footprintSource = "osm";
+    }
+
+    if (!house) {
+      house = await getMicrosoftFootprint(parcel);
+      if (house) footprintSource = "microsoft";
     }
 
     let footprintError = "building_footprint_unavailable";
     if (!house) {
       try {
         house = await solarMaskFootprint(latitude, longitude, SOLAR_KEY, parcel);
+        if (house) footprintSource = "solar_mask";
       } catch (error) {
         if (!(error instanceof SolarFootprintError)) throw error;
         footprintError = error.code;
@@ -341,10 +406,33 @@ export async function GET(request: Request) {
       }
     }
 
-    if (!house) house = await getSolarBuildingBox(latitude, longitude, parcel);
+    if (!house) {
+      house = await getSolarBuildingBox(latitude, longitude, parcel);
+      if (house) footprintSource = "solar_box";
+    }
 
     if (!house) {
-      return NextResponse.json({ok:false,error:footprintError,poligonoParcela:parcel.geometry,formattedAddress,latitude,longitude},{status:422});
+      house = await getRegridBuilding(parcel);
+      if (house) footprintSource = "regrid";
+    }
+
+    if (!house || !footprintSource) {
+      return NextResponse.json({
+        ok: true,
+        poligonoParcela: parcel.geometry,
+        poligonoJardin: null,
+        areaMetros: null,
+        areaPies: null,
+        fuenteHuella: null,
+        confianza: "sin_huella",
+        requiereRevisionManual: true,
+        motivo: footprintError === "building_footprint_unavailable" ? "footprint_unavailable" : footprintError,
+        sidewalk: { valor: 0, tipo: "no_excluido", motivo: "sin_huella_casa" },
+        warning: "sidewalk_not_excluded",
+        formattedAddress,
+        latitude,
+        longitude,
+      });
     }
 
     const houseFootprint = house;
@@ -354,7 +442,8 @@ export async function GET(request: Request) {
     const jardin = mowableLawn ? selectLawnArea(mowableLawn, houseFootprint, roadPoint, areaSelection) : null;
     warning = roadPoint ? "sidewalk_estimate" : "sidewalk_not_excluded";
     if (!jardin?.geometry) {
-      return NextResponse.json({ ok: false, error: LAWN_COMPUTE_ERROR, formattedAddress, latitude, longitude, warning }, { status: 422 });
+      const error = !roadPoint && areaSelection !== "front_back" ? "no_road_point" : LAWN_COMPUTE_ERROR;
+      return NextResponse.json({ ok: false, error, motivo: error, formattedAddress, latitude, longitude, warning }, { status: 422 });
     }
 
     const areaSqM = featureAreaSqM(jardin);
@@ -364,20 +453,47 @@ export async function GET(request: Request) {
 
     const centro = featureCenter(jardin);
 
-    return NextResponse.json({
-      ok: true,
-      poligonoParcela: parcel.geometry,
-      poligonoJardin: jardin.geometry,
-      areaMetros: areaSqM,
-      areaPies: featureAreaSqFt(jardin),
-      centro,
-      huellaCasaSimulada: simulated,
-      warning,
-      formattedAddress,
-      latitude,
-      longitude,
-    });
+    const confidence: FootprintConfidence = footprintSource === "catastro" || footprintSource === "microsoft" || footprintSource === "regrid"
+      ? "alta"
+      : footprintSource === "solar_box"
+        ? "baja"
+        : "media";
+    return NextResponse.json(lawnResponse(parcel, jardin, formattedAddress, latitude, longitude, footprintSource, confidence, roadPoint));
   } catch {
     return NextResponse.json({ ok: false, error: LAWN_DETECTION_FAILED, formattedAddress, latitude, longitude }, { status: 500 });
+  }
+}
+
+export async function POST(request: Request) {
+  const input = await request.json().catch(() => null);
+  const latitude = Number(input?.latitude);
+  const longitude = Number(input?.longitude);
+  const address = typeof input?.address === "string" ? input.address.trim() : "";
+  const areaSelection: AreaSelection = AREA_SELECTIONS.includes(input?.areaSelection) ? input.areaSelection : "front_back";
+  if (!Number.isFinite(latitude) || latitude < -90 || latitude > 90 || !Number.isFinite(longitude) || longitude < -180 || longitude > 180) {
+    return NextResponse.json({ ok: false, error: "manual_footprint_invalid" }, { status: 400 });
+  }
+
+  try {
+    const locality = await getLocality(latitude, longitude);
+    const parcelLookup = await getParcelGeometry(latitude, longitude, locality);
+    if (!parcelLookup) return NextResponse.json({ ok: false, error: NO_PARCEL_ERROR }, { status: 404 });
+    const house = findAreaFeature(input?.geometry);
+    if (!house || turf.coordAll(house).length > 10000) {
+      return NextResponse.json({ ok: false, error: "manual_footprint_invalid" }, { status: 400 });
+    }
+    const outcome = await calculateLawnFromManualFootprint(
+      parcelLookup.parcel,
+      house,
+      latitude,
+      longitude,
+      address,
+      areaSelection,
+    );
+    if (!outcome) return NextResponse.json({ ok: false, error: "manual_footprint_outside_parcel" }, { status: 422 });
+    if ("error" in outcome) return NextResponse.json({ ok: false, error: outcome.error, motivo: outcome.error }, { status: 422 });
+    return NextResponse.json(outcome.result);
+  } catch {
+    return NextResponse.json({ ok: false, error: LAWN_DETECTION_FAILED }, { status: 500 });
   }
 }
