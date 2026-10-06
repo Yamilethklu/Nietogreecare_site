@@ -133,6 +133,7 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
   const measurement = store.measurement;
   const areaSelection = store.areaSelection;
   const clearMeasurement = store.clearMeasurement;
+  const setAddress = store.setAddress;
   const setMeasurement = store.setMeasurement;
 
   React.useEffect(() => {
@@ -235,6 +236,9 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
         setMeasurementWarning(payload.warning || "");
         if (center) nextMeasurement.center = center;
         setMeasurement(nextMeasurement);
+        if (payload.formattedAddress && payload.formattedAddress !== formattedAddress) {
+          setAddress({ formattedAddress: payload.formattedAddress });
+        }
         setMeasurementWarning("");
       })
       .catch((error: unknown) => {
@@ -250,7 +254,10 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
       .finally(() => {
         if (!cancelled) setMeasurementLoading(false);
       });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+      if (lastMeasurementAttempt.current === attemptKey) lastMeasurementAttempt.current = null;
+    };
   }, [
     address,
     formattedAddress,
@@ -259,6 +266,7 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
     measurement,
     areaSelection,
     clearMeasurement,
+    setAddress,
     setMeasurement,
     measurementEnabled,
     isEs,
@@ -400,12 +408,14 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
   if (!hydrated) return <div className="py-24 text-center text-slate-500">{isEs ? "Cargando cotizador…" : "Loading quote…"}</div>;
   if (store.submitted) return <Confirmation isEs={isEs} store={store} price={price} onReset={store.reset} />;
 
-  const polygon = store.measurement?.polygons ?? (store.measurement?.polygon ? [store.measurement.polygon] : []);
-  const markerCenter = store.measurement?.center ?? null;
-  const lawnGeometry = store.measurement?.lawnGeometry;
-  const lawnAreaSqFt = Math.round(store.measurement?.areaSqFt ?? 0);
-  const lawnAreaSqYd = Math.round(((store.measurement?.areaSqFt ?? 0) / 9) * 10) / 10;
-  const lawnAreaSqM = Math.round(((store.measurement?.areaSqFt ?? 0) / SQ_FT_PER_SQ_M) * 100) / 100;
+  const polygon = measurement?.polygons ?? (measurement?.polygon ? [measurement.polygon] : []);
+  const markerCenter = measurement?.center ?? null;
+  const lawnGeometry = measurement?.lawnGeometry;
+  const parcelPolygons = measurement?.parcelPolygons ?? detectedParcel;
+  const satelliteMapProps = { address, latitude, longitude, isEs, polygon, geometry: lawnGeometry, parcelPolygons, center: markerCenter };
+  const lawnAreaSqFt = Math.round(measurement?.areaSqFt ?? 0);
+  const lawnAreaSqYd = Math.round(((measurement?.areaSqFt ?? 0) / 9) * 10) / 10;
+  const lawnAreaSqM = Math.round(((measurement?.areaSqFt ?? 0) / SQ_FT_PER_SQ_M) * 100) / 100;
 
   return (
     <div className="mx-auto max-w-3xl space-y-5">
@@ -484,9 +494,9 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
               })}
             </div>
             {measurementLoading && <p className="rounded-lg bg-slate-100 px-4 py-3 text-sm font-semibold text-slate-700">{isEs ? "Midiendo el área seleccionada y excluyendo la casa..." : "Measuring the selected area and excluding the house..."}</p>}
-            <PropertySatellite address={store.address} latitude={store.latitude} longitude={store.longitude} isEs={isEs} polygon={polygon} geometry={lawnGeometry} parcelPolygons={store.measurement?.parcelPolygons ?? detectedParcel} center={markerCenter} loadingText={isEs ? "Cargando el mapa y midiendo el área..." : "Loading the map and measuring the area..."} />
+            <PropertySatellite {...satelliteMapProps} loadingText={isEs ? "Cargando el mapa y midiendo el área..." : "Loading the map and measuring the area..."} />
             {errors.measurement && <FieldError>{errors.measurement}</FieldError>}
-            {store.measurement && <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-950">{isEs ? `Área seleccionada: ${Math.round(store.measurement.areaSqFt).toLocaleString()} ft²` : `Selected area: ${Math.round(store.measurement.areaSqFt).toLocaleString()} sq ft`}</p>}
+            {measurement && <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-950">{isEs ? `Área seleccionada: ${Math.round(measurement.areaSqFt).toLocaleString()} ft²` : `Selected area: ${Math.round(measurement.areaSqFt).toLocaleString()} sq ft`}</p>}
             <fieldset className="border-t border-slate-200 pt-5">
               <legend className="text-sm font-bold text-black">{isEs ? "¿El césped mide más de 6 pulgadas de alto?" : "Is the grass over 6 inches tall?"}</legend>
               <div className="mt-3 flex gap-3">
@@ -523,7 +533,7 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
                   <Button type="button" disabled={!weeklyRate} className="mt-3" onClick={() => store.setLawnOptions({ mowFrequency: "weekly", serviceFrequency: "ongoing" })}>{isEs ? "Cambiar a semanal" : "Switch to weekly"}</Button>
                 </div>}
               </div>
-              <PropertySatellite address={store.address} latitude={store.latitude} longitude={store.longitude} isEs={isEs} compact polygon={polygon} geometry={lawnGeometry} parcelPolygons={store.measurement?.parcelPolygons ?? detectedParcel} center={markerCenter} loadingText={isEs ? "Analizando tu propiedad por satélite..." : "Analyzing your property by satellite..."} />
+              <PropertySatellite {...satelliteMapProps} compact loadingText={isEs ? "Analizando tu propiedad por satélite..." : "Analyzing your property by satellite..."} />
             </div>
             <FieldError>{errors.measurement}</FieldError>
             {!store.measurement && !measurementLoading && <p className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900">{isEs ? "Aún no hay medición satelital, por lo que no se muestra un precio definitivo. El propietario confirmará la medida y la tarifa." : "There is no satellite measurement yet, so no final price is shown. The owner will confirm the measurement and rate."}</p>}

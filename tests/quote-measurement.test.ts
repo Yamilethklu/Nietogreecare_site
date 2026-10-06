@@ -70,3 +70,35 @@ test("changing the selected address clears its previous lawn measurement", () =>
   assert.equal(useQuoteStore.getState().measurement, null);
   useQuoteStore.getState().reset();
 });
+
+test("setting the same address identity preserves its lawn measurement", () => {
+  const polygon = [
+    { lat: 30.5, lng: -97.7 },
+    { lat: 30.5, lng: -97.6995 },
+    { lat: 30.5005, lng: -97.6995 },
+  ];
+  const store = useQuoteStore.getState();
+
+  store.setAddress({ address: "123 Old Street", placeId: "place-1", latitude: 30.5, longitude: -97.7 });
+  store.setMeasurement(buildMeasurement(polygon, 1200));
+  useQuoteStore.getState().setAddress({ address: "123 Old Street", placeId: "place-1", latitude: 30.5, longitude: -97.7 });
+
+  assert.equal(useQuoteStore.getState().measurement?.areaSqFt, 1200);
+  useQuoteStore.getState().reset();
+});
+
+test("changing only the selected place ID clears its lawn measurement", () => {
+  const polygon = [
+    { lat: 30.5, lng: -97.7 },
+    { lat: 30.5, lng: -97.6995 },
+    { lat: 30.5005, lng: -97.6995 },
+  ];
+  const store = useQuoteStore.getState();
+
+  store.setAddress({ address: "123 Old Street", placeId: "place-1", latitude: 30.5, longitude: -97.7 });
+  store.setMeasurement(buildMeasurement(polygon, 1200));
+  useQuoteStore.getState().setAddress({ placeId: "place-2" });
+
+  assert.equal(useQuoteStore.getState().measurement, null);
+  useQuoteStore.getState().reset();
+});
