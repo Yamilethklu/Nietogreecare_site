@@ -473,6 +473,9 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
   const lawnAreaSqFt = Math.round(measurement?.areaSqFt ?? 0);
   const lawnAreaSqYd = Math.round(((measurement?.areaSqFt ?? 0) / 9) * 10) / 10;
   const lawnAreaSqM = Math.round(((measurement?.areaSqFt ?? 0) / SQ_FT_PER_SQ_M) * 100) / 100;
+  const selectedServiceDate = store.requestedDate ? new Date(`${store.requestedDate}T12:00:00`) : null;
+  const hasSelectedServiceDate = selectedServiceDate && !Number.isNaN(selectedServiceDate.getTime());
+  const pendingDateLabel = isEs ? "Pendiente" : "Pending";
 
   return (
     <div className="mx-auto max-w-3xl space-y-5">
@@ -574,36 +577,58 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
             <div><Label htmlFor="quote-notes">{isEs ? "Nota: escriba algo que requiera" : "Note: write anything you need"}</Label><Textarea id="quote-notes" rows={3} maxLength={2000} value={store.additionalNotes} onChange={(event) => store.setPersonal({ additionalNotes: event.target.value })} className="mt-2" /></div>
           </section>}
 
-          {store.step === QUOTE_SUMMARY_STEP && <section className="space-y-6">
+          {store.step === QUOTE_SUMMARY_STEP && <section className="space-y-0 text-emerald-950">
             {measurementLoading && <p className="rounded-lg bg-slate-100 px-4 py-3 text-sm font-semibold text-slate-700">{isEs ? "Analizando tu propiedad por satélite..." : "Analyzing your property by satellite..."}</p>}
-            <div className="grid gap-5 border-b border-emerald-100 pb-5 sm:grid-cols-[1fr_1fr]">
-              <div><h2 className="text-2xl font-extrabold text-emerald-950">{isEs ? "5. Resumen de cotización" : "5. Quote summary"}</h2><p className="mt-3 text-2xl font-bold text-emerald-800">{price !== null ? `$${price.toFixed(2)} / ${cadenceLabel}` : (isEs ? "Tarifa pendiente de confirmación" : "Rate awaiting confirmation")}</p><p className="mt-2 text-sm text-slate-600">{store.address}</p>
-                <h3 className="mt-5 font-bold text-emerald-950">{isEs ? "Servicios incluidos" : "Included services"}</h3>
-                <ul className="mt-2 space-y-2 text-sm text-slate-900">{(isEs ? ["Corte de césped", "Recorte con desbrozadora", "Perfilado de bordes", "Limpieza con sopladora"] : ["Mow Lawn", "Line Trim", "Edge", "Blow Debris"]).map(label => <li key={label}>✓ {label}</li>)}</ul>
-                <label className="mt-4 flex cursor-pointer items-center gap-2 text-sm font-semibold text-slate-900"><input type="checkbox" checked={Boolean(store.bagGrass)} onChange={event => store.setLawnOptions({bagGrass:event.target.checked})} />{isEs ? "Recoger el césped en bolsas (+$10 por corte)" : "Bag Grass (+$10 per cut)"}</label>
-                {store.mowFrequency === "bi_weekly" && <div className="mt-5 rounded-lg border border-lime-400 bg-lime-50 p-4 text-slate-950">
-                  <p className="font-bold">{weeklyRate && rate && Number(weeklyRate.price) < Number(rate.price) ? (isEs ? "Ahorra por corte con el servicio semanal" : "Save per cut with weekly service") : (isEs ? "Conoce la opción de servicio semanal" : "Explore weekly lawn service")}</p>
-                  {weeklyRate ? <>
-                    <p className="mt-2">${(Number(weeklyRate.price) + (store.bagGrass ? 10 : 0)).toFixed(2)} {isEs ? "por corte, cada 7 días" : "per cut, every 7 days"}</p>
-                    {rate && Number(weeklyRate.price) < Number(rate.price) && <p className="mt-1 text-sm font-semibold">{isEs ? "Ahorro por corte:" : "Savings per cut:"} ${(Number(rate.price) - Number(weeklyRate.price)).toFixed(2)}</p>}
-                  </> : <p className="mt-2 text-sm">{isEs ? "La tarifa semanal está pendiente de confirmación por el propietario." : "The weekly rate is awaiting confirmation from the owner."}</p>}
-                  <Button type="button" disabled={!weeklyRate} className="mt-3" onClick={() => store.setLawnOptions({ mowFrequency: "weekly", serviceFrequency: "ongoing" })}>{isEs ? "Cambiar a semanal" : "Switch to weekly"}</Button>
-                </div>}
+            <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] items-start gap-4 border-b border-slate-200 pb-7">
+              <div>
+                <h2 className="text-xl font-extrabold leading-snug text-green-700 sm:text-2xl">{isEs ? "Mi plan personalizado de corte de césped" : "My Custom Lawn Mowing Plan"}</h2>
+                <div className="mt-3 flex flex-wrap items-baseline gap-x-2">
+                  {price !== null
+                    ? <><span className="text-4xl font-extrabold leading-none text-emerald-950 sm:text-5xl">${price.toFixed(2)}</span><span className="text-sm text-slate-600">{cadenceLabel}</span></>
+                    : <span className="text-lg font-bold text-emerald-800">{isEs ? "Tarifa pendiente de confirmación" : "Rate awaiting confirmation"}</span>}
+                </div>
               </div>
               <PropertySatellite {...satelliteMapProps} compact loadingText={isEs ? "Analizando tu propiedad por satélite..." : "Analyzing your property by satellite..."} />
             </div>
-            {!store.measurement && !measurementLoading && <p className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900">{isEs ? "Aún no hay medición satelital, por lo que no se muestra un precio definitivo. El propietario confirmará la medida y la tarifa." : "There is no satellite measurement yet, so no final price is shown. The owner will confirm the measurement and rate."}</p>}
-            {store.measurement?.warning === "sidewalk_estimate" && <p className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">{isEs ? "Banquetas (estimado ±10%): se excluyó una franja fija estimada de 2.4 m; la medida puede variar." : "Sidewalks (estimated ±10%): an estimated fixed 2.4 m strip was excluded; the measurement may vary."}</p>}
-            {store.measurement?.warning === "sidewalk_not_excluded" && <p className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">{isEs ? "Banquetas (estimado ±10%): no se pudo ubicar la calle, por lo que no se excluyó la banqueta." : "Sidewalks (estimated ±10%): the street could not be located, so the sidewalk was not excluded."}</p>}
-            {store.measurement?.reviewRecommended && <p className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">{isEs ? "Medición automática aproximada (confianza baja); el área real puede variar. No necesitas dibujar nada." : "Approximate automatic measurement (low confidence); the actual area may vary. You do not need to draw anything."}</p>}
-            {store.measurement?.areaSelectionEstimated && <p className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">{isEs ? "No se pudo ubicar la calle para separar frente y atrás; se midió el césped disponible de todo el predio." : "The street could not be located to split front and back; the available lawn across the whole parcel was measured."}</p>}
-            <div className="grid gap-3 text-sm sm:grid-cols-2">
-              <p><strong>{isEs ? "Cliente" : "Customer"}:</strong> {store.customerName}</p><p><strong>{isEs ? "Teléfono" : "Phone"}:</strong> {store.customerPhone}</p>
-              <p><strong>{isEs ? "Frecuencia" : "Frequency"}:</strong> {cadenceLabel}</p><p><strong>{isEs ? "Propiedad" : "Property"}:</strong> {store.propertyOccupancy === "occupied" ? (isEs ? "Ocupada" : "Occupied") : (isEs ? "Deshabitada" : "Vacant")}</p>
-              <p><strong>{isEs ? "Área elegida" : "Selected area"}:</strong> {store.areaSelection === "front_back" ? (isEs ? "Adelante y atrás" : "Front & Back") : store.areaSelection === "front_only" ? (isEs ? "Adelante" : "Front") : (isEs ? "Atrás" : "Back")}</p>
-              <p><strong>{isEs ? "Césped calculado" : "Calculated lawn"}:</strong> {store.measurement ? `${lawnAreaSqFt.toLocaleString()} ft² / ${lawnAreaSqYd.toLocaleString(undefined, { maximumFractionDigits: 1 })} yd² / ${lawnAreaSqM.toLocaleString(undefined, { maximumFractionDigits: 1 })} m²` : (isEs ? "Pendiente de medición" : "Measurement pending")}</p>
-              {store.measurement?.footprintSource && <p><strong>{isEs ? "Huella" : "Footprint"}:</strong> {store.measurement.footprintSource === "parcel_estimate" ? (isEs ? "estimación automática del predio" : "automatic parcel estimate") : store.measurement.footprintSource} · {isEs ? "confianza" : "confidence"} {store.measurement.confidence ?? (isEs ? "desconocida" : "unknown")}</p>}
-              <p><strong>{isEs ? "Mascotas" : "Pets"}:</strong> {store.hasPetsInBackyard ? (isEs ? "Sí" : "Yes") : "No"}</p><p><strong>{isEs ? "Cerradura" : "Lock"}:</strong> {store.hasGateCode ? `${isEs ? "Sí" : "Yes"} (${store.gateCode})` : "No"}</p>
+            <div className="grid grid-cols-3 gap-3 border-b border-slate-200 py-6 text-sm">
+              <div className="min-w-0"><h3 className="text-xs font-extrabold uppercase tracking-wide">{isEs ? "Dirección" : "Address"}</h3><p className="mt-1 break-words">{store.address || "—"}</p><p className="text-slate-500">{[store.city, store.state, store.zipCode].filter(Boolean).join(", ")}</p></div>
+              <div className="min-w-0"><h3 className="text-xs font-extrabold uppercase tracking-wide">{isEs ? "Pies cuadrados de césped" : "Lawn square footage"}</h3><p className="mt-1">{store.measurement ? `${lawnAreaSqFt.toLocaleString()} ft²` : pendingDateLabel}</p></div>
+              <div className="min-w-0"><h3 className="text-xs font-extrabold uppercase tracking-wide">{isEs ? "Fecha de inicio" : "Start date"}</h3><p className="mt-1">{hasSelectedServiceDate ? selectedServiceDate.toLocaleDateString(isEs ? "es-US" : "en-US", { month: "long", day: "numeric", year: "numeric" }) : pendingDateLabel}</p></div>
+            </div>
+            <div className="grid grid-cols-3 gap-3 border-b border-slate-200 py-6 text-sm">
+              <div className="min-w-0"><h3 className="text-xs font-extrabold uppercase tracking-wide">{isEs ? "Frecuencia" : "Mow frequency"}</h3><div className="mt-1 flex flex-wrap items-center gap-x-2"><span>{cadenceLabel}</span><button type="button" onClick={() => store.setStep(2)} className="text-xs font-bold uppercase text-green-700 hover:underline">{isEs ? "Cambiar" : "Change"}</button></div></div>
+              <div className="min-w-0"><h3 className="text-xs font-extrabold uppercase tracking-wide">{isEs ? "Área de corte" : "Mow area"}</h3><p className="mt-1">{store.areaSelection === "front_back" ? (isEs ? "Frente y atrás" : "Front & Back") : store.areaSelection === "front_only" ? (isEs ? "Solo frente" : "Front only") : (isEs ? "Solo atrás" : "Back only")}</p></div>
+              <div className="min-w-0"><h3 className="text-xs font-extrabold uppercase tracking-wide">{isEs ? "Día de corte" : "Mow day"}</h3><p className="mt-1">{hasSelectedServiceDate ? selectedServiceDate.toLocaleDateString(isEs ? "es-US" : "en-US", { weekday: "long" }) : pendingDateLabel}</p></div>
+            </div>
+            <div className="border-b border-slate-200 py-6">
+              <h3 className="text-xs font-extrabold uppercase tracking-wide">{isEs ? "Servicios incluidos" : "Included services"}</h3>
+              <ul className="mt-3 space-y-2 text-sm">
+                {(isEs ? ["Corte de césped", "Recorte con desbrozadora", "Perfilado de bordes", "Limpieza con sopladora"] : ["Mow Lawn", "Line Trim", "Edge", "Blow Debris"]).map(label => <li key={label} className="flex items-center gap-2"><CheckCircle2 aria-hidden="true" className="size-5 shrink-0 text-green-700" />{label}</li>)}
+              </ul>
+              <label className="mt-4 flex cursor-pointer items-center gap-2 text-sm font-semibold"><input type="checkbox" checked={Boolean(store.bagGrass)} onChange={event => store.setLawnOptions({bagGrass:event.target.checked})} />{isEs ? "Recoger el césped en bolsas (+$10 por corte)" : "Bag Grass (+$10 per cut)"}</label>
+              {store.mowFrequency === "bi_weekly" && <div className="mt-5 rounded-lg border border-lime-400 bg-lime-50 p-4 text-slate-950">
+                <p className="font-bold">{weeklyRate && rate && Number(weeklyRate.price) < Number(rate.price) ? (isEs ? "Ahorra por corte con el servicio semanal" : "Save per cut with weekly service") : (isEs ? "Conoce la opción de servicio semanal" : "Explore weekly lawn service")}</p>
+                {weeklyRate ? <>
+                  <p className="mt-2">${(Number(weeklyRate.price) + (store.bagGrass ? 10 : 0)).toFixed(2)} {isEs ? "por corte, cada 7 días" : "per cut, every 7 days"}</p>
+                  {rate && Number(weeklyRate.price) < Number(rate.price) && <p className="mt-1 text-sm font-semibold">{isEs ? "Ahorro por corte:" : "Savings per cut:"} ${(Number(rate.price) - Number(weeklyRate.price)).toFixed(2)}</p>}
+                </> : <p className="mt-2 text-sm">{isEs ? "La tarifa semanal está pendiente de confirmación por el propietario." : "The weekly rate is awaiting confirmation from the owner."}</p>}
+                <Button type="button" disabled={!weeklyRate} className="mt-3" onClick={() => store.setLawnOptions({ mowFrequency: "weekly", serviceFrequency: "ongoing" })}>{isEs ? "Cambiar a semanal" : "Switch to weekly"}</Button>
+              </div>}
+            </div>
+            <div className="space-y-3 py-6">
+              {!store.measurement && !measurementLoading && <p className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900">{isEs ? "Aún no hay medición satelital, por lo que no se muestra un precio definitivo. El propietario confirmará la medida y la tarifa." : "There is no satellite measurement yet, so no final price is shown. The owner will confirm the measurement and rate."}</p>}
+              {store.measurement?.warning === "sidewalk_estimate" && <p className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">{isEs ? "Banquetas (estimado ±10%): se excluyó una franja fija estimada de 2.4 m; la medida puede variar." : "Sidewalks (estimated ±10%): an estimated fixed 2.4 m strip was excluded; the measurement may vary."}</p>}
+              {store.measurement?.warning === "sidewalk_not_excluded" && <p className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">{isEs ? "Banquetas (estimado ±10%): no se pudo ubicar la calle, por lo que no se excluyó la banqueta." : "Sidewalks (estimated ±10%): the street could not be located, so the sidewalk was not excluded."}</p>}
+              {store.measurement?.reviewRecommended && <p className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">{isEs ? "Medición automática aproximada (confianza baja); el área real puede variar. No necesitas dibujar nada." : "Approximate automatic measurement (low confidence); the actual area may vary. You do not need to draw anything."}</p>}
+              {store.measurement?.areaSelectionEstimated && <p className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">{isEs ? "No se pudo ubicar la calle para separar frente y atrás; se midió el césped disponible de todo el predio." : "The street could not be located to split front and back; the available lawn across the whole parcel was measured."}</p>}
+              <div className="grid gap-3 text-sm sm:grid-cols-2">
+                <p><strong>{isEs ? "Cliente" : "Customer"}:</strong> {store.customerName}</p><p><strong>{isEs ? "Teléfono" : "Phone"}:</strong> {store.customerPhone}</p>
+                <p><strong>{isEs ? "Propiedad" : "Property"}:</strong> {store.propertyOccupancy === "occupied" ? (isEs ? "Ocupada" : "Occupied") : (isEs ? "Deshabitada" : "Vacant")}</p>
+                <p><strong>{isEs ? "Césped calculado" : "Calculated lawn"}:</strong> {store.measurement ? `${lawnAreaSqFt.toLocaleString()} ft² / ${lawnAreaSqYd.toLocaleString(undefined, { maximumFractionDigits: 1 })} yd² / ${lawnAreaSqM.toLocaleString(undefined, { maximumFractionDigits: 1 })} m²` : (isEs ? "Pendiente de medición" : "Measurement pending")}</p>
+                {store.measurement?.footprintSource && <p><strong>{isEs ? "Huella" : "Footprint"}:</strong> {store.measurement.footprintSource === "parcel_estimate" ? (isEs ? "estimación automática del predio" : "automatic parcel estimate") : store.measurement.footprintSource} · {isEs ? "confianza" : "confidence"} {store.measurement.confidence ?? (isEs ? "desconocida" : "unknown")}</p>}
+                <p><strong>{isEs ? "Mascotas" : "Pets"}:</strong> {store.hasPetsInBackyard ? (isEs ? "Sí" : "Yes") : "No"}</p><p><strong>{isEs ? "Cerradura" : "Lock"}:</strong> {store.hasGateCode ? `${isEs ? "Sí" : "Yes"} (${store.gateCode})` : "No"}</p>
+              </div>
+              {(store.additionalNotes.trim() || store.details.trim()) && <div className="rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-700">{store.additionalNotes.trim() && <p><strong>{isEs ? "Nota" : "Note"}:</strong> {store.additionalNotes}</p>}{store.details.trim() && <p className="mt-2"><strong>{isEs ? "Trabajo adicional" : "Additional work"}:</strong> {store.details}</p>}</div>}
             </div>
             {(store.additionalNotes.trim() || store.details.trim()) && <div className="rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-700">{store.additionalNotes.trim() && <p><strong>{isEs ? "Nota" : "Note"}:</strong> {store.additionalNotes}</p>}{store.details.trim() && <p className="mt-2"><strong>{isEs ? "Trabajo adicional" : "Additional work"}:</strong> {store.details}</p>}</div>}
           </section>}
