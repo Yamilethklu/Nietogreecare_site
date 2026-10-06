@@ -61,10 +61,11 @@ async function loadDatasetTiles(): Promise<DatasetTile[] | null> {
     signal: AbortSignal.timeout(10000),
   });
   if (!response.ok) return null;
-  const csv = await response.text();
-  if (csv.length > 15_000_000) return null;
+  const csvBytes = await readResponseBody(response, 15_000_000);
+  if (!csvBytes) return null;
+  const csv = new TextDecoder().decode(csvBytes);
   const rows = csv.split(/\r?\n/).filter(Boolean);
-  const headers = parseCsvRow(rows.shift() ?? "").map((header) => header.trim().toLowerCase());
+  const headers = parseCsvRow(rows.shift() ?? "").map((header) => header.trim().replace(/^\uFEFF/, "").toLowerCase());
   const locationIndex = headers.indexOf("location");
   const quadKeyIndex = headers.indexOf("quadkey");
   const urlIndex = headers.indexOf("url");
@@ -75,7 +76,7 @@ async function loadDatasetTiles(): Promise<DatasetTile[] | null> {
     const location = columns[locationIndex]?.trim() ?? "";
     const quadKey = columns[quadKeyIndex]?.trim() ?? "";
     const url = columns[urlIndex]?.trim() ?? "";
-    if (!/(united states|\busa\b|\bus\b|texas)/i.test(location) || !quadKey || !url) return [];
+    if (!/(united states|\busa\b|\bus\b|us-tx|texas)/i.test(location) || !quadKey || !url) return [];
     const parsedUrl = new URL(url);
     if (parsedUrl.protocol !== "https:" || !MICROSOFT_HOSTS.has(parsedUrl.hostname)) return [];
     return [{ location, quadKey, url: parsedUrl.toString() }];
@@ -84,9 +85,42 @@ async function loadDatasetTiles(): Promise<DatasetTile[] | null> {
 
 async function getDatasetTiles(): Promise<DatasetTile[] | null> {
   if (!datasetTilesPromise) {
-    datasetTilesPromise = loadDatasetTiles().catch(() => null);
+    const loading = loadDatasetTiles().catch(() => null);
+    datasetTilesPromise = loading;
+    void loading.then((tiles) => {
+      if (!tiles && datasetTilesPromise === loading) datasetTilesPromise = null;
+    });
   }
   return datasetTilesPromise;
+}
+
+async function readResponseBody(response: Response, limit: number): Promise<Uint8Array | null> {
+  if (Number(response.headers.get("content-length")) > limit) return null;
+  const reader = response.body?.getReader();
+  if (!reader) return null;
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      size += value.byteLength;
+      if (size > limit) {
+        await reader.cancel();
+        return null;
+      }
+      chunks.push(value);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+  const body = new Uint8Array(size);
+  let offset = 0;
+  for (const chunk of chunks) {
+    body.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return body;
 }
 
 function parseBuildingRows(data: Uint8Array): unknown[] {
@@ -122,7 +156,10 @@ export async function getMicrosoftFootprint(parcel: Parcel): Promise<AreaFeature
         return false;
       }
     });
-    if (!matches.length) return null;
+    if (!matches.length) {
+      console.warn("microsoft_footprint_no_matching_tiles");
+      return null;
+    }
     if (matches.length > 12) {
       console.warn("microsoft_footprint_tile_limit_exceeded");
       return null;
@@ -138,12 +175,12 @@ export async function getMicrosoftFootprint(parcel: Parcel): Promise<AreaFeature
         console.warn("microsoft_footprint_tile_unavailable");
         continue;
       }
-      const buffer = await response.arrayBuffer();
-      if (buffer.byteLength > 5_000_000) {
+      const buffer = await readResponseBody(response, 5_000_000);
+      if (!buffer) {
         console.warn("microsoft_footprint_tile_too_large");
         continue;
       }
-      for (const candidate of parseBuildingRows(new Uint8Array(buffer))) {
+      for (const candidate of parseBuildingRows(buffer)) {
         const feature = asAreaFeature(candidate);
         if (!feature) continue;
         try {
@@ -153,7 +190,10 @@ export async function getMicrosoftFootprint(parcel: Parcel): Promise<AreaFeature
         }
       }
     }
-    if (!buildings.length) return null;
+    if (!buildings.length) {
+      console.warn("microsoft_footprint_no_building_found");
+      return null;
+    }
 
     const combined = buildings.length === 1
       ? buildings[0]

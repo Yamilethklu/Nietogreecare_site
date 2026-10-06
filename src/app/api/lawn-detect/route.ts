@@ -295,7 +295,12 @@ async function calculateLawnFromManualFootprint(
   address: string,
   areaSelection: AreaSelection,
 ) {
-  const clippedHouse = asAreaFeature(turf.intersect(turf.featureCollection([parcel, house])));
+  let clippedHouse: AreaFeature | null;
+  try {
+    clippedHouse = asAreaFeature(turf.intersect(turf.featureCollection([parcel, house])));
+  } catch {
+    return { error: "manual_footprint_invalid" };
+  }
   if (!clippedHouse || featureAreaSqM(clippedHouse) < 10) return null;
   const fullLawn = subtractFootprint(parcel, clippedHouse);
   const roadPoint = await getNearestRoadPoint(latitude, longitude, parcel, address);
@@ -381,8 +386,6 @@ export async function GET(request: Request) {
 
     let house = findBuildingFeature(parcelPayload);
     let footprintSource: FootprintSource | null = house ? "catastro" : null;
-    let simulated = false;
-    let warning: string | undefined;
 
     if (!house) {
       house = await getOverpassHouseFootprint(latitude, longitude, parcel);
@@ -440,20 +443,17 @@ export async function GET(request: Request) {
     const roadPoint = await getNearestRoadPoint(latitude, longitude, parcel, formattedAddress);
     const mowableLawn = fullLawn ? excludeSidewalkStrip(fullLawn, parcel, houseFootprint, roadPoint) : null;
     const jardin = mowableLawn ? selectLawnArea(mowableLawn, houseFootprint, roadPoint, areaSelection) : null;
-    warning = roadPoint ? "sidewalk_estimate" : "sidewalk_not_excluded";
     if (!jardin?.geometry) {
       const error = !roadPoint && areaSelection !== "front_back" ? "no_road_point" : LAWN_COMPUTE_ERROR;
-      return NextResponse.json({ ok: false, error, motivo: error, formattedAddress, latitude, longitude, warning }, { status: 422 });
+      return NextResponse.json({ ok: false, error, motivo: error, formattedAddress, latitude, longitude }, { status: 422 });
     }
 
     const areaSqM = featureAreaSqM(jardin);
     if (!Number.isFinite(areaSqM) || areaSqM <= 0) {
-      return NextResponse.json({ ok: false, error: INVALID_LAWN_ERROR, formattedAddress, latitude, longitude, warning }, { status: 422 });
+      return NextResponse.json({ ok: false, error: INVALID_LAWN_ERROR, formattedAddress, latitude, longitude }, { status: 422 });
     }
 
-    const centro = featureCenter(jardin);
-
-    const confidence: FootprintConfidence = footprintSource === "catastro" || footprintSource === "microsoft" || footprintSource === "regrid"
+    const confidence: FootprintConfidence = footprintSource === "catastro"
       ? "alta"
       : footprintSource === "solar_box"
         ? "baja"
@@ -479,7 +479,15 @@ export async function POST(request: Request) {
     const parcelLookup = await getParcelGeometry(latitude, longitude, locality);
     if (!parcelLookup) return NextResponse.json({ ok: false, error: NO_PARCEL_ERROR }, { status: 404 });
     const house = findAreaFeature(input?.geometry);
-    if (!house || turf.coordAll(house).length > 10000) {
+    const coordinates = house ? turf.coordAll(house) : [];
+    if (
+      !house ||
+      coordinates.length > 10000 ||
+      coordinates.some(([longitude, latitude]) =>
+        !Number.isFinite(longitude) || longitude < -180 || longitude > 180 ||
+        !Number.isFinite(latitude) || latitude < -90 || latitude > 90
+      )
+    ) {
       return NextResponse.json({ ok: false, error: "manual_footprint_invalid" }, { status: 400 });
     }
     const outcome = await calculateLawnFromManualFootprint(

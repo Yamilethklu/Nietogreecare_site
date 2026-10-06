@@ -46,6 +46,9 @@ test("measurementSchema accepts optional parcel polygons", () => {
       { lat: 30.4998, lng: -97.6992 },
       { lat: 30.5008, lng: -97.6992 },
     ]],
+    footprintSource: "manual",
+    confidence: "baja",
+    sidewalk: { valor: 2.4, tipo: "estimado", fuente: "franja_fija_2.4m" },
     polygonPath: null,
     bounds: null,
     center: null,
@@ -53,6 +56,9 @@ test("measurementSchema accepts optional parcel polygons", () => {
   });
 
   assert.equal(parsed.parcelPolygons?.length, 1);
+  assert.equal(parsed.footprintSource, "manual");
+  assert.equal(parsed.confidence, "baja");
+  assert.equal(parsed.sidewalk?.tipo, "estimado");
 });
 
 test("changing the selected address clears its previous lawn measurement", () => {

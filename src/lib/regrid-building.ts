@@ -25,7 +25,10 @@ function collectBuildingFeatures(payload: unknown): AreaFeature[] {
     const record = value as Record<string, unknown>;
     if (buildingContext) {
       const feature = asAreaFeature(record);
-      if (feature) found.push(feature);
+      if (feature) {
+        found.push(feature);
+        return;
+      }
     }
     for (const [key, child] of Object.entries(record)) {
       if (/(building|structure|footprint)/i.test(key)) {
@@ -43,7 +46,10 @@ function collectBuildingFeatures(payload: unknown): AreaFeature[] {
 }
 
 export async function getRegridBuilding(parcel: Parcel): Promise<AreaFeature | null> {
-  if (!REGRID_TOKEN) return null;
+  if (!REGRID_TOKEN) {
+    console.warn("regrid_building_token_unconfigured");
+    return null;
+  }
   try {
     const center = turf.center(parcel);
     const [longitude, latitude] = center.geometry.coordinates;
@@ -69,7 +75,10 @@ export async function getRegridBuilding(parcel: Parcel): Promise<AreaFeature | n
         return false;
       }
     });
-    if (!buildings.length) return null;
+    if (!buildings.length) {
+      console.warn("regrid_building_no_building_found");
+      return null;
+    }
     const combined = buildings.length === 1
       ? buildings[0]
       : turf.union(turf.featureCollection(buildings) as any) as AreaFeature | null;

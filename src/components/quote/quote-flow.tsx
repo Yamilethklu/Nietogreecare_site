@@ -18,7 +18,7 @@ import { texasToday } from "@/lib/operations/schedule";
 import { getCoverageCitiesForWeekday, isInitialServiceDate } from "@/lib/service-schedule";
 import { publicError } from "@/lib/i18n/public-errors";
 import { formatZodErrors, phoneSchema, step1Schema } from "@/lib/validation";
-import type { LawnGeoJsonGeometry, PaymentMethod, PolygonPoint } from "@/lib/types";
+import type { LawnGeoJsonGeometry, PaymentMethod, PolygonPoint, QuoteMeasurement } from "@/lib/types";
 import { buildMeasurement, pickSubmissionFields, TOTAL_STEPS, useQuoteStore, type MowFrequency, type QuoteStore } from "@/store/quote-store";
 
 type AddressSuggestion = {
@@ -189,7 +189,10 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
       nextMeasurement.geometryVersion = 3;
       nextMeasurement.warning = payload.warning;
       nextMeasurement.footprintSource = payload.fuenteHuella ?? "manual";
-      nextMeasurement.confidence = payload.confianza ?? "baja";
+      nextMeasurement.confidence =
+        payload.confianza === "alta" || payload.confianza === "media" || payload.confianza === "baja"
+          ? payload.confianza
+          : "baja";
       nextMeasurement.sidewalk = payload.sidewalk;
       if (payload.centro) nextMeasurement.center = payload.centro;
       setMeasurement(nextMeasurement);
@@ -418,8 +421,19 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
         return;
       }
     }
-    if (current.step === QUOTE_SUMMARY_STEP && (!current.measurement || !price)) {
-      setErrors({ measurement: isEs ? "La medición o la tarifa de esta propiedad está pendiente de confirmación." : "The measurement or rate for this property is awaiting confirmation." });
+    if (current.step === QUOTE_SUMMARY_STEP && !current.measurement) {
+      setErrors((currentErrors) => ({
+        ...currentErrors,
+        measurement: currentErrors.measurement || (manualReview
+          ? resolveMeasurementError("footprint_unavailable", isEs)
+          : (isEs
+            ? "La medición de esta propiedad está pendiente de confirmación."
+            : "The measurement for this property is awaiting confirmation.")),
+      }));
+      return;
+    }
+    if (current.step === QUOTE_SUMMARY_STEP && !price) {
+      setErrors({ measurement: isEs ? "La tarifa de esta propiedad está pendiente de confirmación." : "The rate for this property is awaiting confirmation." });
       return;
     }
     if (current.step === 6 && !current.city.trim()) {
@@ -641,6 +655,7 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
               <p><strong>{isEs ? "Frecuencia" : "Frequency"}:</strong> {cadenceLabel}</p><p><strong>{isEs ? "Propiedad" : "Property"}:</strong> {store.propertyOccupancy === "occupied" ? (isEs ? "Ocupada" : "Occupied") : (isEs ? "Deshabitada" : "Vacant")}</p>
               <p><strong>{isEs ? "Área elegida" : "Selected area"}:</strong> {store.areaSelection === "front_back" ? (isEs ? "Adelante y atrás" : "Front & Back") : store.areaSelection === "front_only" ? (isEs ? "Adelante" : "Front") : (isEs ? "Atrás" : "Back")}</p>
               <p><strong>{isEs ? "Césped calculado" : "Calculated lawn"}:</strong> {store.measurement ? `${lawnAreaSqFt.toLocaleString()} ft² / ${lawnAreaSqYd.toLocaleString(undefined, { maximumFractionDigits: 1 })} yd² / ${lawnAreaSqM.toLocaleString(undefined, { maximumFractionDigits: 1 })} m²` : (isEs ? "Pendiente de medición" : "Measurement pending")}</p>
+              {store.measurement?.footprintSource && <p><strong>{isEs ? "Huella" : "Footprint"}:</strong> {store.measurement.footprintSource} · {isEs ? "confianza" : "confidence"} {store.measurement.confidence ?? (isEs ? "desconocida" : "unknown")}</p>}
               <p><strong>{isEs ? "Mascotas" : "Pets"}:</strong> {store.hasPetsInBackyard ? (isEs ? "Sí" : "Yes") : "No"}</p><p><strong>{isEs ? "Cerradura" : "Lock"}:</strong> {store.hasGateCode ? `${isEs ? "Sí" : "Yes"} (${store.gateCode})` : "No"}</p>
             </div>
             {(store.additionalNotes.trim() || store.details.trim()) && <div className="rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-700">{store.additionalNotes.trim() && <p><strong>{isEs ? "Nota" : "Note"}:</strong> {store.additionalNotes}</p>}{store.details.trim() && <p className="mt-2"><strong>{isEs ? "Trabajo adicional" : "Additional work"}:</strong> {store.details}</p>}</div>}

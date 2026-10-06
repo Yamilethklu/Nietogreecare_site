@@ -85,6 +85,7 @@ export function PropertySatellite({
   const drawingRef = React.useRef(false);
   const [manualDrawing, setManualDrawing] = React.useState(false);
   const [manualPoints, setManualPoints] = React.useState<PolygonPoint[]>([]);
+  const [manualHousePath, setManualHousePath] = React.useState<PolygonPoint[]>([]);
   const onManualFootprintRef = React.useRef(onManualFootprint);
   onManualFootprintRef.current = onManualFootprint;
   const [available, setAvailable] = React.useState(false);
@@ -173,6 +174,9 @@ export function PropertySatellite({
       cancelled = true;
       mapClickListenerRef.current?.remove();
       mapClickListenerRef.current = null;
+      manualOverlayRef.current.forEach((overlay) => overlay.setMap(null));
+      manualOverlayRef.current = [];
+      drawingRef.current = false;
       mapRef.current = null;
     };
   }, [address, areaSqFt, flatPaths.length, hasCoordinates, latitude, longitude, lawnBounds, mapCenter, mapPaths, parcelPaths, showMarker]);
@@ -191,15 +195,28 @@ export function PropertySatellite({
         clickable: false,
       }));
     }
+    if (manualHousePath.length >= 4) {
+      manualOverlayRef.current.push(new window.google.maps.Polygon({
+        map: mapRef.current,
+        paths: manualHousePath,
+        strokeColor: "#f97316",
+        strokeOpacity: 1,
+        strokeWeight: 2,
+        fillColor: "#f97316",
+        fillOpacity: 0.25,
+        clickable: false,
+      }));
+    }
     return () => {
       manualOverlayRef.current.forEach((overlay) => overlay.setMap(null));
       manualOverlayRef.current = [];
     };
-  }, [available, manualPoints]);
+  }, [available, manualHousePath, manualPoints]);
 
   const startManualDrawing = () => {
     drawingRef.current = true;
     setManualPoints([]);
+    setManualHousePath([]);
     setManualDrawing(true);
   };
 
@@ -207,8 +224,11 @@ export function PropertySatellite({
     if (manualPoints.length < 3) return;
     drawingRef.current = false;
     setManualDrawing(false);
+    const housePath = [...manualPoints, manualPoints[0]];
+    setManualHousePath(housePath);
     const coordinates = manualPoints.map(({ lng, lat }) => [lng, lat]);
     coordinates.push(coordinates[0]);
+    setManualPoints([]);
     void onManualFootprintRef.current?.({ type: "Polygon", coordinates: [coordinates] });
   };
 
@@ -216,6 +236,7 @@ export function PropertySatellite({
     drawingRef.current = false;
     setManualDrawing(false);
     setManualPoints([]);
+    setManualHousePath([]);
   };
 
   return (
