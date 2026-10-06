@@ -7,12 +7,6 @@ const COVERAGE_BY_WEEKDAY: Record<number, readonly string[]> = {
   5: ["Hutto", "Round Rock", "Georgetown", "Liberty Hill", "Leander", "Austin", "Pflugerville"],
 };
 
-const COVERAGE_NOTE_GROUPS = [
-  { weekday: 1, daysEs: "Lunes y Martes", daysEn: "Monday and Tuesday" },
-  { weekday: 3, daysEs: "Miércoles", daysEn: "Wednesday" },
-  { weekday: 4, daysEs: "Jueves y Viernes", daysEn: "Thursday and Friday" },
-] as const;
-
 function normalizeCity(city: string): string {
   return city.trim().toLocaleLowerCase("en-US");
 }
