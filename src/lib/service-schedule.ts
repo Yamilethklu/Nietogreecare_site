@@ -21,13 +21,6 @@ export function getCoverageCitiesForWeekday(weekday: number): readonly string[] 
   return COVERAGE_BY_WEEKDAY[weekday] ?? [];
 }
 
-export function getCoverageNoteLines(isEs: boolean): string[] {
-  return COVERAGE_NOTE_GROUPS.map(({ weekday, daysEs, daysEn }) => {
-    const dayLabel = isEs ? daysEs : daysEn;
-    return `${dayLabel}: ${getCoverageCitiesForWeekday(weekday).join(", ")}.`;
-  });
-}
-
 export function isDateCoveredForCity(dateKey: string, city: string): boolean {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateKey);
   if (!match) return false;
