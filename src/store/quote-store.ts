@@ -233,7 +233,19 @@ export const useQuoteStore = create<QuoteStore>()(
         set({ completedSteps: [...completedSteps, step], updatedAt: new Date().toISOString() });
       },
 
-      setAddress: (payload) => set((state) => ({ ...state, ...payload, ...(payload.placeId && payload.placeId !== state.placeId ? {measurement:null} : {}), updatedAt: new Date().toISOString() })),
+      setAddress: (payload) => set((state) => {
+        const addressChanged =
+          (payload.address !== undefined && payload.address !== state.address) ||
+          (payload.placeId !== undefined && payload.placeId !== state.placeId) ||
+          (payload.latitude !== undefined && payload.latitude !== state.latitude) ||
+          (payload.longitude !== undefined && payload.longitude !== state.longitude);
+        return {
+          ...state,
+          ...payload,
+          ...(addressChanged ? { measurement: null } : {}),
+          updatedAt: new Date().toISOString(),
+        };
+      }),
 
       setLawnOptions: (payload) => set((state) => {
         const shouldClearMeasurement =

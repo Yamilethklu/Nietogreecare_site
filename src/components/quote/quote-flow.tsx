@@ -123,6 +123,20 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
   const [measurementWarning, setMeasurementWarning] = React.useState("");
   const [measurementLoading, setMeasurementLoading] = React.useState(false);
   const [detectedParcel, setDetectedParcel] = React.useState<PolygonPoint[][]>();
+  const [measurementEnabled, setMeasurementEnabled] = React.useState(false);
+  const address = store.address;
+  const formattedAddress = store.formattedAddress;
+  const latitude = store.latitude;
+  const longitude = store.longitude;
+  const measurement = store.measurement;
+  const areaSelection = store.areaSelection;
+  const clearMeasurement = store.clearMeasurement;
+  const setAddress = store.setAddress;
+  const setMeasurement = store.setMeasurement;
+
+  React.useEffect(() => {
+    if (store.step >= 3) setMeasurementEnabled(true);
+  }, [store.step]);
 
   React.useEffect(() => {
     void fetch("/api/lawn-rates", { cache: "no-store" })
@@ -174,21 +188,21 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
   }, [gateAnswer, store.completedSteps, store.hasGateCode, store.step]);
 
   React.useEffect(() => {
-    if (store.measurement && (store.measurement.geometryVersion !== 3 || store.measurement.areaSelection !== store.areaSelection)) {
-      store.clearMeasurement();
+    if (measurement && (measurement.geometryVersion !== 3 || measurement.areaSelection !== areaSelection)) {
+      clearMeasurement();
       return;
     }
-    if (store.step !== 5 || store.measurement || store.latitude == null || store.longitude == null) return;
+    if (!measurementEnabled || measurement || latitude == null || longitude == null) return;
     let cancelled = false;
     setErrors((current) => ({ ...current, measurement: "" }));
     setMeasurementWarning("");
     setMeasurementLoading(true);
     setDetectedParcel(undefined);
     const detectUrl = new URL("/api/lawn-detect", window.location.origin);
-    detectUrl.searchParams.set("address", store.formattedAddress || store.address);
-    detectUrl.searchParams.set("lat", String(store.latitude));
-    detectUrl.searchParams.set("lng", String(store.longitude));
-    detectUrl.searchParams.set("area", store.areaSelection);
+    detectUrl.searchParams.set("address", formattedAddress || address);
+    detectUrl.searchParams.set("lat", String(latitude));
+    detectUrl.searchParams.set("lng", String(longitude));
+    detectUrl.searchParams.set("area", areaSelection);
     void fetch(detectUrl.toString(), { cache: "no-store" })
       .then(async (response) => {
         const payload = (await response.json().catch(() => ({}))) as LawnDetectionResponse;
@@ -211,19 +225,19 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
           return;
         }
         if (typeof payload.latitude === "number" && typeof payload.longitude === "number") {
-          store.setAddress({
-            formattedAddress: payload.formattedAddress || store.formattedAddress,
+          setAddress({
+            formattedAddress: payload.formattedAddress || formattedAddress,
             latitude: payload.latitude,
             longitude: payload.longitude,
           });
         }
         const measurement = buildMeasurement(polygons[0], areaSqFt, 2, 19, polygons, parcelPolygons.length ? parcelPolygons : undefined, payload.poligonoJardin);
-        measurement.areaSelection = store.areaSelection;
+        measurement.areaSelection = areaSelection;
         measurement.geometryVersion = 3;
         measurement.warning = payload.warning;
         setMeasurementWarning(payload.warning || "");
         if (center) measurement.center = center;
-        store.setMeasurement(measurement);
+        setMeasurement(measurement);
         setMeasurementWarning("");
       })
       .catch((error: unknown) => {
@@ -241,17 +255,16 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
       });
     return () => { cancelled = true; };
   }, [
-    store,
-    store.address,
-    store.formattedAddress,
-    store.latitude,
-    store.longitude,
-    store.measurement,
-    store.areaSelection,
-    store.clearMeasurement,
-    store.setAddress,
-    store.setMeasurement,
-    store.step,
+    address,
+    formattedAddress,
+    latitude,
+    longitude,
+    measurement,
+    areaSelection,
+    clearMeasurement,
+    setAddress,
+    setMeasurement,
+    measurementEnabled,
     isEs,
   ]);
 
@@ -474,6 +487,10 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
                 </button>;
               })}
             </div>
+            {measurementLoading && <p className="rounded-lg bg-slate-100 px-4 py-3 text-sm font-semibold text-slate-700">{isEs ? "Midiendo el área seleccionada y excluyendo la casa..." : "Measuring the selected area and excluding the house..."}</p>}
+            <PropertySatellite address={store.address} latitude={store.latitude} longitude={store.longitude} isEs={isEs} polygon={polygon} geometry={lawnGeometry} parcelPolygons={store.measurement?.parcelPolygons ?? detectedParcel} center={markerCenter} loadingText={isEs ? "Cargando el mapa y midiendo el área..." : "Loading the map and measuring the area..."} />
+            {errors.measurement && <FieldError>{errors.measurement}</FieldError>}
+            {store.measurement && <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-950">{isEs ? `Área seleccionada: ${Math.round(store.measurement.areaSqFt).toLocaleString()} ft²` : `Selected area: ${Math.round(store.measurement.areaSqFt).toLocaleString()} sq ft`}</p>}
             <fieldset className="border-t border-slate-200 pt-5">
               <legend className="text-sm font-bold text-black">{isEs ? "¿El césped mide más de 6 pulgadas de alto?" : "Is the grass over 6 inches tall?"}</legend>
               <div className="mt-3 flex gap-3">
@@ -510,7 +527,7 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
                   <Button type="button" disabled={!weeklyRate} className="mt-3" onClick={() => store.setLawnOptions({ mowFrequency: "weekly", serviceFrequency: "ongoing" })}>{isEs ? "Cambiar a semanal" : "Switch to weekly"}</Button>
                 </div>}
               </div>
-              <PropertySatellite address={store.address} latitude={store.latitude} longitude={store.longitude} isEs={isEs} compact polygon={polygon} geometry={lawnGeometry} parcelPolygons={store.measurement?.parcelPolygons ?? detectedParcel} center={markerCenter} loadingText={isEs ? "Analizando tu propiedad por satélite..." : "Analyzing your property by satellite..."} showMarker={false} />
+              <PropertySatellite address={store.address} latitude={store.latitude} longitude={store.longitude} isEs={isEs} compact polygon={polygon} geometry={lawnGeometry} parcelPolygons={store.measurement?.parcelPolygons ?? detectedParcel} center={markerCenter} loadingText={isEs ? "Analizando tu propiedad por satélite..." : "Analyzing your property by satellite..."} />
             </div>
             <FieldError>{errors.measurement}</FieldError>
             {!store.measurement && !measurementLoading && <p className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900">{isEs ? "Aún no hay medición satelital, por lo que no se muestra un precio definitivo. El propietario confirmará la medida y la tarifa." : "There is no satellite measurement yet, so no final price is shown. The owner will confirm the measurement and rate."}</p>}

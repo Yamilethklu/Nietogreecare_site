@@ -122,7 +122,7 @@ export function PropertySatellite({ address, latitude, longitude, isEs, compact 
       if (showMarker) {
         new window.google.maps.Marker({
           map,
-          position: lawnCenter ?? position,
+          position,
           icon: "https://maps.google.com/mapfiles/ms/icons/red-dot.png",
         });
       }
