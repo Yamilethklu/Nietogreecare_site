@@ -276,7 +276,7 @@ function lawnResponse(
     areaMetros: featureAreaSqM(lawn),
     areaPies: featureAreaSqFt(lawn),
     centro: featureCenter(lawn),
-    huellaCasaSimulada: false,
+    huellaCasaSimulada: source === "parcel_estimate",
     fuenteHuella: source,
     confianza: confidence,
     requiereRevisionManual: false,
