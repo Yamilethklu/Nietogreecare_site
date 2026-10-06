@@ -124,6 +124,7 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
   const [measurementWarning, setMeasurementWarning] = React.useState("");
   const [measurementLoading, setMeasurementLoading] = React.useState(false);
   const [detectedParcel, setDetectedParcel] = React.useState<PolygonPoint[][]>();
+  const lastMeasurementAttempt = React.useRef<string | null>(null);
   const measurementEnabled = store.step >= MOWING_AREA_STEP;
   const address = store.address;
   const formattedAddress = store.formattedAddress;
@@ -188,7 +189,14 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
       clearMeasurement();
       return;
     }
-    if (!measurementEnabled || measurement || latitude == null || longitude == null) return;
+    if (!measurementEnabled) {
+      lastMeasurementAttempt.current = null;
+      return;
+    }
+    if (measurement || latitude == null || longitude == null) return;
+    const attemptKey = JSON.stringify([address, formattedAddress, latitude, longitude, areaSelection]);
+    if (lastMeasurementAttempt.current === attemptKey) return;
+    lastMeasurementAttempt.current = attemptKey;
     let cancelled = false;
     setErrors((current) => ({ ...current, measurement: "" }));
     setMeasurementWarning("");
@@ -220,13 +228,13 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
           }));
           return;
         }
-        const measurement = buildMeasurement(polygons[0], areaSqFt, 2, 19, polygons, parcelPolygons.length ? parcelPolygons : undefined, payload.poligonoJardin);
-        measurement.areaSelection = areaSelection;
-        measurement.geometryVersion = 3;
-        measurement.warning = payload.warning;
+        const nextMeasurement = buildMeasurement(polygons[0], areaSqFt, 2, 19, polygons, parcelPolygons.length ? parcelPolygons : undefined, payload.poligonoJardin);
+        nextMeasurement.areaSelection = areaSelection;
+        nextMeasurement.geometryVersion = 3;
+        nextMeasurement.warning = payload.warning;
         setMeasurementWarning(payload.warning || "");
-        if (center) measurement.center = center;
-        setMeasurement(measurement);
+        if (center) nextMeasurement.center = center;
+        setMeasurement(nextMeasurement);
         setMeasurementWarning("");
       })
       .catch((error: unknown) => {
