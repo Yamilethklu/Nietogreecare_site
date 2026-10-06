@@ -476,6 +476,7 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
   const selectedServiceDate = store.requestedDate ? new Date(`${store.requestedDate}T12:00:00`) : null;
   const hasSelectedServiceDate = selectedServiceDate && !Number.isNaN(selectedServiceDate.getTime());
   const pendingDateLabel = isEs ? "Pendiente" : "Pending";
+  const pendingMeasurementLabel = isEs ? "Pendiente de medición" : "Measurement pending";
 
   return (
     <div className="mx-auto max-w-3xl space-y-5">
@@ -592,7 +593,7 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
             </div>
             <div className="grid grid-cols-3 gap-3 border-b border-slate-200 py-6 text-sm">
               <div className="min-w-0"><h3 className="text-xs font-extrabold uppercase tracking-wide">{isEs ? "Dirección" : "Address"}</h3><p className="mt-1 break-words">{store.address || "—"}</p><p className="text-slate-500">{[store.city, store.state, store.zipCode].filter(Boolean).join(", ")}</p></div>
-              <div className="min-w-0"><h3 className="text-xs font-extrabold uppercase tracking-wide">{isEs ? "Pies cuadrados de césped" : "Lawn square footage"}</h3><p className="mt-1">{store.measurement ? `${lawnAreaSqFt.toLocaleString()} ft²` : pendingDateLabel}</p></div>
+              <div className="min-w-0"><h3 className="text-xs font-extrabold uppercase tracking-wide">{isEs ? "Pies cuadrados de césped" : "Lawn square footage"}</h3><p className="mt-1">{store.measurement ? `${lawnAreaSqFt.toLocaleString()} ft²` : pendingMeasurementLabel}</p></div>
               <div className="min-w-0"><h3 className="text-xs font-extrabold uppercase tracking-wide">{isEs ? "Fecha de inicio" : "Start date"}</h3><p className="mt-1">{hasSelectedServiceDate ? selectedServiceDate.toLocaleDateString(isEs ? "es-US" : "en-US", { month: "long", day: "numeric", year: "numeric" }) : pendingDateLabel}</p></div>
             </div>
             <div className="grid grid-cols-3 gap-3 border-b border-slate-200 py-6 text-sm">
@@ -624,11 +625,10 @@ export function QuoteFlow({ embedded = false }: { embedded?: boolean }) {
               <div className="grid gap-3 text-sm sm:grid-cols-2">
                 <p><strong>{isEs ? "Cliente" : "Customer"}:</strong> {store.customerName}</p><p><strong>{isEs ? "Teléfono" : "Phone"}:</strong> {store.customerPhone}</p>
                 <p><strong>{isEs ? "Propiedad" : "Property"}:</strong> {store.propertyOccupancy === "occupied" ? (isEs ? "Ocupada" : "Occupied") : (isEs ? "Deshabitada" : "Vacant")}</p>
-                <p><strong>{isEs ? "Césped calculado" : "Calculated lawn"}:</strong> {store.measurement ? `${lawnAreaSqFt.toLocaleString()} ft² / ${lawnAreaSqYd.toLocaleString(undefined, { maximumFractionDigits: 1 })} yd² / ${lawnAreaSqM.toLocaleString(undefined, { maximumFractionDigits: 1 })} m²` : (isEs ? "Pendiente de medición" : "Measurement pending")}</p>
+                <p><strong>{isEs ? "Césped calculado" : "Calculated lawn"}:</strong> {store.measurement ? `${lawnAreaSqFt.toLocaleString()} ft² / ${lawnAreaSqYd.toLocaleString(undefined, { maximumFractionDigits: 1 })} yd² / ${lawnAreaSqM.toLocaleString(undefined, { maximumFractionDigits: 1 })} m²` : pendingMeasurementLabel}</p>
                 {store.measurement?.footprintSource && <p><strong>{isEs ? "Huella" : "Footprint"}:</strong> {store.measurement.footprintSource === "parcel_estimate" ? (isEs ? "estimación automática del predio" : "automatic parcel estimate") : store.measurement.footprintSource} · {isEs ? "confianza" : "confidence"} {store.measurement.confidence ?? (isEs ? "desconocida" : "unknown")}</p>}
                 <p><strong>{isEs ? "Mascotas" : "Pets"}:</strong> {store.hasPetsInBackyard ? (isEs ? "Sí" : "Yes") : "No"}</p><p><strong>{isEs ? "Cerradura" : "Lock"}:</strong> {store.hasGateCode ? `${isEs ? "Sí" : "Yes"} (${store.gateCode})` : "No"}</p>
               </div>
-              {(store.additionalNotes.trim() || store.details.trim()) && <div className="rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-700">{store.additionalNotes.trim() && <p><strong>{isEs ? "Nota" : "Note"}:</strong> {store.additionalNotes}</p>}{store.details.trim() && <p className="mt-2"><strong>{isEs ? "Trabajo adicional" : "Additional work"}:</strong> {store.details}</p>}</div>}
             </div>
             {(store.additionalNotes.trim() || store.details.trim()) && <div className="rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-700">{store.additionalNotes.trim() && <p><strong>{isEs ? "Nota" : "Note"}:</strong> {store.additionalNotes}</p>}{store.details.trim() && <p className="mt-2"><strong>{isEs ? "Trabajo adicional" : "Additional work"}:</strong> {store.details}</p>}</div>}
           </section>}
