@@ -1,9 +1,8 @@
 import * as turf from "@turf/turf";
 import { gunzipSync } from "node:zlib";
-import type { Feature, GeoJsonProperties, MultiPolygon, Polygon } from "geojson";
+import type { GeoJSON } from "geojson";
 import { asAreaFeature, type AreaFeature } from "@/lib/parcel-geometry";
 
-type Parcel = Feature<Polygon | MultiPolygon, GeoJsonProperties>;
 type DatasetTile = { location: string; quadKey: string; url: string };
 
 const DATASET_LINKS_URL = "https://bfppub.blob.core.windows.net/%24web/2026-08-13/dataset-links.csv";
@@ -139,8 +138,13 @@ function getTileUrl(tile: DatasetTile): URL {
   return url;
 }
 
-export async function getMicrosoftFootprint(parcel: Parcel): Promise<AreaFeature | null> {
+export async function getMicrosoftFootprint(parcelGeoJson: GeoJSON): Promise<AreaFeature | null> {
   try {
+    const parcel = asAreaFeature(parcelGeoJson);
+    if (!parcel) {
+      console.warn("microsoft_footprint_invalid_parcel");
+      return null;
+    }
     const tiles = await getDatasetTiles();
     if (!tiles) {
       console.warn("microsoft_footprint_dataset_unavailable");
@@ -151,7 +155,7 @@ export async function getMicrosoftFootprint(parcel: Parcel): Promise<AreaFeature
       const bounds = tileBounds(tile.quadKey);
       if (!bounds) return false;
       try {
-        return turf.booleanIntersects(parcel as AreaFeature, turf.bboxPolygon(bounds) as AreaFeature);
+        return turf.booleanIntersects(parcel, turf.bboxPolygon(bounds) as AreaFeature);
       } catch {
         return false;
       }
@@ -184,7 +188,7 @@ export async function getMicrosoftFootprint(parcel: Parcel): Promise<AreaFeature
         const feature = asAreaFeature(candidate);
         if (!feature) continue;
         try {
-          if (turf.booleanIntersects(feature, parcel as AreaFeature)) buildings.push(feature);
+          if (turf.booleanIntersects(feature, parcel)) buildings.push(feature);
         } catch {
           continue;
         }
@@ -199,7 +203,7 @@ export async function getMicrosoftFootprint(parcel: Parcel): Promise<AreaFeature
       ? buildings[0]
       : turf.union(turf.featureCollection(buildings) as any) as AreaFeature | null;
     if (!combined) return null;
-    const clipped = asAreaFeature(turf.intersect(turf.featureCollection([combined, parcel as AreaFeature])));
+    const clipped = asAreaFeature(turf.intersect(turf.featureCollection([combined, parcel])));
     return clipped && turf.area(clipped) >= 10 ? clipped : null;
   } catch {
     console.warn("microsoft_footprint_lookup_failed");

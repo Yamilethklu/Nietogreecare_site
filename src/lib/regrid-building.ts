@@ -1,8 +1,6 @@
 import * as turf from "@turf/turf";
-import type { Feature, GeoJsonProperties, MultiPolygon, Polygon } from "geojson";
+import type { GeoJSON } from "geojson";
 import { asAreaFeature, type AreaFeature } from "@/lib/parcel-geometry";
-
-type Parcel = Feature<Polygon | MultiPolygon, GeoJsonProperties>;
 
 const REGRID_TOKEN =
   process.env.REGRID_TOKEN ||
@@ -45,12 +43,17 @@ function collectBuildingFeatures(payload: unknown): AreaFeature[] {
   return found;
 }
 
-export async function getRegridBuilding(parcel: Parcel): Promise<AreaFeature | null> {
+export async function getRegridBuilding(parcelGeoJson: GeoJSON): Promise<AreaFeature | null> {
   if (!REGRID_TOKEN) {
     console.warn("regrid_building_token_unconfigured");
     return null;
   }
   try {
+    const parcel = asAreaFeature(parcelGeoJson);
+    if (!parcel) {
+      console.warn("regrid_building_invalid_parcel");
+      return null;
+    }
     const center = turf.center(parcel);
     const [longitude, latitude] = center.geometry.coordinates;
     const url = new URL("https://app.regrid.com/api/v2/parcels/point");
