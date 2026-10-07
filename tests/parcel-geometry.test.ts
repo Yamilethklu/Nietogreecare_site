@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import * as turf from "@turf/turf";
 
-import { featureAreaSqFt, featureAreaSqM, findAreaFeature, subtractFootprint, subtractSidewalkStrip } from "../src/lib/parcel-geometry.ts";
+import { asAreaFeature, featureAreaSqFt, featureAreaSqM, findAreaFeature, subtractFootprint, subtractSidewalkStrip, type AreaFeature } from "../src/lib/parcel-geometry.ts";
 
 const TEST_LATITUDE = 30.5;
 const TEST_LONGITUDE = -97.8;
@@ -29,11 +29,13 @@ function testHouse(frontGap: number, depth: number, width: number) {
   return findAreaFeature(turf.bboxPolygon([west, bottom, east, top]))!;
 }
 
-function sidewalkRemovedArea(lawn: ReturnType<typeof findAreaFeature>, clipped: ReturnType<typeof findAreaFeature>) {
-  assert.ok(lawn);
-  assert.ok(clipped);
-  const removed = turf.difference(turf.featureCollection([lawn, clipped]));
-  return removed ? featureAreaSqM(removed as any) : 0;
+function sidewalkRemovedGeometry(lawn: AreaFeature, clipped: AreaFeature): AreaFeature | null {
+  return asAreaFeature(turf.difference(turf.featureCollection([lawn, clipped])));
+}
+
+function sidewalkRemovedArea(lawn: AreaFeature, clipped: AreaFeature) {
+  const removed = sidewalkRemovedGeometry(lawn, clipped);
+  return removed ? featureAreaSqM(removed) : 0;
 }
 
 test("findAreaFeature returns the first polygon from geojson feature collections", () => {
@@ -212,7 +214,7 @@ test("subtractSidewalkStrip uses the full 2.4m setback when the centered house l
   assert.ok(Math.abs(sidewalkRemovedArea(lawn, clipped) - 2.4 * 20) < 2);
   assert.ok(featureAreaSqM(clipped) > 20);
 
-  const removed = turf.difference(turf.featureCollection([lawn, clipped]));
+  const removed = sidewalkRemovedGeometry(lawn, clipped);
   assert.ok(removed);
   assert.equal(turf.intersect(turf.featureCollection([removed, house])), null);
 });
@@ -229,7 +231,7 @@ test("subtractSidewalkStrip limits the cut to 80% of a 2m frontage", () => {
 
   const remainingFront = turf.point(testCoordinate(13.2, 10));
   assert.equal(turf.booleanPointInPolygon(remainingFront, clipped), true);
-  const removed = turf.difference(turf.featureCollection([lawn, clipped]));
+  const removed = sidewalkRemovedGeometry(lawn, clipped);
   assert.ok(removed);
   assert.equal(turf.intersect(turf.featureCollection([removed, house])), null);
 });
@@ -256,10 +258,10 @@ test("subtractSidewalkStrip follows the road-facing edge of an irregular trapezo
     testCoordinate(0, 0),
   ]]))!;
   const house = findAreaFeature(turf.bboxPolygon([
-    testCoordinate(5, 7)[0],
-    testCoordinate(5, 7)[1],
-    testCoordinate(9, 13)[0],
-    testCoordinate(9, 13)[1],
+    testCoordinate(9, 7)[0],
+    testCoordinate(9, 7)[1],
+    testCoordinate(12, 13)[0],
+    testCoordinate(12, 13)[1],
   ]))!;
   const lawn = subtractFootprint(parcel, house);
   assert.ok(lawn);
@@ -270,7 +272,7 @@ test("subtractSidewalkStrip follows the road-facing edge of an irregular trapezo
   assert.equal(turf.booleanPointInPolygon(turf.point(testCoordinate(14, 5)), clipped), false);
   assert.equal(turf.booleanPointInPolygon(turf.point(testCoordinate(5, 10)), clipped), true);
 
-  const removed = turf.difference(turf.featureCollection([lawn, clipped]));
+  const removed = sidewalkRemovedGeometry(lawn, clipped);
   assert.ok(removed);
   assert.equal(turf.intersect(turf.featureCollection([removed, house])), null);
 });

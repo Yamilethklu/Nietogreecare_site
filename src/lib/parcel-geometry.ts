@@ -2,6 +2,7 @@ import * as turf from "@turf/turf";
 import type { Feature, GeoJsonProperties, MultiPolygon, Polygon } from "geojson";
 
 const SQ_M_TO_SQ_FT = 10.7639;
+const MAX_FRONTAGE_TRIM_RATIO = 0.8;
 
 export type AreaGeometry = Polygon | MultiPolygon;
 export type AreaFeature = Feature<AreaGeometry, GeoJsonProperties>;
@@ -45,6 +46,21 @@ export function subtractFootprint(parcel: AreaFeature, building: AreaFeature | n
   return asAreaFeature(result);
 }
 
+function nearestPointOnOuterRings(feature: AreaFeature, point: number[]) {
+  const polygons = feature.geometry.type === "Polygon"
+    ? [feature.geometry.coordinates]
+    : feature.geometry.coordinates;
+  const edges = polygons
+    .map((polygon) => turf.lineString(polygon[0]))
+    .filter((line) => line.geometry.coordinates.length >= 2);
+  if (!edges.length) return null;
+  return edges
+    .map((edge) => turf.nearestPointOnLine(edge, turf.point(point), { units: "meters" }))
+    .reduce((nearest, candidate) =>
+      candidate.properties.dist < nearest.properties.dist ? candidate : nearest,
+    );
+}
+
 export function subtractSidewalkStrip(
   lawn: AreaFeature,
   parcel: AreaFeature,
@@ -58,19 +74,8 @@ export function subtractSidewalkStrip(
     }
 
     const road = turf.point([roadPoint.lng, roadPoint.lat]);
-    const parcelPolygons = parcel.geometry.type === "Polygon"
-      ? [parcel.geometry.coordinates]
-      : parcel.geometry.coordinates;
-    const parcelEdges = parcelPolygons
-      .map((polygon) => turf.lineString(polygon[0]))
-      .filter((line) => line.geometry.coordinates.length >= 2);
-    if (!parcelEdges.length) return turf.feature(lawn.geometry, lawn.properties) as AreaFeature;
-
-    const parcelEdgePoint = parcelEdges
-      .map((edge) => turf.nearestPointOnLine(edge, road, { units: "meters" }))
-      .reduce((nearest, candidate) =>
-        candidate.properties.dist < nearest.properties.dist ? candidate : nearest,
-      );
+    const parcelEdgePoint = nearestPointOnOuterRings(parcel, [roadPoint.lng, roadPoint.lat]);
+    if (!parcelEdgePoint) return turf.feature(lawn.geometry, lawn.properties) as AreaFeature;
     const originPoint = turf.point(parcelEdgePoint.geometry.coordinates);
     const roadBearing = turf.bearing(originPoint, road);
     const project = (coordinate: number[]) => {
@@ -88,29 +93,19 @@ export function subtractSidewalkStrip(
       .map(project);
     if (!projections.length) return turf.feature(lawn.geometry, lawn.properties) as AreaFeature;
 
-    const housePolygons = house.geometry.type === "Polygon"
-      ? [house.geometry.coordinates]
-      : house.geometry.coordinates;
-    const houseEdges = housePolygons
-      .map((polygon) => turf.lineString(polygon[0]))
-      .filter((line) => line.geometry.coordinates.length >= 2);
-    if (!houseEdges.length) return turf.feature(lawn.geometry, lawn.properties) as AreaFeature;
-    const houseEdgePoint = houseEdges
-      .map((edge) => turf.nearestPointOnLine(edge, originPoint, { units: "meters" }))
-      .reduce((nearest, candidate) =>
-        candidate.properties.dist < nearest.properties.dist ? candidate : nearest,
-      );
+    const houseEdgePoint = nearestPointOnOuterRings(house, parcelEdgePoint.geometry.coordinates);
+    if (!houseEdgePoint) return turf.feature(lawn.geometry, lawn.properties) as AreaFeature;
 
     const maxProjection = Math.max(...projections.map(({ forward }) => forward));
     const minProjection = Math.min(...projections.map(({ forward }) => forward));
     const houseProjection = project(houseEdgePoint.geometry.coordinates).forward;
-    const distanceToHouse = maxProjection - houseProjection;
+    const distanceToHouse = -houseProjection;
     if (!Number.isFinite(distanceToHouse) || distanceToHouse <= 0) {
       return turf.feature(lawn.geometry, lawn.properties) as AreaFeature;
     }
-    const effectiveSetback = Math.min(setbackMeters, distanceToHouse * 0.8);
+    const effectiveSetback = Math.min(setbackMeters, distanceToHouse * MAX_FRONTAGE_TRIM_RATIO);
     const maxPerpendicular = Math.max(...projections.map(({ perpendicular }) => Math.abs(perpendicular)));
-    const span = Math.max(maxProjection - minProjection, maxPerpendicular * 2, setbackMeters, 10);
+    const span = Math.max(maxProjection - minProjection, maxPerpendicular * 2, effectiveSetback, 10);
     const toCoordinate = (forward: number, perpendicular: number) => turf.destination(
       originPoint,
       Math.hypot(forward, perpendicular),
