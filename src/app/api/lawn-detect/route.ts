@@ -342,21 +342,35 @@ export async function GET(request: Request) {
     }
     const { parcel, payload: parcelPayload } = parcelLookup;
 
+    console.log("lawn-detect: trying catastro");
     let house = findBuildingFeature(parcelPayload);
+    console.log("lawn-detect: catastro returned", house ? "feature" : "null");
     let footprintSource: FootprintSource | null = house ? "catastro" : null;
 
     if (!house) {
+      console.log("lawn-detect: trying osm");
       house = await getOverpassHouseFootprint(latitude, longitude, parcel);
+      console.log("lawn-detect: osm returned", house ? "feature" : "null");
       if (house) footprintSource = "osm";
     }
 
     if (!house) {
+      console.log("lawn-detect: trying microsoft");
       house = await getMicrosoftFootprint(parcel);
+      console.log("lawn-detect: microsoft returned", house ? "feature" : "null");
       if (house) footprintSource = "microsoft";
+    }
+
+    if (!house) {
+      console.log("lawn-detect: trying regrid");
+      house = await getRegridBuilding(parcel);
+      console.log("lawn-detect: regrid returned", house ? "feature" : "null");
+      if (house) footprintSource = "regrid";
     }
 
     let footprintError = "building_footprint_unavailable";
     if (!house) {
+      console.log("lawn-detect: trying solar_mask");
       try {
         house = await solarMaskFootprint(latitude, longitude, SOLAR_KEY, parcel);
         if (house) footprintSource = "solar_mask";
@@ -365,20 +379,20 @@ export async function GET(request: Request) {
         footprintError = error.code;
         console.warn("lawn_detection", error.code);
       }
+      console.log("lawn-detect: solar_mask returned", house ? "feature" : "null");
     }
 
     if (!house) {
+      console.log("lawn-detect: trying solar_box");
       house = await getSolarBuildingBox(latitude, longitude, parcel);
+      console.log("lawn-detect: solar_box returned", house ? "feature" : "null");
       if (house) footprintSource = "solar_box";
     }
 
     if (!house) {
-      house = await getRegridBuilding(parcel);
-      if (house) footprintSource = "regrid";
-    }
-
-    if (!house) {
+      console.log("lawn-detect: trying estimacion");
       house = estimateHouseFootprint(parcel);
+      console.log("lawn-detect: estimacion returned", house ? "feature" : "null");
       if (house) footprintSource = "parcel_estimate";
     }
     if (!house || !footprintSource) {

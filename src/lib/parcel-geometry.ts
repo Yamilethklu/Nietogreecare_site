@@ -2,6 +2,7 @@ import * as turf from "@turf/turf";
 import type { Feature, GeoJsonProperties, MultiPolygon, Polygon } from "geojson";
 
 const SQ_M_TO_SQ_FT = 10.7639;
+const MAX_FRONTAGE_TRIM_RATIO = 0.8;
 
 export type AreaGeometry = Polygon | MultiPolygon;
 export type AreaFeature = Feature<AreaGeometry, GeoJsonProperties>;
@@ -45,6 +46,21 @@ export function subtractFootprint(parcel: AreaFeature, building: AreaFeature | n
   return asAreaFeature(result);
 }
 
+function nearestPointOnOuterRings(feature: AreaFeature, point: number[]) {
+  const polygons = feature.geometry.type === "Polygon"
+    ? [feature.geometry.coordinates]
+    : feature.geometry.coordinates;
+  const edges = polygons
+    .map((polygon) => turf.lineString(polygon[0]))
+    .filter((line) => line.geometry.coordinates.length >= 2);
+  if (!edges.length) return null;
+  return edges
+    .map((edge) => turf.nearestPointOnLine(edge, turf.point(point), { units: "meters" }))
+    .reduce((nearest, candidate) =>
+      candidate.properties.dist < nearest.properties.dist ? candidate : nearest,
+    );
+}
+
 export function subtractSidewalkStrip(
   lawn: AreaFeature,
   parcel: AreaFeature,
@@ -53,42 +69,56 @@ export function subtractSidewalkStrip(
   setbackMeters: number,
 ): AreaFeature | null {
   try {
-    const origin = turf.center(house as any).geometry.coordinates;
-    const originPoint = turf.point(origin);
-    const roadBearing = turf.bearing(originPoint, turf.point([roadPoint.lng, roadPoint.lat]));
-    const projections = turf.coordAll(parcel as any)
-      .filter(([lng, lat]) => Number.isFinite(lng) && Number.isFinite(lat))
-      .map((coordinate) => {
-        const point = turf.point(coordinate);
-        const distance = turf.distance(originPoint, point, { units: "meters" });
-        const bearingOffset = ((turf.bearing(originPoint, point) - roadBearing + 540) % 360) - 180;
-        const angle = (bearingOffset * Math.PI) / 180;
-        return {
-          forward: distance * Math.cos(angle),
-          perpendicular: distance * Math.sin(angle),
-        };
-      });
-    if (!projections.length || !Number.isFinite(setbackMeters) || setbackMeters <= 0) {
+    if (!Number.isFinite(setbackMeters) || setbackMeters <= 0) {
       return turf.feature(lawn.geometry, lawn.properties) as AreaFeature;
     }
 
-    const maxForward = Math.max(...projections.map(({ forward }) => forward));
-    const minForward = Math.min(...projections.map(({ forward }) => forward));
+    const road = turf.point([roadPoint.lng, roadPoint.lat]);
+    const parcelEdgePoint = nearestPointOnOuterRings(parcel, [roadPoint.lng, roadPoint.lat]);
+    if (!parcelEdgePoint) return turf.feature(lawn.geometry, lawn.properties) as AreaFeature;
+    const originPoint = turf.point(parcelEdgePoint.geometry.coordinates);
+    const roadBearing = turf.bearing(originPoint, road);
+    const project = (coordinate: number[]) => {
+      const point = turf.point(coordinate);
+      const distance = turf.distance(originPoint, point, { units: "meters" });
+      const bearingOffset = ((turf.bearing(originPoint, point) - roadBearing + 540) % 360) - 180;
+      const angle = (bearingOffset * Math.PI) / 180;
+      return {
+        forward: distance * Math.cos(angle),
+        perpendicular: distance * Math.sin(angle),
+      };
+    };
+    const projections = turf.coordAll(parcel as any)
+      .filter(([lng, lat]) => Number.isFinite(lng) && Number.isFinite(lat))
+      .map(project);
+    if (!projections.length) return turf.feature(lawn.geometry, lawn.properties) as AreaFeature;
+
+    const houseEdgePoint = nearestPointOnOuterRings(house, parcelEdgePoint.geometry.coordinates);
+    if (!houseEdgePoint) return turf.feature(lawn.geometry, lawn.properties) as AreaFeature;
+
+    const maxProjection = Math.max(...projections.map(({ forward }) => forward));
+    const minProjection = Math.min(...projections.map(({ forward }) => forward));
+    const houseProjection = project(houseEdgePoint.geometry.coordinates).forward;
+    const distanceToHouse = -houseProjection;
+    if (!Number.isFinite(distanceToHouse) || distanceToHouse <= 0) {
+      return turf.feature(lawn.geometry, lawn.properties) as AreaFeature;
+    }
+    const effectiveSetback = Math.min(setbackMeters, distanceToHouse * MAX_FRONTAGE_TRIM_RATIO);
     const maxPerpendicular = Math.max(...projections.map(({ perpendicular }) => Math.abs(perpendicular)));
-    const span = Math.max(maxForward - minForward, maxPerpendicular * 2, setbackMeters, 10);
+    const span = Math.max(maxProjection - minProjection, maxPerpendicular * 2, effectiveSetback, 10);
     const toCoordinate = (forward: number, perpendicular: number) => turf.destination(
       originPoint,
       Math.hypot(forward, perpendicular),
       roadBearing + (Math.atan2(perpendicular, forward) * 180) / Math.PI,
       { units: "meters" },
     ).geometry.coordinates;
-    const cutoff = maxForward - setbackMeters;
+    const cutoff = maxProjection - effectiveSetback;
     const halfWidth = maxPerpendicular + span;
     const sidewalkStrip = turf.polygon([[
       toCoordinate(cutoff, -halfWidth),
       toCoordinate(cutoff, halfWidth),
-      toCoordinate(maxForward + span, halfWidth),
-      toCoordinate(maxForward + span, -halfWidth),
+      toCoordinate(maxProjection + span, halfWidth),
+      toCoordinate(maxProjection + span, -halfWidth),
       toCoordinate(cutoff, -halfWidth),
     ]]) as AreaFeature;
 
