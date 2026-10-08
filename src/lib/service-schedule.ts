@@ -20,7 +20,10 @@ export function isDateCoveredForCity(dateKey: string, city: string): boolean {
   if (!match) return false;
   const date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
   if (date.getFullYear() !== Number(match[1]) || date.getMonth() !== Number(match[2]) - 1 || date.getDate() !== Number(match[3])) return false;
-  return getCoverageCitiesForWeekday(date.getDay()).some((coveredCity) => normalizeCity(coveredCity) === normalizeCity(city));
+  const normalizedCity = normalizeCity(city);
+  const configuredCities = new Set(Object.values(COVERAGE_BY_WEEKDAY).flat().map(normalizeCity));
+  if (!normalizedCity || !configuredCities.has(normalizedCity)) return date.getDay() >= 1 && date.getDay() <= 5;
+  return getCoverageCitiesForWeekday(date.getDay()).some((coveredCity) => normalizeCity(coveredCity) === normalizedCity);
 }
 
 export function isDateTodayOrLaterInAustin(dateKey: string, now = new Date()): boolean {

@@ -3,9 +3,8 @@
  */
 
 import { z } from "zod";
-import { SERVICE_ZIP_CODES, SERVICES } from "./constants";
+import { SERVICES } from "./constants";
 
-const SERVICE_ZIP_SET = new Set(SERVICE_ZIP_CODES);
 const SERVICE_KEY_SET = new Set(SERVICES.map((service) => service.key));
 const selectedServicesSchema = z.array(z.string()).min(1, "Seleccione al menos un servicio.").refine(
   (services) => services.every((service) => SERVICE_KEY_SET.has(service)),
@@ -15,11 +14,7 @@ const selectedServicesSchema = z.array(z.string()).min(1, "Seleccione al menos u
 export const zipCodeSchema = z
   .string()
   .trim()
-  .regex(/^\d{5}$/, "El codigo postal debe tener 5 digitos.")
-  .refine((value) => SERVICE_ZIP_SET.has(value), {
-    message:
-      "Por el momento no damos servicio en ese código postal. Atendemos Liberty Hill, Cedar Park, Leander, Georgetown, Hutto, Round Rock y Jarrell.",
-  });
+  .regex(/^\d{5}$/, "El codigo postal debe tener 5 digitos.");
 
 export const phoneSchema = z
   .string()
@@ -158,6 +153,7 @@ export const leadSubmissionSchema = z
       serviceFrequency: z.enum(["ongoing", "one_time"]),
       mowFrequency: z.enum(["weekly", "bi_weekly"]),
       bagGrass: z.boolean().default(false),
+      isGrassOver6: z.boolean().default(false),
       areaSelection: z.enum(["front_back", "front_only", "back_only"]),
       isCornerLot: z.boolean(),
       propertyOccupancy: z.enum(["occupied", "vacant"]),
