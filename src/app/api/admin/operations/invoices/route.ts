@@ -10,7 +10,7 @@ const fail=(error:string,status=422)=>NextResponse.json({ok:false,error},{status
 export async function POST(request:Request){
  const gate=await requireAdmin(request);if(gate.response)return gate.response;
  const db=getSupabaseAdminClient();if(!db)return fail('Base de datos no configurada.',503);
- const parsed=z.object({action:z.enum(['create','send','pay','edit']),order_id:z.string().uuid().optional(),invoice_id:z.string().uuid().optional(),payment_method:z.enum(['cash','cash_app','venmo','zelle']).optional(),items:z.array(z.object({orderId:z.string().uuid(),price:z.number().finite().min(0).max(100000)})).max(50).optional()}).safeParse(await request.json().catch(()=>null));
+ const parsed=z.object({action:z.enum(['create','send','pay','edit','delete']),order_id:z.string().uuid().optional(),invoice_id:z.string().uuid().optional(),payment_method:z.enum(['cash','cash_app','venmo','zelle']).optional(),items:z.array(z.object({orderId:z.string().uuid(),price:z.number().finite().min(0).max(100000)})).max(50).optional()}).safeParse(await request.json().catch(()=>null));
  if(!parsed.success)return fail('Factura inválida.');
  const body=parsed.data;
  if(body.action==='create'){
@@ -28,6 +28,12 @@ export async function POST(request:Request){
  if(!body.invoice_id)return fail('Falta la factura.');
  const entry=await loadInvoiceGroup(db,body.invoice_id);if(!entry)return fail('Factura no encontrada.',404);
  const ids=entry.invoices.map(row=>row.id);
+ if(body.action==='delete'){
+  if(entry.invoices.some(row=>row.sent_at))return fail('No se puede eliminar una factura que ya fue enviada.',409);
+  if(entry.orders.some(order=>Number(order.paid_amount)>0))return fail('No se puede eliminar una factura con pagos registrados. Registre o concilie el saldo antes de eliminarla.',409);
+  const {error}=await db.from('work_invoices').delete().in('id',ids);
+  return error?fail('No se pudo eliminar la factura.',503):NextResponse.json({ok:true});
+ }
  if(body.action==='edit'){
   if(entry.invoices.some(row=>row.sent_at))return fail('La factura enviada no se puede modificar.',409);
   if(!body.items||body.items.length!==entry.orders.length||new Set(body.items.map(item=>item.orderId)).size!==entry.orders.length)return fail('Incluya todas las visitas de la factura.');
