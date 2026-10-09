@@ -14,7 +14,7 @@ export function nextSlot(date:string,preferred:string,duration:number,worker:str
  return {service_date:date,start_time:toClock(start),duration_minutes:duration};
 }
 export function futureVisits(plan:Pick<ServicePlan,'first_date'|'cadence'>, existing:Pick<WorkOrder,'service_date'|'plan_id'>[],planId:string,until:string,from=texasToday()):string[] {
- const interval=plan.cadence==='weekly'?7:plan.cadence==='bi_weekly'?14:0;
+ const interval=plan.cadence==='weekly'?7:plan.cadence==='every_8_days'?8:plan.cadence==='bi_weekly'?14:plan.cadence==='every_15_days'?15:0;
  const results:string[]=[];const visited=new Set(existing.filter(o=>o.plan_id===planId).map(o=>o.service_date));
  let date=plan.first_date;
  if(interval && date<from){const days=Math.max(0,Math.floor((Date.parse(`${from}T12:00:00Z`)-Date.parse(`${date}T12:00:00Z`))/DAY));date=addDays(date,Math.ceil(days/interval)*interval);}

@@ -98,7 +98,7 @@ export async function POST(request:Request){const {response,db}=await authorized
   if((changes.paid_amount??Number(current.paid_amount))>0&&!(changes.payment_method??current.payment_method))return fail('Indique cómo pagó el cliente.');
   if(changes.status==='completed'&&current.status!=='completed')Object.assign(changes,{completed_at:new Date().toISOString()});
   if(changes.status&&changes.status!=='completed'&&current.status==='completed')Object.assign(changes,{completed_at:null});
-  if(changes.paid_amount!==undefined)Object.assign(changes,{paid_at:changes.paid_amount===nextPrice?new Date().toISOString():null});
+  if(changes.paid_amount!==undefined)Object.assign(changes,{paid_at:changes.paid_amount===nextPrice?(changes.paid_at??new Date().toISOString()):null});
   const date=changes.service_date??current.service_date,worker=changes.crew_member_id===undefined?current.crew_member_id:changes.crew_member_id;
   const start=changes.start_time??current.start_time,duration=changes.duration_minutes??current.duration_minutes;
   if(changes.service_date||changes.start_time||changes.duration_minutes||changes.crew_member_id!==undefined){

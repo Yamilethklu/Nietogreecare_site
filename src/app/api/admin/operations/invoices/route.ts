@@ -5,6 +5,7 @@ import { getSupabaseAdminClient } from '@/lib/supabase/admin';
 import { sendEmail } from '@/lib/notifications/email';
 import { invoiceEmail, invoicePDF } from '@/lib/operations/invoice';
 import { loadInvoiceGroup } from '@/lib/operations/invoice-group';
+import { texasToday } from '@/lib/operations/schedule';
 export const runtime='nodejs';
 const fail=(error:string,status=422)=>NextResponse.json({ok:false,error},{status});
 export async function POST(request:Request){
@@ -48,7 +49,9 @@ export async function POST(request:Request){
  }
  if(body.action==='pay'){
   if(!body.payment_method)return fail('Seleccione cómo pagó el cliente.');
-  const {error}=await db.rpc('pay_invoice_group',{p_invoice_id:body.invoice_id,p_method:body.payment_method});
+  const paymentDate=typeof body.payment_date==='string'?body.payment_date:'';
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(paymentDate)||paymentDate>texasToday())return fail('Seleccione una fecha de pago válida, no futura.');
+  const {error}=await db.rpc('pay_invoice_group',{p_invoice_id:body.invoice_id,p_method:body.payment_method,p_payment_date:paymentDate});
   return error?fail('No se pudo registrar el pago.',503):NextResponse.json({ok:true});
  }
  const target=entry.invoice.customer_email;
