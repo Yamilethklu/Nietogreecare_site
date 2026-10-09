@@ -1,5 +1,5 @@
 export type OrderStatus = 'scheduled' | 'in_progress' | 'completed' | 'cancelled';
-export type Cadence = 'weekly' | 'bi_weekly' | 'one_time';
+export type Cadence = 'weekly' | 'bi_weekly' | 'every_8_days' | 'every_15_days' | 'one_time';
 export type OpsPaymentMethod = 'cash' | 'cash_app' | 'venmo' | 'zelle' | 'check' | 'other';
 export type CrewMember = {id:string;full_name:string;email:string;phone:string|null;active:boolean};
 export type ServicePlan = {id:string;lead_id:string;crew_member_id:string|null;cadence:Cadence;first_date:string;preferred_start:string;duration_minutes:number;price_per_visit:number|string;active:boolean;notes:string|null};
