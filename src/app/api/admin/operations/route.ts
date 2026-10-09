@@ -40,6 +40,18 @@ export async function POST(request:Request){const {response,db}=await authorized
   if(!id.success||!parsed.success)return fail('Trabajador inválido.');
   const {data,error}=await db.from('crew_members').update(parsed.data).eq('id',id.data).select().single();return error?fail(error.message):NextResponse.json({ok:true,data});
  }
+ if(body.action==='order_delete'){
+  const id=uuid.safeParse(body.id);if(!id.success)return fail('Orden inválida.');
+  const {data:order,error:orderError}=await db.from('work_orders').select('id,paid_amount').eq('id',id.data).maybeSingle();
+  if(orderError)return fail('No se pudo verificar la orden.',503);
+  if(!order)return fail('Orden no encontrada.',404);
+  if(Number(order.paid_amount)>0)return fail('No se puede eliminar una orden con pagos registrados.',409);
+  const {data:invoice,error:invoiceError}=await db.from('work_invoices').select('id').eq('order_id',id.data).maybeSingle();
+  if(invoiceError)return fail('No se pudo verificar si la orden tiene factura.',503);
+  if(invoice)return fail('Elimine primero la factura pendiente para liberar esta orden.',409);
+  const {error}=await db.from('work_orders').delete().eq('id',id.data);
+  return error?fail('No se pudo eliminar la orden: '+error.message,409):NextResponse.json({ok:true});
+ }
  if(body.action==='worker_delete'){
   const id=uuid.safeParse(body.id);if(!id.success)return fail('Trabajador inválido.');
   const {error}=await db.from('crew_members').delete().eq('id',id.data);
