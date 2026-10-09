@@ -5,6 +5,7 @@ import { getSupabaseAdminClient } from '@/lib/supabase/admin';
 import { sendEmail } from '@/lib/notifications/email';
 import { invoiceEmail, invoicePDF } from '@/lib/operations/invoice';
 import { loadInvoiceGroup } from '@/lib/operations/invoice-group';
+import { texasToday } from '@/lib/operations/schedule';
 export const runtime='nodejs';
 const fail=(error:string,status=422)=>NextResponse.json({ok:false,error},{status});
 export async function POST(request:Request){
