@@ -40,6 +40,12 @@ export async function POST(request:Request){const {response,db}=await authorized
   if(!id.success||!parsed.success)return fail('Trabajador inválido.');
   const {data,error}=await db.from('crew_members').update(parsed.data).eq('id',id.data).select().single();return error?fail(error.message):NextResponse.json({ok:true,data});
  }
+ if(body.action==='worker_delete'){
+  const id=uuid.safeParse(body.id);if(!id.success)return fail('Trabajador inválido.');
+  const {error}=await db.from('crew_members').delete().eq('id',id.data);
+  if(error)return fail('No se pudo eliminar el trabajador. Si ya tiene trabajos asignados, desactive su acceso: '+error.message,409);
+  return NextResponse.json({ok:true});
+ }
  if(body.action==='mobile_house'){
   const parsed=z.object({id:uuid.nullable(),house:manualLeadSchema,cadence:z.enum(['weekly','bi_weekly','one_time']),first_date:z.string().regex(/^\d{4}-\d{2}-\d{2}$/),price:z.number().finite().min(0).max(100000),notes:z.string().max(2000).nullable()}).safeParse(body);
   if(!parsed.success)return fail('Revise nombre, teléfono, correo, dirección, ciudad, ZIP, frecuencia y precio.');
@@ -75,7 +81,6 @@ export async function POST(request:Request){const {response,db}=await authorized
   const parsed=orderUpdateSchema.safeParse(body.order);if(!parsed.success)return fail('Datos de la orden inválidos.');
   const {id,...changes}=parsed.data;
   const {data:current,error:currentError}=await db.from('work_orders').select('*').eq('id',id).single();if(currentError||!current)return fail('Orden no encontrada.',404);
-  if(current.status==='cancelled'&&changes.status&&changes.status!=='scheduled')return fail('Reabra la orden antes de cambiarla.');
   const nextPrice=changes.price!==undefined?changes.price:Number(current.price);
   if(changes.paid_amount!==undefined&&changes.paid_amount>nextPrice)return fail('El pago no puede superar el precio de esta visita.');
   if((changes.paid_amount??Number(current.paid_amount))>0&&!(changes.payment_method??current.payment_method))return fail('Indique cómo pagó el cliente.');
