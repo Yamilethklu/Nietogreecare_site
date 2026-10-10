@@ -11,7 +11,7 @@ const fail=(error:string,status=422)=>NextResponse.json({ok:false,error},{status
 export async function POST(request:Request){
  const gate=await requireAdmin(request);if(gate.response)return gate.response;
  const db=getSupabaseAdminClient();if(!db)return fail('Base de datos no configurada.',503);
- const parsed=z.object({action:z.enum(['create','send','pay','edit','delete']),order_id:z.string().uuid().optional(),invoice_id:z.string().uuid().optional(),payment_method:z.enum(['cash','cash_app','venmo','zelle']).optional(),confirm_sent_unpaid:z.boolean().optional(),items:z.array(z.object({orderId:z.string().uuid(),price:z.number().finite().min(0).max(100000)})).max(50).optional()}).safeParse(await request.json().catch(()=>null));
+ const parsed=z.object({action:z.enum(['create','send','pay','edit','delete']),order_id:z.string().uuid().optional(),invoice_id:z.string().uuid().optional(),payment_method:z.enum(['cash','cash_app','venmo','zelle']).optional(),payment_date:z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),confirm_sent_unpaid:z.boolean().optional(),items:z.array(z.object({orderId:z.string().uuid(),price:z.number().finite().min(0).max(100000)})).max(50).optional()}).safeParse(await request.json().catch(()=>null));
  if(!parsed.success)return fail('Factura inválida.');
  const body=parsed.data;
  if(body.action==='create'){
@@ -51,7 +51,7 @@ export async function POST(request:Request){
  if(body.action==='pay'){
   if(!body.payment_method)return fail('Seleccione cómo pagó el cliente.');
   const paymentDate=typeof body.payment_date==='string'?body.payment_date:'';
-  if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(paymentDate)||paymentDate>texasToday())return fail('Seleccione una fecha de pago válida, no futura.');
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(paymentDate)||paymentDate>texasToday())return fail('Seleccione una fecha de pago válida, no futura.');
   const {error}=await db.rpc('pay_invoice_group',{p_invoice_id:body.invoice_id,p_method:body.payment_method,p_payment_date:paymentDate});
   return error?fail('No se pudo registrar el pago.',503):NextResponse.json({ok:true});
  }
