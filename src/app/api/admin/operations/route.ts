@@ -52,6 +52,31 @@ export async function POST(request:Request){const {response,db}=await authorized
   const {error}=await db.from('work_orders').delete().eq('id',id.data);
   return error?fail('No se pudo eliminar la orden: '+error.message,409):NextResponse.json({ok:true});
  }
+ if(body.action==='extra_order'){
+  const parsed=z.object({lead_id:uuid,service_date:z.string().regex(/^\d{4}-\d{2}-\d{2}$/),price:z.number().finite().min(0).max(100000),notes:z.string().trim().max(2000).nullable().optional()}).safeParse(body);
+  if(!parsed.success)return fail('Revise la casa, la fecha y el precio de la orden.');
+  const {data:lead,error:leadError}=await db.from('leads').select('id').eq('id',parsed.data.lead_id).maybeSingle();
+  if(leadError)return fail('No se pudo verificar la casa.',503);
+  if(!lead)return fail('Casa no encontrada.',404);
+  const {data,error}=await db.from('work_orders').insert({plan_id:null,lead_id:parsed.data.lead_id,service_date:parsed.data.service_date,start_time:'08:00:00',duration_minutes:60,price:parsed.data.price,notes:parsed.data.notes??null,status:'scheduled'}).select().single();
+  return error?fail('No se pudo crear la orden: '+error.message,409):NextResponse.json({ok:true,data});
+ }
+ if(body.action==='house_delete'){
+  const id=uuid.safeParse(body.id);if(!id.success)return fail('Casa inválida.');
+  const {data:orders,error:ordersError}=await db.from('work_orders').select('id,status,paid_amount').eq('lead_id',id.data);
+  if(ordersError)return fail('No se pudo verificar el historial de la casa.',503);
+  const ids=(orders??[]).map(order=>order.id);
+  if((orders??[]).some(order=>order.status==='completed'||Number(order.paid_amount)>0))return fail('Esta casa tiene visitas terminadas o pagos. Para conservar el historial, desactívela en lugar de eliminarla.',409);
+  if(ids.length){const {data:invoices,error:invoiceError}=await db.from('work_invoices').select('id').in('order_id',ids).limit(1);
+   if(invoiceError)return fail('No se pudo verificar las facturas de la casa.',503);
+   if(invoices?.length)return fail('Esta casa tiene facturas. Para conservar el historial, desactívela en lugar de eliminarla.',409);}
+  const {error:orderDeleteError}=await db.from('work_orders').delete().eq('lead_id',id.data);
+  if(orderDeleteError)return fail('No se pudieron eliminar las visitas de la casa: '+orderDeleteError.message,409);
+  const {error:planDeleteError}=await db.from('service_plans').delete().eq('lead_id',id.data);
+  if(planDeleteError)return fail('No se pudo eliminar el plan de la casa: '+planDeleteError.message,409);
+  const {error:leadDeleteError}=await db.from('leads').delete().eq('id',id.data);
+  return leadDeleteError?fail('No se pudo eliminar la casa: '+leadDeleteError.message,409):NextResponse.json({ok:true});
+ }
  if(body.action==='worker_delete'){
   const id=uuid.safeParse(body.id);if(!id.success)return fail('Trabajador inválido.');
   const {error}=await db.from('crew_members').delete().eq('id',id.data);
@@ -59,7 +84,7 @@ export async function POST(request:Request){const {response,db}=await authorized
   return NextResponse.json({ok:true});
  }
  if(body.action==='mobile_house'){
-  const parsed=z.object({id:uuid.nullable(),house:manualLeadSchema,cadence:z.enum(['weekly','bi_weekly','one_time']),first_date:z.string().regex(/^\d{4}-\d{2}-\d{2}$/),price:z.number().finite().min(0).max(100000),notes:z.string().max(2000).nullable()}).safeParse(body);
+  const parsed=z.object({id:uuid.nullable(),house:manualLeadSchema,cadence:z.enum(['weekly','bi_weekly','every_8_days','every_15_days','one_time']),first_date:z.string().regex(/^\d{4}-\d{2}-\d{2}$/),price:z.number().finite().min(0).max(100000),notes:z.string().max(2000).nullable()}).safeParse(body);
   if(!parsed.success)return fail('Revise nombre, teléfono, correo, dirección, ciudad, ZIP, frecuencia y precio.');
   const value=parsed.data;
   const {data,error}=await db.rpc('save_mobile_house',{p_id:value.id,p_house:value.house,p_cadence:value.cadence,p_date:value.first_date,p_price:value.price,p_notes:value.notes});
