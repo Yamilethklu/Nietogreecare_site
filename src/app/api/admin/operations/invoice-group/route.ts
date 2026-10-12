@@ -14,7 +14,7 @@ export async function POST(request:Request){
   if(new Set(ids).size!==ids.length)return NextResponse.json({ok:false,error:'Hay visitas duplicadas.'},{status:422});
   const {data:orders,error}=await db.from('work_orders').select('*').in('id',ids);
   if(error||orders?.length!==ids.length)return NextResponse.json({ok:false,error:'No se pudieron consultar las visitas.'},{status:503});
-  if(orders.some(order=>order.status!=='completed'||Number(order.paid_amount)>=Number(order.price)))return NextResponse.json({ok:false,error:'Seleccione únicamente trabajos terminados pendientes de pago.'},{status:422});
+  if(orders.some(order=>order.status==='cancelled'||Number(order.paid_amount)>=Number(order.price)))return NextResponse.json({ok:false,error:'Seleccione únicamente trabajos pendientes de pago que no estén cancelados.'},{status:422});
   const {data:leads,error:leadError}=await db.from('leads').select('id,customer_phone,customer_email,customer_name,address').in('id',[...new Set(orders.map(order=>order.lead_id))]);
   const phone=(value:string)=>value.replace(/\D/g,'').slice(-10);
   if(leadError||!leads?.length||new Set(leads.map(lead=>phone(lead.customer_phone))).size!==1)return NextResponse.json({ok:false,error:'Las visitas deben pertenecer al mismo cliente.'},{status:422});
