@@ -16,7 +16,7 @@ import { BUSINESS, SERVICES, ZIP_CITY_MAP } from "@/lib/constants";
 import { matchMowRate, type MowRate } from "@/lib/instant-pricing";
 import { texasToday } from "@/lib/operations/schedule";
 import { BACK_ONLY_SIDEWALK_REASON } from "@/lib/sidewalk-report";
-import { getCoverageCitiesForWeekday, isInitialServiceDate } from "@/lib/service-schedule";
+import { isInitialServiceDate } from "@/lib/service-schedule";
 import { publicError } from "@/lib/i18n/public-errors";
 import { formatZodErrors, phoneSchema, step1Schema } from "@/lib/validation";
 import type { LawnGeoJsonGeometry, PaymentMethod, PolygonPoint, QuoteMeasurement } from "@/lib/types";
@@ -686,28 +686,19 @@ function Confirmation({ isEs, store, price, onReset }: { isEs: boolean; store: Q
 }
 
 function MowingCalendar({ selected, city, isEs, onSelect, price }: { selected: string | null; city: string; isEs: boolean; onSelect: (date: string) => void; price: number | null }) {
-  const normalizeCityKey = (value: string) => value.toLocaleLowerCase("en-US").replace(/[^a-z]/g, "");
-  const todayISO = texasToday;
   const [monthOffset, setMonthOffset] = React.useState(0);
   const now = new Date();
   const month = new Date(now.getFullYear(), now.getMonth() + monthOffset, 1);
   const firstDay = (month.getDay() + 6) % 7;
   const days = new Date(month.getFullYear(), month.getMonth() + 1, 0).getDate();
   const labels = isEs ? ["L", "M", "M", "J", "V", "S", "D"] : ["M", "T", "W", "T", "F", "S", "S"];
-  const monthKey = `${month.getFullYear()}-${String(month.getMonth() + 1).padStart(2, "0")}`;
-  const cityQuery = city.trim();
-  const normalizedCity = normalizeCityKey(city.trim());
-  const configuredCities = new Set(
-    [1, 2, 3, 4, 5].flatMap((weekday) => getCoverageCitiesForWeekday(weekday).map(normalizeCityKey)),
-  );
-  const hasConfiguredCity = normalizedCity ? configuredCities.has(normalizedCity) : false;
 
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-6" aria-label={isEs ? "Calendario de corte" : "Mowing calendar"}>
       <div className="mb-5 flex items-center justify-between gap-3">
-        <button type="button" disabled={monthOffset === 0} onClick={() => setMonthOffset((offset) => offset - 1)} className="rounded-lg border border-slate-200 p-2 text-slate-700 disabled:opacity-30" aria-label={isEs ? "Mes anterior" : "Previous month"}><ChevronLeft className="size-5" /></button>
+        <button type="button" onClick={() => setMonthOffset((offset) => offset - 1)} className="rounded-lg border border-slate-200 p-2 text-slate-700 disabled:opacity-30" aria-label={isEs ? "Mes anterior" : "Previous month"}><ChevronLeft className="size-5" /></button>
         <strong className="text-sm capitalize text-slate-900">{month.toLocaleDateString(isEs ? "es-MX" : "en-US", { month: "long", year: "numeric" })}</strong>
-        <button type="button" disabled={monthOffset === 3} onClick={() => setMonthOffset((offset) => offset + 1)} className="rounded-lg border border-slate-200 p-2 text-slate-700 disabled:opacity-30" aria-label={isEs ? "Mes siguiente" : "Next month"}><ChevronRight className="size-5" /></button>
+        <button type="button" onClick={() => setMonthOffset((offset) => offset + 1)} className="rounded-lg border border-slate-200 p-2 text-slate-700 disabled:opacity-30" aria-label={isEs ? "Mes siguiente" : "Next month"}><ChevronRight className="size-5" /></button>
       </div>
       <div className="grid grid-cols-7 gap-1 text-center sm:gap-2">
         {labels.map((label, index) => <span key={index} className="pb-1 text-xs font-bold text-slate-500">{label}</span>)}
@@ -715,14 +706,9 @@ function MowingCalendar({ selected, city, isEs, onSelect, price }: { selected: s
         {Array.from({ length: days }, (_, index) => {
           const date = new Date(month.getFullYear(), month.getMonth(), index + 1);
           const iso = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
-          const weekday = date.getDay();
-          const isWeekend = weekday === 0 || weekday === 6;
-          const isCovered = hasConfiguredCity
-            ? getCoverageCitiesForWeekday(weekday).some((coveredCity) => normalizeCityKey(coveredCity) === normalizedCity)
-            : !isWeekend;
-          const isOutOfZone = isWeekend || !isCovered;
+          const isOutOfZone = false;
           const isOccupied = false;
-          const disabled = iso < todayISO() || isOutOfZone || index + 1 > 14;
+          const disabled = false;
           const occupiedClass = isOccupied ? "border-red-300 bg-red-50 text-red-700 line-through" : "";
           const unavailableClass = !isOccupied && disabled ? "border-slate-100 bg-slate-50 text-slate-300" : "";
           const selectedClass = selected === iso && !disabled ? "border-green-500 bg-emerald-50 text-emerald-900 ring-2 ring-emerald-200" : "";
@@ -738,8 +724,7 @@ function MowingCalendar({ selected, city, isEs, onSelect, price }: { selected: s
         })}
       </div>
       <div className="mt-4 space-y-1 text-xs text-slate-500">
-        <p>{hasConfiguredCity ? (isEs ? "Días fuera de zona y fines de semana aparecen en gris." : "Out-of-zone days and weekends appear in gray.") : (isEs ? "Dirección fuera de ciudades configuradas: se permiten días hábiles para que el dueño confirme disponibilidad." : "Address outside configured cities: weekdays are allowed so the owner can confirm availability.")}</p>
-        <p>{isEs ? "El primer servicio se puede elegir del día 1 al 14 de cada mes. Sin límite de solicitudes por día." : "Choose the first service between the 1st and 14th of each month. No daily booking limit."}</p>
+        <p>{isEs ? "Puede elegir cualquier fecha. Sin límite de solicitudes por día." : "Choose any date. No daily booking limit."}</p>
 
       </div>
     </div>

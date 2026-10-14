@@ -38,6 +38,9 @@ export function isDateTodayOrLaterInAustin(dateKey: string, now = new Date()): b
   return /^\d{4}-\d{2}-\d{2}$/.test(dateKey) && dateKey >= today;
 }
 
-export function isInitialServiceDate(dateKey: string, city: string): boolean {
-  return isDateTodayOrLaterInAustin(dateKey) && Number(dateKey.slice(8, 10)) <= 14 && isDateCoveredForCity(dateKey, city);
+export function isInitialServiceDate(dateKey: string, _city: string): boolean {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateKey);
+  if (!match) return false;
+  const date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+  return date.getFullYear() === Number(match[1]) && date.getMonth() === Number(match[2]) - 1 && date.getDate() === Number(match[3]);
 }
