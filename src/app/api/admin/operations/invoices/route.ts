@@ -11,9 +11,26 @@ const fail=(error:string,status=422)=>NextResponse.json({ok:false,error},{status
 export async function POST(request:Request){
  const gate=await requireAdmin(request);if(gate.response)return gate.response;
  const db=getSupabaseAdminClient();if(!db)return fail('Base de datos no configurada.',503);
- const parsed=z.object({action:z.enum(['create','send','pay','edit','delete']),order_id:z.string().uuid().optional(),invoice_id:z.string().uuid().optional(),payment_method:z.enum(['cash','cash_app','venmo','zelle']).optional(),payment_date:z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),confirm_sent_unpaid:z.boolean().optional(),items:z.array(z.object({orderId:z.string().uuid(),price:z.number().finite().min(0).max(100000)})).max(50).optional()}).safeParse(await request.json().catch(()=>null));
+ const parsed=z.object({action:z.enum(['create','create_group','send','pay','edit','delete']),order_id:z.string().uuid().optional(),invoice_id:z.string().uuid().optional(),payment_method:z.enum(['cash','cash_app','venmo','zelle']).optional(),payment_date:z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),confirm_sent_unpaid:z.boolean().optional(),items:z.array(z.object({orderId:z.string().uuid(),price:z.number().finite().min(0).max(100000)})).max(50).optional()}).safeParse(await request.json().catch(()=>null));
  if(!parsed.success)return fail('Factura inválida.');
  const body=parsed.data;
+ if(body.action==='create_group'){
+  const items=body.items??[];
+  if(!items.length||new Set(items.map(item=>item.orderId)).size!==items.length)return fail('Seleccione órdenes diferentes para facturar.');
+  const {data:orders,error:ordersError}=await db.from('work_orders').select('id,lead_id,status,price,paid_amount,service_date').in('id',items.map(item=>item.orderId));
+  if(ordersError||!orders||orders.length!==items.length)return fail('No se pudieron consultar todas las órdenes.',503);
+  if(new Set(orders.map(order=>order.lead_id)).size!==1)return fail('Seleccione órdenes del mismo cliente.');
+  if(orders.some(order=>order.status!=='completed'||Number(order.price)<=0))return fail('Solo se pueden facturar trabajos terminados con precio.');
+  if(items.some(item=>item.price<Number(orders.find(order=>order.id===item.orderId)?.paid_amount??0)))return fail('El precio no puede ser menor al importe ya pagado.');
+  const {data:existing,error:existingError}=await db.from('work_invoices').select('order_id').in('order_id',items.map(item=>item.orderId));
+  if(existingError)return fail('No se pudieron verificar facturas existentes.',503);
+  if(existing?.length)return fail('Alguna orden ya tiene factura. Actualice la lista.');
+  const {data:lead}=await db.from('leads').select('customer_email').eq('id',orders[0].lead_id).maybeSingle();
+  const group='NGC-G-'+Date.now().toString(36).toUpperCase()+'-'+crypto.randomUUID().slice(0,6).toUpperCase();
+  const rows=items.map((item,index)=>({order_id:item.orderId,invoice_number:group+'/'+String(index+1),total:item.price,customer_email:lead?.customer_email??null}));
+  const {data,error}=await db.from('work_invoices').insert(rows).select();
+  return error?fail('No se pudo generar la factura agrupada. Verifique que las órdenes estén disponibles.',409):NextResponse.json({ok:true,data:{id:data?.[0]?.id,number:group,total:items.reduce((sum,item)=>sum+item.price,0)}});
+ }
  if(body.action==='create'){
   if(!body.order_id)return fail('Falta la orden.');
   const {data:order}=await db.from('work_orders').select('*').eq('id',body.order_id).single();
