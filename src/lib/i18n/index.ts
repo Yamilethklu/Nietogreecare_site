@@ -11,14 +11,11 @@ import { en } from "./en";
 export const dictionaries: Record<Locale, Dictionary> = { es, en };
 
 export function getDictionary(locale: Locale | string | null | undefined): Dictionary {
-  return dictionaries[normalizeLocale(locale) satisfies Locale];
+  return dictionaries.en;
 }
 
 export function normalizeLocale(value: string | null | undefined): Locale {
-  const candidate = (value ?? "").toLowerCase();
-  return (LOCALES as readonly string[]).includes(candidate)
-    ? (candidate as Locale)
-    : DEFAULT_LOCALE;
+  return "en";
 }
 
 /** Reemplaza marcadores tipo {current} en los textos del diccionario. */
