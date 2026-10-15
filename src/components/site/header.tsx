@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { Globe, LayoutDashboard, Menu, PhoneCall, X } from "lucide-react";
+import { LayoutDashboard, Menu, PhoneCall, X } from "lucide-react";
 
 import { useLanguage } from "@/components/providers/language-provider";
 import { CallButton } from "@/components/site/brand";
@@ -16,7 +16,7 @@ import { cn } from "@/lib/utils";
  * que redirige directamente a la llamada telefonica oficial.
  */
 export function SiteHeader() {
-  const { t, locale, toggleLocale, isEs } = useLanguage();
+  const { t } = useLanguage();
   const [open, setOpen] = React.useState(false);
   const [scrolled, setScrolled] = React.useState(false);
 
@@ -35,11 +35,11 @@ export function SiteHeader() {
   }, [open]);
 
   const links = [
-    { href: "/services", label: isEs ? "SERVICIOS" : "SERVICES" },
-    { href: "/pricing", label: isEs ? "PRECIOS" : "PRICING" },
-    { href: "/questions", label: isEs ? "PREGUNTAS" : "QUESTIONS" },
-    { href: "/referrals", label: isEs ? "REFERIDOS" : "REFERRALS" },
-    { href: "/contact", label: isEs ? "CONTÁCTANOS" : "CONTACT US" },
+    { href: "/services", label: "SERVICES" },
+    { href: "/pricing", label: "PRICING" },
+    { href: "/questions", label: "QUESTIONS" },
+    { href: "/referrals", label: "REFERRALS" },
+    { href: "/contact", label: "CONTACT US" },
   ];
 
   return (
@@ -64,25 +64,13 @@ export function SiteHeader() {
         </nav>
 
         <div className="flex items-center gap-2 sm:gap-3">
-          {/* Selector bilingue */}
-          <button
-            type="button"
-            onClick={toggleLocale}
-            className="inline-flex h-10 items-center gap-2 rounded-full border border-slate-200 bg-white/[0.03] px-3 text-xs font-semibold uppercase tracking-[0.16em] text-slate-700 transition-all hover:border-emerald-200/40 hover:text-green-700"
-            aria-label={t.nav.language}
-            title={t.nav.language}
-          >
-            <Globe className="size-4 text-green-700" />
-            <span className={cn(locale === "es" ? "text-green-700" : "text-slate-500")}>ES</span>
-            <span className="text-ink-600">/</span>
-            <span className={cn(locale === "en" ? "text-green-700" : "text-slate-500")}>EN</span>
-          </button>
+
 
           <CallButton label={t.nav.call} className="hidden sm:inline-flex" />
 
           <Button asChild variant="gold" size="default" className="hidden lg:inline-flex">
             <Link href="/quote">
-              {isEs ? "EMPIEZA" : "GET STARTED"}
+              {"GET STARTED"}
             </Link>
           </Button>
 
@@ -122,7 +110,7 @@ export function SiteHeader() {
           <CallButton label={`${t.nav.call} ${BUSINESS.phoneDisplay}`} className="w-full" />
           <Button asChild variant="gold" className="w-full">
             <Link href="/quote" onClick={() => setOpen(false)}>
-              {isEs ? "EMPIEZA" : "GET STARTED"}
+              {"GET STARTED"}
             </Link>
           </Button>
           <Button asChild variant="ghost" className="w-full">
@@ -134,7 +122,7 @@ export function SiteHeader() {
 
           <p className="mt-2 flex items-center gap-2 text-xs text-slate-500">
             <PhoneCall className="size-3.5 text-green-600" />
-            {BUSINESS.hoursEs}
+            {BUSINESS.hoursEn}
           </p>
         </div>
       </div>
