@@ -3,7 +3,7 @@ import type { OpsDB } from './server';
 
 // A group shares a UUID prefix; each visit keeps its existing unique invoice row.
 export function invoiceGroupKey(number:string) {
-  return /^NGC-G-[a-f0-9-]{36}\//.test(number) ? number.split('/')[0] : number;
+  return /^NGC-G-[^/]+\//.test(number) ? number.split('/')[0] : number;
 }
 export async function loadInvoiceGroup(db:OpsDB,id:string) {
   const {data:invoice,error}=await db.from('work_invoices').select('*').eq('id',id).single();
