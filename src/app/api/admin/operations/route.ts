@@ -88,7 +88,8 @@ export async function POST(request:Request){const {response,db}=await authorized
   if(!parsed.success)return fail('Revise nombre, teléfono, correo, dirección, ciudad, ZIP, frecuencia y precio.');
   const value=parsed.data;
   const {data,error}=await db.rpc('save_mobile_house',{p_id:value.id,p_house:value.house,p_cadence:value.cadence,p_date:value.first_date,p_price:value.price,p_notes:value.notes});
-  return error?fail('No se pudo guardar la casa y su agenda: '+error.message):NextResponse.json({ok:true,data});
+  const reason=/payments or invoices/i.test(error?.message??'')?'No se puede cambiar la frecuencia: hay visitas de hoy en adelante con factura, con pago o que ya se iniciaron o finalizaron. Revise esas visitas antes de cambiarla.':/today or a future date/i.test(error?.message??'')?'Seleccione la fecha de hoy o una fecha futura.':null;
+  return error?fail(reason??'No se pudo guardar la casa y su agenda: '+error.message):NextResponse.json({ok:true,data});
  }
  if(body.action==='house'){
   const parsed=manualLeadSchema.safeParse(body.house);if(!parsed.success)return fail('Revise el nombre, teléfono, dirección, ciudad y ZIP.');
