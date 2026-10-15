@@ -20,7 +20,8 @@ export async function POST(request:Request){
   const {data:orders,error:ordersError}=await db.from('work_orders').select('id,lead_id,status,price,paid_amount,service_date').in('id',items.map(item=>item.orderId));
   if(ordersError||!orders||orders.length!==items.length)return fail('No se pudieron consultar todas las órdenes.',503);
   if(new Set(orders.map(order=>order.lead_id)).size!==1)return fail('Seleccione órdenes del mismo cliente.');
-  if(orders.some(order=>order.status!=='completed'||Number(order.price)<=0))return fail('Solo se pueden facturar trabajos terminados con precio.');
+  if(orders.some(order=>order.status!=='completed'||Number(order.price)<=0))return fail('Solo se pueden facturar trabajos finalizados con precio. Los trabajos pendientes o cancelados no se facturan.');
+  if(orders.some(order=>Number(order.paid_amount)>=Number(order.price)))return fail('Solo se pueden facturar trabajos que aún no se han pagado.');
   if(items.some(item=>item.price<Number(orders.find(order=>order.id===item.orderId)?.paid_amount??0)))return fail('El precio no puede ser menor al importe ya pagado.');
   const {data:existing,error:existingError}=await db.from('work_invoices').select('order_id').in('order_id',items.map(item=>item.orderId));
   if(existingError)return fail('No se pudieron verificar facturas existentes.',503);
@@ -69,8 +70,16 @@ export async function POST(request:Request){
   if(!body.payment_method)return fail('Seleccione cómo pagó el cliente.');
   const paymentDate=typeof body.payment_date==='string'?body.payment_date:'';
   if(!/^\d{4}-\d{2}-\d{2}$/.test(paymentDate)||paymentDate>texasToday())return fail('Seleccione una fecha de pago válida, no futura.');
+  const notDone=entry.orders.filter(order=>order.status!=='completed');
+  if(notDone.length)return fail('No se pudo registrar el pago: estas visitas no están finalizadas ('+notDone.map(order=>order.service_date).join(', ')+'). Elimine la factura y genérela solo con trabajos finalizados.',409);
   const {error}=await db.rpc('pay_invoice_group',{p_invoice_id:body.invoice_id,p_method:body.payment_method,p_payment_date:paymentDate});
-  return error?fail('No se pudo registrar el pago.',503):NextResponse.json({ok:true});
+  if(error){
+   const message=error.message??'';
+   if(/completed visits/i.test(message))return fail('No se pudo registrar el pago: todas las visitas de la factura deben estar finalizadas. Finalice las visitas pendientes, o elimine la factura y genérela solo con trabajos finalizados.',409);
+   if(/payment date/i.test(message))return fail('Seleccione una fecha de pago válida, no futura.',422);
+   return fail('No se pudo registrar el pago: '+(message||'error de la base de datos')+'.',503);
+  }
+  return NextResponse.json({ok:true});
  }
  const target=entry.invoice.customer_email;
  if(!target)return fail('Agregue el correo del cliente antes de enviar la factura.');
