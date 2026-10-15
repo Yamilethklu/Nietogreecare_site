@@ -14,7 +14,7 @@ import "./globals.css";
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
 
 export async function generateMetadata(): Promise<Metadata> {
-  const isEs = normalizeLocale((await cookies()).get(LOCALE_COOKIE)?.value) === "es";
+  const isEs = false;
   return {
   metadataBase: new URL(siteUrl),
   title: {
@@ -66,7 +66,7 @@ export const viewport: Viewport = {
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const cookieStore = await cookies();
-  const locale: Locale = normalizeLocale(cookieStore.get(LOCALE_COOKIE)?.value);
+  const locale: Locale = "en";
 
   return (
     <html lang={locale} className={cn("font-vars")}>
