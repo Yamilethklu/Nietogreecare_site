@@ -4,7 +4,7 @@
 
 export type Locale = "es" | "en";
 
-export const LOCALES = ["es", "en"] as const;
+export const LOCALES = ["en"] as const;
 
 /** English is the default language for Nieto Green Care LLC. */
 export const DEFAULT_LOCALE: Locale = "en";
@@ -17,5 +17,5 @@ export const LOCALE_LABELS: Record<Locale, { short: string; long: string; flag: 
 };
 
 export function isLocale(value: unknown): value is Locale {
-  return typeof value === "string" && (LOCALES as readonly string[]).includes(value);
+  return value === "en";
 }
