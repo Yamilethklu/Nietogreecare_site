@@ -6,13 +6,13 @@ export type Locale = "es" | "en";
 
 export const LOCALES = ["es", "en"] as const;
 
-/** Espanol es el idioma por defecto de Nieto Green Care LLC. */
-export const DEFAULT_LOCALE: Locale = "es";
+/** English is the default language for Nieto Green Care LLC. */
+export const DEFAULT_LOCALE: Locale = "en";
 
 export const LOCALE_COOKIE = "ngc_locale";
 
 export const LOCALE_LABELS: Record<Locale, { short: string; long: string; flag: string }> = {
-  es: { short: "ES", long: "Espanol", flag: "🇺🇸" },
+  es: { short: "ES", long: "Español", flag: "🇲🇽" },
   en: { short: "EN", long: "English", flag: "🇺🇸" },
 };
 
