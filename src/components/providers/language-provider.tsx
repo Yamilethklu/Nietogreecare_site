@@ -37,30 +37,30 @@ export function LanguageProvider({
   initialLocale?: Locale;
 }) {
   const router = useRouter();
-  const [locale, setLocaleState] = React.useState<Locale>(initialLocale);
+  const [locale, setLocaleState] = React.useState<Locale>("en");
 
   React.useEffect(() => {
-    applyLocaleToDocument(locale);
-  }, [locale]);
+    applyLocaleToDocument("en");
+  }, []);
 
   const setLocale = React.useCallback((next: Locale) => {
-    applyLocaleToDocument(next);
-    setLocaleState(next);
+    applyLocaleToDocument("en");
+    setLocaleState("en");
     if (typeof window !== "undefined") {
-      try { window.localStorage.setItem(LOCALE_COOKIE, next); } catch { /* Cookies remain the source of truth when storage is blocked. */ }
+      try { window.localStorage.setItem(LOCALE_COOKIE, "en"); } catch { /* Cookies remain the source of truth when storage is blocked. */ }
     }
     router.refresh();
   }, [router]);
 
   const toggleLocale = React.useCallback(() => {
-    setLocale(locale === "es" ? "en" : "es");
+    setLocale("en");
   }, [locale, setLocale]);
 
   const value = React.useMemo<LanguageContextValue>(() => {
-    const t = dictionaries[locale] ?? dictionaries.es;
+    const t = dictionaries.en;
     return {
       locale,
-      isEs: locale === "es",
+      isEs: false,
       t,
       setLocale,
       toggleLocale,
@@ -69,7 +69,7 @@ export function LanguageProvider({
           (acc, [key, replacement]) => acc.replaceAll(`{${key}}`, String(replacement)),
           template,
         ),
-      pick: (spanish, english) => (locale === "es" ? spanish : english),
+      pick: (_spanish, english) => english,
     };
   }, [locale, setLocale, toggleLocale]);
 
