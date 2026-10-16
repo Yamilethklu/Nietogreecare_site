@@ -66,10 +66,16 @@ export async function POST(request:Request){const {response,db}=await authorized
   const {data:orders,error:ordersError}=await db.from('work_orders').select('id,status,paid_amount').eq('lead_id',id.data);
   if(ordersError)return fail('No se pudo verificar el historial de la casa.',503);
   const ids=(orders??[]).map(order=>order.id);
-  if((orders??[]).some(order=>order.status==='completed'||Number(order.paid_amount)>0))return fail('Esta casa tiene visitas terminadas o pagos. Para conservar el historial, desactívela en lugar de eliminarla.',409);
-  if(ids.length){const {data:invoices,error:invoiceError}=await db.from('work_invoices').select('id').in('order_id',ids).limit(1);
-   if(invoiceError)return fail('No se pudo verificar las facturas de la casa.',503);
-   if(invoices?.length)return fail('Esta casa tiene facturas. Para conservar el historial, desactívela en lugar de eliminarla.',409);}
+  // force=true: el dueño confirmó en la app que ya no quiere la casa en sus listas; se borra todo su historial.
+  const force=body.force===true;
+  if(!force&&(orders??[]).some(order=>order.status==='completed'||Number(order.paid_amount)>0))return fail('Esta casa tiene visitas terminadas o pagos. Para conservar el historial, desactívela en lugar de eliminarla.',409);
+  if(ids.length){
+   if(force){const {error:invoiceDeleteError}=await db.from('work_invoices').delete().in('order_id',ids);
+    if(invoiceDeleteError)return fail('No se pudieron eliminar las facturas de la casa: '+invoiceDeleteError.message,409);}
+   else{const {data:invoices,error:invoiceError}=await db.from('work_invoices').select('id').in('order_id',ids).limit(1);
+    if(invoiceError)return fail('No se pudo verificar las facturas de la casa.',503);
+    if(invoices?.length)return fail('Esta casa tiene facturas. Para conservar el historial, desactívela en lugar de eliminarla.',409);}
+  }
   const {error:orderDeleteError}=await db.from('work_orders').delete().eq('lead_id',id.data);
   if(orderDeleteError)return fail('No se pudieron eliminar las visitas de la casa: '+orderDeleteError.message,409);
   const {error:planDeleteError}=await db.from('service_plans').delete().eq('lead_id',id.data);
@@ -87,8 +93,36 @@ export async function POST(request:Request){const {response,db}=await authorized
   const parsed=z.object({id:uuid.nullable(),house:manualLeadSchema,cadence:z.enum(['weekly','bi_weekly','every_8_days','every_15_days','one_time']),first_date:z.string().regex(/^\d{4}-\d{2}-\d{2}$/),price:z.number().finite().min(0).max(100000),notes:z.string().max(2000).nullable()}).safeParse(body);
   if(!parsed.success)return fail('Revise nombre, teléfono, correo, dirección, ciudad, ZIP, frecuencia y precio.');
   const value=parsed.data;
-  const {data,error}=await db.rpc('save_mobile_house',{p_id:value.id,p_house:value.house,p_cadence:value.cadence,p_date:value.first_date,p_price:value.price,p_notes:value.notes});
-  const reason=/payments or invoices/i.test(error?.message??'')?'No se puede cambiar la frecuencia: hay visitas de hoy en adelante con factura, con pago o que ya se iniciaron o finalizaron. Revise esas visitas antes de cambiarla.':/today or a future date/i.test(error?.message??'')?'Seleccione la fecha de hoy o una fecha futura.':null;
+  let {data,error}=await db.rpc('save_mobile_house',{p_id:value.id,p_house:value.house,p_cadence:value.cadence,p_date:value.first_date,p_price:value.price,p_notes:value.notes});
+  if(error&&/payments or invoices/i.test(error.message??'')&&value.id){
+   // La función SQL antigua bloquea el cambio de frecuencia si hay facturas. Se aplica aquí la regla nueva:
+   // el cambio rige desde la fecha elegida y nunca toca visitas finalizadas, iniciadas, pagadas o facturadas.
+   try{
+    const today=texasToday();
+    if(value.first_date<today)return fail('Seleccione la fecha de hoy o una fecha futura.');
+    const h=value.house;
+    const {error:leadErr}=await db.from('leads').update({customer_name:h.customer_name,customer_phone:h.customer_phone,customer_email:h.customer_email,address:h.address,city:h.city,zip_code:h.zip_code,final_price:value.price,additional_notes:value.notes}).eq('id',value.id);
+    if(leadErr)throw Error(leadErr.message);
+    const {data:plan,error:planErr}=await db.from('service_plans').select('*').eq('lead_id',value.id).order('active',{ascending:false}).order('created_at',{ascending:false}).limit(1).maybeSingle();
+    if(planErr)throw Error(planErr.message);
+    if(plan&&plan.cadence!==value.cadence){
+     const {error:offErr}=await db.from('service_plans').update({active:false}).eq('id',plan.id);if(offErr)throw Error(offErr.message);
+     const {data:old,error:oldErr}=await db.from('work_orders').select('id,paid_amount').eq('plan_id',plan.id).eq('status','scheduled').gte('service_date',value.first_date);if(oldErr)throw Error(oldErr.message);
+     const ids=(old??[]).filter(o=>Number(o.paid_amount)===0).map(o=>o.id);
+     if(ids.length){
+      const {data:inv,error:invErr}=await db.from('work_invoices').select('order_id').in('order_id',ids);if(invErr)throw Error(invErr.message);
+      const invoiced=new Set((inv??[]).map(i=>i.order_id));
+      const free=ids.filter(id=>!invoiced.has(id));
+      if(free.length){const {error:cancelErr}=await db.from('work_orders').update({status:'cancelled'}).in('id',free);if(cancelErr)throw Error(cancelErr.message);}
+     }
+     const {data:created,error:newErr}=await db.from('service_plans').insert({lead_id:value.id,crew_member_id:plan.crew_member_id,cadence:value.cadence,first_date:value.first_date,preferred_start:plan.preferred_start??'08:00',duration_minutes:plan.duration_minutes??60,price_per_visit:value.price,notes:value.notes}).select().single();
+     if(newErr)throw Error(newErr.message);
+     await extendPlans(db,[created as ServicePlan]);
+     return NextResponse.json({ok:true,data:{id:value.id,planId:created.id}});
+    }
+   }catch(e){return fail('No se pudo cambiar la frecuencia: '+(e instanceof Error?e.message:'error inesperado'));}
+  }
+  const reason=/today or a future date/i.test(error?.message??'')?'Seleccione la fecha de hoy o una fecha futura.':null;
   return error?fail(reason??'No se pudo guardar la casa y su agenda: '+error.message):NextResponse.json({ok:true,data});
  }
  if(body.action==='house'){
@@ -139,3 +173,4 @@ export async function POST(request:Request){const {response,db}=await authorized
  }
  return fail('Acción no reconocida.');
 }
+

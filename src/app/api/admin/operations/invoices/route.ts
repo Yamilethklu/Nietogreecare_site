@@ -11,7 +11,7 @@ const fail=(error:string,status=422)=>NextResponse.json({ok:false,error},{status
 export async function POST(request:Request){
  const gate=await requireAdmin(request);if(gate.response)return gate.response;
  const db=getSupabaseAdminClient();if(!db)return fail('Base de datos no configurada.',503);
- const parsed=z.object({action:z.enum(['create','create_group','send','pay','edit','delete']),order_id:z.string().uuid().optional(),invoice_id:z.string().uuid().optional(),payment_method:z.enum(['cash','cash_app','venmo','zelle']).optional(),payment_date:z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),confirm_sent_unpaid:z.boolean().optional(),items:z.array(z.object({orderId:z.string().uuid(),price:z.number().finite().min(0).max(100000)})).max(50).optional()}).safeParse(await request.json().catch(()=>null));
+ const parsed=z.object({action:z.enum(['create','create_group','send','pay','edit','delete']),order_id:z.string().uuid().optional(),invoice_id:z.string().uuid().optional(),payment_method:z.enum(['cash','cash_app','venmo','zelle']).optional(),payment_date:z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),confirm_sent_unpaid:z.boolean().optional(),release_payments:z.boolean().optional(),items:z.array(z.object({orderId:z.string().uuid(),price:z.number().finite().min(0).max(100000)})).max(50).optional()}).safeParse(await request.json().catch(()=>null));
  if(!parsed.success)return fail('Factura inválida.');
  const body=parsed.data;
  if(body.action==='create_group'){
@@ -50,9 +50,14 @@ export async function POST(request:Request){
  if(body.action==='delete'){
   const sent=entry.invoices.some(row=>Boolean(row.sent_at));
   if(sent&&!body.confirm_sent_unpaid)return fail('Esta factura ya fue enviada. Confirme explícitamente que desea eliminarla; solo se permite si sigue impaga.',409);
-  if(entry.orders.some(order=>Number(order.paid_amount)>0))return fail('No se puede eliminar una factura con pagos registrados.',409);
+  const hasPayments=entry.orders.some(order=>Number(order.paid_amount)>0);
+  if(hasPayments&&!body.release_payments)return fail('Esta factura ya tiene pagos registrados. Confirme que desea eliminarla; los pagos de sus visitas se quitarán y quedarán libres para otra factura.',409);
+  if(hasPayments){
+   const {error:releaseError}=await db.from('work_orders').update({paid_amount:0,payment_method:null,paid_at:null}).in('id',entry.orders.map(order=>order.id));
+   if(releaseError)return fail('No se pudieron liberar los pagos de las visitas: '+releaseError.message,503);
+  }
   const {error}=await db.from('work_invoices').delete().in('id',ids);
-  return error?fail('No se pudo eliminar la factura.',503):NextResponse.json({ok:true,data:{deleted:ids.length,sentBeforeDeletion:sent}});
+  return error?fail('No se pudo eliminar la factura: '+error.message,503):NextResponse.json({ok:true,data:{deleted:ids.length,sentBeforeDeletion:sent}});
  }
  if(body.action==='edit'){
   if(entry.invoices.some(row=>row.sent_at))return fail('La factura enviada no se puede modificar.',409);
@@ -72,7 +77,17 @@ export async function POST(request:Request){
   if(!/^\d{4}-\d{2}-\d{2}$/.test(paymentDate)||paymentDate>texasToday())return fail('Seleccione una fecha de pago válida, no futura.');
   const notDone=entry.orders.filter(order=>order.status!=='completed');
   if(notDone.length)return fail('No se pudo registrar el pago: estas visitas no están finalizadas ('+notDone.map(order=>order.service_date).join(', ')+'). Elimine la factura y genérela solo con trabajos finalizados.',409);
-  const {error}=await db.rpc('pay_invoice_group',{p_invoice_id:body.invoice_id,p_method:body.payment_method,p_payment_date:paymentDate});
+  let {error}=await db.rpc('pay_invoice_group',{p_invoice_id:body.invoice_id,p_method:body.payment_method,p_payment_date:paymentDate});
+  if(error&&/could not find the function|schema cache|pay_invoice_group/i.test(error.message??'')&&!/completed visits|payment date/i.test(error.message??'')){
+   // La función SQL de pagos aún no está actualizada en Supabase: registrar el pago directamente, visita por visita.
+   const paidAt=new Date(paymentDate+'T12:00:00Z').toISOString();
+   let fallbackError:string|null=null;
+   for(const invoice of entry.invoices){
+    const {error:updateError}=await db.from('work_orders').update({price:Number(invoice.total),paid_amount:Number(invoice.total),payment_method:body.payment_method,paid_at:paidAt}).eq('id',invoice.order_id);
+    if(updateError){fallbackError=updateError.message;break;}
+   }
+   error=fallbackError?{message:fallbackError} as unknown as typeof error:null;
+  }
   if(error){
    const message=error.message??'';
    if(/completed visits/i.test(message))return fail('No se pudo registrar el pago: todas las visitas de la factura deben estar finalizadas. Finalice las visitas pendientes, o elimine la factura y genérela solo con trabajos finalizados.',409);
@@ -93,3 +108,4 @@ export async function POST(request:Request){
  const {error}=await db.from('work_invoices').update({sent_at:new Date().toISOString(),sent_by:gate.user?.email??null,email_error:null}).in('id',ids);
  return error?fail('Correo enviado, pero no se pudo guardar su registro. No repita el envío.',503):NextResponse.json({ok:true});
 }
+
