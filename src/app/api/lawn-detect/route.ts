@@ -24,7 +24,9 @@ const LAWN_DETECTION_UNAVAILABLE = "lawn_detection_unavailable";
 const LAWN_DETECTION_FAILED = "lawn_detection_failed";
 const GEOCODE_NOT_FOUND = "geocode_not_found";
 const OVERPASS_ENDPOINTS = ["https://overpass-api.de/api/interpreter", "https://overpass.kumi.systems/api/interpreter", "https://overpass.private.coffee/api/interpreter"];
-const SIDEWALK_SETBACK_METERS = 2.4;
+// Franja de banqueta que se descuenta del frente: por defecto 0 (se mide el jardín completo). Configurable con SIDEWALK_SETBACK_METERS.
+const configuredSetback = Number(process.env.SIDEWALK_SETBACK_METERS);
+const SIDEWALK_SETBACK_METERS = process.env.SIDEWALK_SETBACK_METERS !== undefined && process.env.SIDEWALK_SETBACK_METERS !== "" && Number.isFinite(configuredSetback) && configuredSetback >= 0 ? Math.min(configuredSetback, 6) : 0;
 const AREA_SELECTIONS = ["front_back", "front_only", "back_only"] as const;
 type AreaSelection = (typeof AREA_SELECTIONS)[number];
 type LatLngPoint = { lat: number; lng: number };
@@ -494,3 +496,4 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, error: LAWN_DETECTION_FAILED }, { status: 500 });
   }
 }
+

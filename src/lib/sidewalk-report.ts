@@ -10,6 +10,10 @@ export function getSidewalkReport(
   hasRoadPoint: boolean,
   setbackMeters: number,
 ): { sidewalk: Sidewalk; warning: string } {
+  if (!(setbackMeters > 0)) {
+    return { sidewalk: { valor: 0, tipo: "no_excluido", fuente: "sin_descuento" }, warning: "" };
+  }
+
   if (areaSelection === "back_only") {
     return {
       sidewalk: { valor: 0, tipo: "no_excluido", fuente: "sin_referencia_vial", motivo: BACK_ONLY_SIDEWALK_REASON },
@@ -25,7 +29,8 @@ export function getSidewalkReport(
   }
 
   return {
-    sidewalk: { valor: setbackMeters, tipo: "estimado", fuente: "franja_fija_2.4m" },
+    sidewalk: { valor: setbackMeters, tipo: "estimado", fuente: `franja_fija_${setbackMeters}m` },
     warning: "sidewalk_estimate",
   };
 }
+

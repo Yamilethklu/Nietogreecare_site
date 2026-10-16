@@ -20,11 +20,11 @@ function rectangle(x1:number,y1:number,x2:number,y2:number){
  return turf.bboxPolygon([west,south,east,north]);
 }
 
-function assertBalancedFront(lawn:AreaFeature,house:AreaFeature,road=coordinate(-5,10)){
+function assertFrontShare(lawn:AreaFeature,house:AreaFeature,expectedShare:number,road=coordinate(-5,10)){
  const front=selectLawnArea(lawn,house,{lng:road[0],lat:road[1]},'front_only');
  const back=selectLawnArea(lawn,house,{lng:road[0],lat:road[1]},'back_only');
  assert.ok(front&&back);
- assert.ok(Math.abs(turf.area(front)/turf.area(lawn)-0.5)<=0.1,`front share was ${turf.area(front)/turf.area(lawn)}`);
+ assert.ok(Math.abs(turf.area(front)/turf.area(lawn)-expectedShare)<=0.01,`front share was ${turf.area(front)/turf.area(lawn)}`);
  assert.ok(Math.abs(turf.area(front)+turf.area(back)-turf.area(lawn))<0.1);
 }
 
@@ -44,32 +44,32 @@ test('front and back partition the entire lawn, exclude the house, and follow th
  assert.deepEqual(selectLawnArea(lawn,house,null,'front_back'),lawn);
 });
 
-test('front/back split is balanced when the house is centered',()=>{
+test('front/back split is exact when the house is centered',()=>{
  const parcel=rectangle(0,0,15,20);
  const house=asAreaFeature(rectangle(3.5,5,11.5,15))!;
  const lawn=asAreaFeature(turf.difference(turf.featureCollection([parcel,house])))!;
- assertBalancedFront(lawn,house);
+ assertFrontShare(lawn,house,0.5);
 });
 
-test('front/back split is balanced when the house is close to the street',()=>{
+test('front yard is small when the house is close to the street',()=>{
  const parcel=rectangle(0,0,15,20);
  const house=asAreaFeature(rectangle(0.5,5,8.5,15))!;
  const lawn=asAreaFeature(turf.difference(turf.featureCollection([parcel,house])))!;
- assertBalancedFront(lawn,house);
+ assertFrontShare(lawn,house,50/220);
 });
 
-test('front/back split is balanced when the house is at the back of the parcel',()=>{
+test('front yard is most of the lawn when the house is at the back of the parcel',()=>{
  const parcel=rectangle(0,0,15,20);
  const house=asAreaFeature(rectangle(10,5,15,15))!;
  const lawn=asAreaFeature(turf.difference(turf.featureCollection([parcel,house])))!;
- assertBalancedFront(lawn,house);
+ assertFrontShare(lawn,house,225/250);
 });
 
-test('front/back split remains balanced when the road is on the opposite side',()=>{
+test('front/back split follows the road when it is on the opposite side',()=>{
  const parcel=rectangle(0,0,15,20);
  const house=asAreaFeature(rectangle(3.5,5,11.5,15))!;
  const lawn=asAreaFeature(turf.difference(turf.featureCollection([parcel,house])))!;
- assertBalancedFront(lawn,house,coordinate(20,10));
+ assertFrontShare(lawn,house,0.5,coordinate(20,10));
 });
 
 test('front/back split preserves full selection and rejects a coincident road point',()=>{
@@ -110,3 +110,4 @@ test('Solar affine transformation preserves the negative row direction',async()=
   assert.ok(turf.area(footprint)>10&&turf.area(footprint)<20);
  }finally{globalThis.fetch=original;}
 });
+

@@ -1,8 +1,6 @@
 import * as turf from '@turf/turf';
 import { asAreaFeature, type AreaFeature } from './parcel-geometry';
 
-const AREA_BALANCE_RELATIVE_TOLERANCE=0.005;
-const MAX_AREA_SPLIT_ITERATIONS=32;
 const MIN_ROAD_HOUSE_DISTANCE_METERS=0.01;
 
 function projectAlongAxis(origin:number[],axisBearing:number,coordinate:number[]){
@@ -56,39 +54,18 @@ export function selectLawnArea(lawn:AreaFeature,house:AreaFeature,road:{lat:numb
  const maxForward=Math.max(...projections.map(({forward})=>forward));
  const maxPerpendicular=Math.max(...projections.map(({perpendicular})=>Math.abs(perpendicular)));
  const span=Math.max(maxForward-minForward,maxPerpendicular*2,10);
- const areaTotal=turf.area(lawn);
- if(!Number.isFinite(areaTotal)||areaTotal<=0)return null;
- const areaTarget=areaTotal/2;
+ if(!Number.isFinite(turf.area(lawn))||turf.area(lawn)<=0)return null;
+ // Corte geométrico exacto: el frente es todo el jardín entre la calle y el centro de la casa;
+ // el fondo es el resto. Los patios laterales se reparten por la mitad de la casa.
  const frontMinimum=minForward-span;
- let low=minForward;
- let high=maxForward;
  const perpendicularLimit=maxPerpendicular+span;
- let cutoff=(low+high)/2;
- let front:AreaFeature|null=null;
- let bestFront:AreaFeature|null=null;
- let bestAreaDifference=Infinity;
-
- for(let iteration=0;iteration<MAX_AREA_SPLIT_ITERATIONS;iteration++){
-  cutoff=(low+high)/2;
-  front=asAreaFeature(turf.intersect(turf.featureCollection([
-   lawn,
-   createFrontHalfPlane(houseCenter,axisBearing,cutoff,frontMinimum,perpendicularLimit),
-  ])));
-  const frontArea=front?turf.area(front):0;
-  const areaDifference=Math.abs(frontArea-areaTarget);
-  if(front&&areaDifference<bestAreaDifference){
-   bestFront=front;
-   bestAreaDifference=areaDifference;
-  }
-  if(areaDifference<=areaTarget*AREA_BALANCE_RELATIVE_TOLERANCE){
-   break;
-  }
-  if(frontArea<areaTarget)low=cutoff;
-  else high=cutoff;
- }
-
- const selectedFront=bestFront??front;
+ const front=asAreaFeature(turf.intersect(turf.featureCollection([
+  lawn,
+  createFrontHalfPlane(houseCenter,axisBearing,0,frontMinimum,perpendicularLimit),
+ ])));
+ const selectedFront=front;
  if(selection==='front_only')return selectedFront;
  if(!selectedFront)return turf.feature(lawn.geometry,lawn.properties) as AreaFeature;
  return asAreaFeature(turf.difference(turf.featureCollection([lawn,selectedFront])));
 }
+
