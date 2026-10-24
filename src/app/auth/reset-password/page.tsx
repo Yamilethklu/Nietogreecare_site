@@ -2,11 +2,22 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { getSupabaseBrowserClient } from "@/lib/supabase/client";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+
+// Isolated implicit-flow client: recovery links work across devices/browsers
+// without relying on a PKCE verifier saved on the requesting device.
+let recoveryClient: SupabaseClient | null = null;
+function getRecoveryClient() {
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) return null;
+  if (!recoveryClient) recoveryClient = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    { auth: { flowType: "implicit", storageKey: "nieto-password-recovery", persistSession: true, detectSessionInUrl: true, autoRefreshToken: false } },
+  );
+  return recoveryClient;
+}
 
 export default function ResetPasswordPage() {
-  const router = useRouter();
   const [password, setPassword] = React.useState("");
   const [confirm, setConfirm] = React.useState("");
   const [email, setEmail] = React.useState("");
@@ -17,7 +28,7 @@ export default function ResetPasswordPage() {
 
   React.useEffect(() => {
     let active = true;
-    const auth = getSupabaseBrowserClient()?.auth;
+    const auth = getRecoveryClient()?.auth;
     if (!auth) { setNotice("Authentication is unavailable."); return; }
     const prepare = async () => {
       try {
@@ -30,8 +41,7 @@ export default function ResetPasswordPage() {
         const token = hash.get("access_token");
         const refresh = hash.get("refresh_token");
         if (code) {
-          const { error } = await auth.exchangeCodeForSession(code);
-          if (error) throw error;
+          throw new Error("This older recovery link requires the original browser. Please request a new link from this page.");
         } else if (tokenHash) {
           const { error } = await auth.verifyOtp({ token_hash: tokenHash, type: "recovery" });
           if (error) throw error;
@@ -39,6 +49,9 @@ export default function ResetPasswordPage() {
           const { error } = await auth.setSession({ access_token: token, refresh_token: refresh });
           if (error) throw error;
         }
+        // The implicit client initializes the session from URL hash automatically.
+        const { data: sessionData } = await auth.getSession();
+        if (!tokenHash && !token && !sessionData.session) throw new Error("Request a recovery link to set your password.");
         const { data, error: userError } = await auth.getUser();
         if (userError || !data.user) throw new Error("This recovery link has expired or is invalid. Request a new link.");
         if (active) setReady(true);
@@ -53,7 +66,7 @@ export default function ResetPasswordPage() {
 
   const sendRecovery = async (event: React.FormEvent) => {
     event.preventDefault();
-    const client = getSupabaseBrowserClient();
+    const client = getRecoveryClient();
     if (!client) return;
     setBusy(true); setNotice("");
     const { error } = await client.auth.resetPasswordForEmail(email.trim(), { redirectTo: `${window.location.origin}/auth/reset-password` });
@@ -64,12 +77,12 @@ export default function ResetPasswordPage() {
     event.preventDefault();
     if (password.length < 8) return setNotice("Use at least 8 characters.");
     if (password !== confirm) return setNotice("Passwords do not match.");
-    const client = getSupabaseBrowserClient();
+    const client = getRecoveryClient();
     if (!client) return;
     setBusy(true); setNotice("");
     const { error } = await client.auth.updateUser({ password });
     if (error) setNotice(error.message);
-    else { setDone(true); setPassword(""); setConfirm(""); }
+    else { await client.auth.signOut(); setDone(true); setPassword(""); setConfirm(""); }
     setBusy(false);
   };
   return <main className="container flex min-h-dvh max-w-md items-center py-12">
